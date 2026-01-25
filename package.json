@@ -7,6 +7,7 @@
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\" --names \"client,server\" --prefix-colors \"blue,green\"",
     "dev:client": "vite",
     "dev:server": "tsx watch --env-file=.env src/server/index.ts",
+    "vercel-build": "npm run build",
     "build": "tsc -b && vite build && tsc --project tsconfig.server.json",
     "build:client": "tsc -b && vite build",
     "build:server": "tsc --project tsconfig.server.json",
