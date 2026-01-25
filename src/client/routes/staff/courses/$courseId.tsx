@@ -251,7 +251,7 @@ function StaffCourseDetail() {
                   type="text"
                   name="title"
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -259,7 +259,7 @@ function StaffCourseDetail() {
                 <textarea
                   name="description"
                   rows={3}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -270,7 +270,7 @@ function StaffCourseDetail() {
                     required
                     value={assignmentType}
                     onChange={(event) => setAssignmentType(event.target.value as 'mcq' | 'written')}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   >
                     <option value="mcq">MCQ</option>
                     <option value="written">Written</option>
@@ -281,7 +281,7 @@ function StaffCourseDetail() {
                   <input
                     type="datetime-local"
                     name="dueDate"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -291,7 +291,7 @@ function StaffCourseDetail() {
                     name="maxAttempts"
                     defaultValue={1}
                     min={1}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -401,7 +401,7 @@ function StaffCourseDetail() {
                   type="text"
                   name="qTitle"
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -410,7 +410,7 @@ function StaffCourseDetail() {
                   name="qType"
                   value={questionType}
                   onChange={(event) => setQuestionType(event.target.value as 'mcq' | 'written')}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option value="written">Written</option>
                   <option value="mcq">MCQ</option>
@@ -422,7 +422,7 @@ function StaffCourseDetail() {
                   name="qPrompt"
                   rows={4}
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   placeholder="Write the question prompt students will see..."
                 />
               </div>
@@ -434,7 +434,7 @@ function StaffCourseDetail() {
                     name="qPoints"
                     defaultValue={10}
                     min={1}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -465,7 +465,7 @@ function StaffCourseDetail() {
                               prev.map((item) => (item.id === option.id ? { ...item, text: value } : item))
                             );
                           }}
-                          className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className="flex-1 rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
                           placeholder={`Option ${index + 1}`}
                         />
                         <button
