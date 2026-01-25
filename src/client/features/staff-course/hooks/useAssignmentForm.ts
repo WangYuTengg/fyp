@@ -33,6 +33,17 @@ export function useAssignmentForm(courseId: string) {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (assignmentId: string) => assignmentsApi.remove(assignmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      alert('Failed to delete assignment: ' + message);
+    },
+  });
+
   const handleAssignmentTypeChange = (newType: 'mcq' | 'written') => {
     setAssignmentType(newType);
     setSelectedQuestionIds([]);
@@ -66,6 +77,7 @@ export function useAssignmentForm(courseId: string) {
     setAssignmentType: handleAssignmentTypeChange,
     createAssignment,
     togglePublish,
+    deleteAssignment: (assignmentId: string) => deleteMutation.mutate(assignmentId),
     isCreating: createMutation.isPending,
   };
 }

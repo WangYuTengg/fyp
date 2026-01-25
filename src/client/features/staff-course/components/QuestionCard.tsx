@@ -2,6 +2,7 @@ import type { Question } from '../../../lib/api';
 
 type QuestionCardProps = {
   question: Question;
+  onDelete?: (questionId: string) => void;
 };
 
 function getPrompt(content: unknown): string {
@@ -10,7 +11,13 @@ function getPrompt(content: unknown): string {
   return typeof record.prompt === 'string' ? record.prompt : '';
 }
 
-export function QuestionCard({ question }: QuestionCardProps) {
+export function QuestionCard({ question, onDelete }: QuestionCardProps) {
+  const handleDelete = () => {
+    if (window.confirm(`Are you sure you want to delete "${question.title}"?`)) {
+      onDelete?.(question.id);
+    }
+  };
+
   return (
     <div className="border border-gray-200 rounded-lg p-4">
       <div className="flex justify-between items-start">
@@ -22,6 +29,14 @@ export function QuestionCard({ question }: QuestionCardProps) {
             <span>Points: {question.points}</span>
           </div>
         </div>
+        {onDelete && (
+          <button
+            onClick={handleDelete}
+            className="ml-4 text-red-600 hover:text-red-800 font-medium py-2 px-4 rounded hover:bg-red-50"
+          >
+            Delete
+          </button>
+        )}
       </div>
     </div>
   );

@@ -32,6 +32,18 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (questionId: string) => questionsApi.remove(questionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['questions', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      alert('Failed to delete question: ' + message);
+    },
+  });
+
   const createQuestion = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -86,6 +98,7 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
     selectedAssignmentId,
     setSelectedAssignmentId,
     createQuestion,
+    deleteQuestion: (questionId: string) => deleteMutation.mutate(questionId),
     isCreating: createMutation.isPending,
   };
 }

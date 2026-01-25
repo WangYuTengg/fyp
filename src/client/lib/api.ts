@@ -111,6 +111,9 @@ export const assignmentsApi = {
     method: 'PATCH',
     body: JSON.stringify({ isPublished }),
   }),
+  remove: (id: string) => apiClient<{ success: true }>(`/api/assignments/${id}`, {
+    method: 'DELETE',
+  }),
 };
 
 // Submissions API

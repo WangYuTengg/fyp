@@ -108,6 +108,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                     key={assignment.id}
                     assignment={assignment}
                     onTogglePublish={assignmentForm.togglePublish}
+                    onDelete={assignmentForm.deleteAssignment}
                   />
                 ))}
               </div>
@@ -145,7 +146,11 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
               ) : (
                 <div className="space-y-4">
                   {questions.map((question) => (
-                    <QuestionCard key={question.id} question={question} />
+                    <QuestionCard 
+                      key={question.id} 
+                      question={question} 
+                      onDelete={questionForm.deleteQuestion}
+                    />
                   ))}
                 </div>
               )}
