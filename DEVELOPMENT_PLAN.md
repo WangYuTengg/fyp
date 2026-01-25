@@ -1,7 +1,7 @@
 # UML Assessment Platform - Implementation Plan
 
 ## Project Overview
-**Objective**: Build an automated assessment platform for UML diagrams with support for multiple assessment modes (MCQ, written, coding, UML), targeting on-premise school deployment.
+**Objective**: Build an automated assessment platform for UML diagrams with support for multiple assessment modes. Current implementation focuses on MCQ and written; UML is planned for later phases.
 
 **Key Differentiator**: LLM-assisted UML diagram grading with human-in-the-loop oversight and audit trails.
 
@@ -29,10 +29,10 @@
 - [x] Users table with role enum (admin, staff, student)
 - [x] Courses table (code, name, academic year, semester)
 - [x] Enrollments table (course-scoped roles: lecturer, TA, lab_exec, student)
-- [x] Assignments table (type: MCQ, written, coding, UML)
+- [x] Assignments table (type: MCQ, written, coding, UML) (current UI supports MCQ and written)
 - [x] Questions table (reusable question pool with rubrics)
 - [x] Submissions table (attempt tracking, status lifecycle)
-- [x] Answers table (file upload support for UML diagrams)
+- [x] Answers table (file URL field for UML uploads in future)
 - [x] Marks table (manual + AI-assisted grading flags)
 
 #### Server APIs ✅
@@ -60,20 +60,21 @@
 
 ### 🔲 Phase 2: Question Pools & Assignment Builder
 **Duration**: Week 5-6  
-**Status**: 🔲 Not Started
+**Status**: 🟡 In Progress
 
 #### Question Management UI
-- [ ] Create/edit/delete questions
-- [ ] Question type-specific editors:
-  - [ ] MCQ: options, correct answer(s)
-  - [ ] Written: rubric criteria, sample answers
-  - [ ] Coding: test cases, starter code
-  - [ ] UML: reference diagram, PlantUML DSL
+- [x] Create questions (MCQ + written)
+- [ ] Edit/delete questions
+- [x] Question type-specific editors:
+   - [x] MCQ: options (single-choice)
+   - [x] Written: prompt entry
+   - [ ] UML: reference diagram, PlantUML DSL (deferred)
 - [ ] Tag/categorize questions
 - [ ] Search and filter question pool
 
 #### Assignment Builder
-- [ ] Add/remove questions from assignment
+- [x] Add questions to assignment at creation (MCQ/written only)
+- [ ] Add/remove questions after creation
 - [ ] Drag-drop question ordering
 - [ ] Override points per question
 - [ ] Preview assignment as student would see it
@@ -81,18 +82,18 @@
 #### Attempt Enforcement
 - [ ] Timer countdown UI (client-side)
 - [ ] Server-side validation of time limits
-- [ ] Max attempts enforcement
-- [ ] Due date validation on submission
+- [x] Max attempts enforcement
+- [x] Strict due date cutoff for draft saves (MCQ/written)
 
 #### Auto-Save & Draft Management
-- [ ] Periodic auto-save of draft answers (every 30s)
+- [x] Periodic auto-save of draft answers (every 30s, silent)
 - [ ] Resume draft on re-entry
 - [ ] Submission confirmation dialog
 
 **Deliverables**:
-- Students can take timed assignments
-- Staff can build assignments from question pool
-- Robust attempt tracking
+- Students can take MCQ/written assignments with strict due dates
+- Staff can build assignments from the question pool (MCQ/written)
+- Silent auto-save for drafts
 
 ---
 
@@ -192,7 +193,7 @@
    - Archive courses
 
 2. **Assignment Creation**
-   - Support 4 modes: MCQ, Written, Coding, UML
+   - Support MCQ and Written (UML planned; coding deferred)
    - Question pools for reuse
    - Timed attempts, max attempts, due dates
    - Publish/unpublish workflow

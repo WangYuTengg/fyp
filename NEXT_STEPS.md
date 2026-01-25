@@ -15,7 +15,7 @@
 - [x] Users table with roles
 - [x] Courses table
 - [x] Enrollments table (course-scoped roles)
-- [x] Assignments table (4 types: MCQ, written, coding, UML)
+- [x] Assignments table (4 types; UI currently supports MCQ/written)
 - [x] Questions table (question pool)
 - [x] Submissions table (attempt tracking)
 - [x] Answers table (with file URL support)
@@ -51,33 +51,32 @@
 
 ---
 
-## 🔲 Phase 2: Question Pools & Simple Assignments (Week 5-6)
+## 🟡 Phase 2: Question Pools & Simple Assignments (Week 5-6)
 
 ### Question Management
-- [ ] Create question form UI
-  - [ ] MCQ editor (options, correct answers)
-  - [ ] Written question editor (rubric, sample answers)
-  - [ ] Coding question editor (test cases, starter code)
-  - [ ] UML question editor (reference diagram upload)
+- [x] Create question form UI
+   - [x] MCQ editor (options, single-choice)
+   - [x] Written question editor (prompt)
+   - [ ] UML question editor (reference diagram upload, deferred)
 - [ ] Edit/delete questions
-- [ ] Question list/search page (staff only)
+- [x] Question list (staff only)
+- [ ] Question search/filter
 - [ ] Tag/categorize questions
-- [ ] Filter by type, tags, course
 
 ### Assignment Builder
-- [ ] "Add Questions" UI for assignments
+- [x] "Add Questions" UI for assignments (MCQ/written only)
 - [ ] Drag-drop question ordering
 - [ ] Override points per question
 - [ ] Preview assignment as student
 - [ ] Bulk import questions from pool
 
 ### Student Attempt Flow (No Timer)
-- [ ] Student assignment attempt page (view questions, type answers)
-- [ ] Save answers endpoint integration (manual save)
-- [ ] Submit assignment (finalize)
+- [x] Student assignment attempt page (view questions, type answers)
+- [x] Save answers endpoint integration (manual save)
+- [x] Submit assignment (finalize)
 
 ### Auto-Save
-- [ ] Periodic auto-save (every 30 seconds)
+- [x] Periodic auto-save (every 30 seconds, silent)
 - [ ] Resume draft on page reload
 - [ ] Draft indicator UI
 - [ ] Unsaved changes warning on navigation

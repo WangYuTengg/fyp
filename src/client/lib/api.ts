@@ -6,13 +6,38 @@ export type ApiError = {
   error?: string;
 };
 
+export class ApiRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+  }
+}
+
+export type McqOption = {
+  id: string;
+  text: string;
+};
+
+export type McqContent = {
+  prompt: string;
+  options: McqOption[];
+  allowMultiple?: boolean;
+};
+
+export type WrittenContent = {
+  prompt: string;
+};
+
 export type Question = {
   id: string;
   courseId: string | null;
   type: 'mcq' | 'written' | 'coding' | 'uml';
   title: string;
   description: string | null;
-  content: unknown;
+  content: McqContent | WrittenContent | unknown;
   rubric: unknown;
   points: number;
   tags: string[] | null;
@@ -35,14 +60,20 @@ export async function apiClient<TResponse = unknown>(endpoint: string, options: 
   
   headers.set('Content-Type', 'application/json');
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    throw err instanceof Error ? err : new Error('Network error');
+  }
 
   if (!response.ok) {
     const error = (await response.json().catch(() => ({ error: 'Request failed' }))) as ApiError;
-    throw new Error(error.error || `Request failed: ${response.statusText}`);
+    throw new ApiRequestError(error.error || `Request failed: ${response.statusText}`, response.status);
   }
 
   return response.json() as Promise<TResponse>;
@@ -104,12 +135,27 @@ export const submissionsApi = {
 
 export const questionsApi = {
   listByCourse: (courseId: string) => apiClient<Question[]>(`/api/questions/course/${courseId}`),
-  create: (data: { courseId: string; title: string; prompt: string; points?: number }) =>
+  create: (data: {
+    courseId: string;
+    title: string;
+    type: 'mcq' | 'written';
+    prompt: string;
+    points?: number;
+    options?: McqOption[];
+    allowMultiple?: boolean;
+  }) =>
     apiClient<Question>('/api/questions', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  update: (id: string, data: { title?: string; prompt?: string; points?: number }) =>
+  update: (id: string, data: {
+    title?: string;
+    type?: 'mcq' | 'written';
+    prompt?: string;
+    points?: number;
+    options?: McqOption[];
+    allowMultiple?: boolean;
+  }) =>
     apiClient<Question>(`/api/questions/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

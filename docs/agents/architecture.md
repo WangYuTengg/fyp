@@ -62,7 +62,7 @@ Key tables:
 - `users` - Extended user profiles (synced with Supabase auth)
 - `courses` - Course definitions
 - `enrollments` - Student-course relationships with role-based access
-- `assignments` - Assignment configurations (MCQ, written, coding, UML)
+- `assignments` - Assignment configurations (MCQ, written; coding/UML planned)
 - `questions` - Question bank linked to assignments
 - `submissions` - Student submission records
 - `answers` - Individual question answers within submissions

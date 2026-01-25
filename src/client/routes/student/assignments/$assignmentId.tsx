@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
-import { assignmentsApi, submissionsApi } from '../../../lib/api';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ApiRequestError, assignmentsApi, submissionsApi } from '../../../lib/api';
 import { useAuth } from '../../../hooks/useAuth';
 
 type AssignmentQuestion = {
@@ -22,6 +22,7 @@ type AssignmentDetails = {
   description: string | null;
   type: string;
   courseId: string;
+  dueDate: string | null;
   questions: AssignmentQuestion[];
 };
 
@@ -32,10 +33,34 @@ type Submission = {
   status: 'draft' | 'submitted' | 'grading' | 'graded';
 };
 
+type AnswerState =
+  | { type: 'written'; text: string }
+  | { type: 'mcq'; selectedOptionIds: string[] };
+
 function getPrompt(content: unknown): string {
   if (typeof content !== 'object' || content === null) return '';
   const record = content as Record<string, unknown>;
   return typeof record.prompt === 'string' ? record.prompt : '';
+}
+
+function getMcqOptions(content: unknown): Array<{ id: string; text: string }> {
+  if (typeof content !== 'object' || content === null) return [];
+  const record = content as Record<string, unknown>;
+  const options = Array.isArray(record.options) ? record.options : [];
+  return options
+    .map((option) => ({
+      id: typeof option?.id === 'string' ? option.id : '',
+      text: typeof option?.text === 'string' ? option.text : '',
+    }))
+    .filter((option) => option.id && option.text);
+}
+
+function getWrittenValue(answer?: AnswerState): string {
+  return answer?.type === 'written' ? answer.text : '';
+}
+
+function isOptionSelected(answer: AnswerState | undefined, optionId: string): boolean {
+  return answer?.type === 'mcq' ? answer.selectedOptionIds.includes(optionId) : false;
 }
 
 export const Route = createFileRoute('/student/assignments/$assignmentId')({
@@ -51,9 +76,12 @@ function StudentAssignmentAttempt() {
   const [error, setError] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<AssignmentDetails | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, AnswerState>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const dirtyRef = useRef<Set<string>>(new Set());
+  const answersRef = useRef<Record<string, AnswerState>>({});
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -90,23 +118,87 @@ function StudentAssignmentAttempt() {
   }, [user, assignmentId]);
 
   const questions = useMemo(() => assignment?.questions ?? [], [assignment]);
+  const questionsById = useMemo(() => {
+    const map = new Map<string, AssignmentQuestion['question']>();
+    questions.forEach((item) => map.set(item.question.id, item.question));
+    return map;
+  }, [questions]);
 
-  const saveAnswer = async (questionId: string) => {
-    if (!submission) return;
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const dueDate = assignment?.dueDate ? new Date(assignment.dueDate) : null;
+  const isPastDue = dueDate ? Date.now() > dueDate.getTime() : false;
+
+  const isBlockingError = useCallback((err: unknown) => {
+    if (err instanceof ApiRequestError) {
+      return err.status === 401 || err.status === 403 || err.status === 409 || err.status >= 500;
+    }
+
+    return err instanceof TypeError;
+  }, []);
+
+  const saveAnswer = useCallback(async (questionId: string, silent = false) => {
+    if (!submission || submitted) return;
+    const question = questionsById.get(questionId);
+    if (!question) return;
+
+    if (isPastDue) {
+      showToast('Assignment is past due. You can only submit your last saved answers.');
+      return;
+    }
+
+    const draft = answersRef.current[questionId];
+    const content = question.type === 'mcq'
+      ? { selectedOptionIds: draft?.type === 'mcq' ? draft.selectedOptionIds : [] }
+      : { text: draft?.type === 'written' ? draft.text : '' };
 
     try {
-      setSaving((prev) => ({ ...prev, [questionId]: true }));
+      if (!silent) {
+        setSaving((prev) => ({ ...prev, [questionId]: true }));
+      }
       await submissionsApi.saveAnswer(submission.id, {
         questionId,
-        content: { text: answers[questionId] ?? '' },
+        content,
       });
+      dirtyRef.current.delete(questionId);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      alert('Failed to save answer: ' + message);
+      if (isBlockingError(err)) {
+        const message = err instanceof Error ? err.message : String(err);
+        showToast(message);
+      }
     } finally {
-      setSaving((prev) => ({ ...prev, [questionId]: false }));
+      if (!silent) {
+        setSaving((prev) => ({ ...prev, [questionId]: false }));
+      }
     }
-  };
+  }, [isBlockingError, isPastDue, questionsById, showToast, submission, submitted]);
+
+  useEffect(() => {
+    if (!submission || submitted) return;
+
+    const interval = setInterval(() => {
+      if (isPastDue) return;
+      const dirtyIds = Array.from(dirtyRef.current);
+      if (dirtyIds.length === 0) return;
+      dirtyIds.forEach((questionId) => {
+        void saveAnswer(questionId, true);
+      });
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isPastDue, saveAnswer, submission, submitted]);
 
   const submit = async () => {
     if (!submission) return;
@@ -115,8 +207,10 @@ function StudentAssignmentAttempt() {
       await submissionsApi.submit(submission.id);
       setSubmitted(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      alert('Failed to submit: ' + message);
+      if (isBlockingError(err)) {
+        const message = err instanceof Error ? err.message : String(err);
+        showToast(message);
+      }
     }
   };
 
@@ -138,9 +232,24 @@ function StudentAssignmentAttempt() {
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 rounded-md bg-red-600 text-white px-4 py-3 shadow-lg">
+          {toast}
+        </div>
+      )}
       <div className="bg-white shadow rounded-lg p-6">
         <h1 className="text-2xl font-bold text-gray-900">{assignment.title}</h1>
         {assignment.description && <p className="mt-2 text-gray-600">{assignment.description}</p>}
+        {dueDate && (
+          <p className="mt-2 text-sm text-gray-500">Due: {dueDate.toLocaleString()}</p>
+        )}
+        {isPastDue && (
+          <div className="mt-4 rounded-md bg-yellow-50 p-4">
+            <p className="text-sm text-yellow-800">
+              Past due. Saving is disabled, but you can still submit your last saved answers.
+            </p>
+          </div>
+        )}
         {submitted && (
           <div className="mt-4 rounded-md bg-green-50 p-4">
             <p className="text-sm text-green-800">Submitted successfully.</p>
@@ -168,20 +277,59 @@ function StudentAssignmentAttempt() {
                 </div>
               </div>
 
-              <textarea
-                rows={5}
-                value={answers[aq.question.id] ?? ''}
-                onChange={(e) => setAnswers((prev) => ({ ...prev, [aq.question.id]: e.target.value }))}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                placeholder="Type your answer..."
-                disabled={submitted}
-              />
+              {aq.question.type === 'written' && (
+                <textarea
+                  rows={5}
+                  value={getWrittenValue(answers[aq.question.id])}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setAnswers((prev) => ({
+                      ...prev,
+                      [aq.question.id]: { type: 'written', text: value },
+                    }));
+                    dirtyRef.current.add(aq.question.id);
+                  }}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  placeholder="Type your answer..."
+                  disabled={submitted}
+                />
+              )}
+
+              {aq.question.type === 'mcq' && (
+                <div className="space-y-2">
+                  {getMcqOptions(aq.question.content).map((option) => (
+                    <label key={option.id} className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        name={`mcq-${aq.question.id}`}
+                        checked={isOptionSelected(answers[aq.question.id], option.id)}
+                        onChange={() => {
+                          setAnswers((prev) => ({
+                            ...prev,
+                            [aq.question.id]: { type: 'mcq', selectedOptionIds: [option.id] },
+                          }));
+                          dirtyRef.current.add(aq.question.id);
+                        }}
+                        disabled={submitted}
+                        className="text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>{option.text}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {aq.question.type !== 'written' && aq.question.type !== 'mcq' && (
+                <p className="text-sm text-gray-500">
+                  This question type is not supported yet.
+                </p>
+              )}
 
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => saveAnswer(aq.question.id)}
-                  disabled={submitted || saving[aq.question.id]}
+                  disabled={submitted || saving[aq.question.id] || isPastDue}
                   className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
                 >
                   {saving[aq.question.id] ? 'Saving...' : 'Save'}

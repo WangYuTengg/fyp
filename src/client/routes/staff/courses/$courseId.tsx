@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useCallback, useEffect, useState } from 'react';
-import { coursesApi, assignmentsApi, questionsApi, type Question } from '../../../lib/api';
+import { coursesApi, assignmentsApi, questionsApi, type Question, type McqOption } from '../../../lib/api';
 import { useAuth } from '../../../hooks/useAuth';
 import { HomeIcon } from '@heroicons/react/24/outline';
 
@@ -46,6 +46,12 @@ function StaffCourseDetail() {
   const [showCreateAssignment, setShowCreateAssignment] = useState(false);
   const [showCreateQuestion, setShowCreateQuestion] = useState(false);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
+  const [assignmentType, setAssignmentType] = useState<'mcq' | 'written'>('mcq');
+  const [questionType, setQuestionType] = useState<'mcq' | 'written'>('written');
+  const [mcqOptions, setMcqOptions] = useState<McqOption[]>([
+    { id: crypto.randomUUID(), text: '' },
+    { id: crypto.randomUUID(), text: '' },
+  ]);
 
   const getPrompt = (content: unknown): string => {
     if (typeof content !== 'object' || content === null) return '';
@@ -91,6 +97,10 @@ function StaffCourseDetail() {
     }
   }, [user, dbUser, loadData]);
 
+  useEffect(() => {
+    setSelectedQuestionIds([]);
+  }, [assignmentType]);
+
   const createAssignment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -100,7 +110,7 @@ function StaffCourseDetail() {
         courseId,
         title: formData.get('title'),
         description: formData.get('description'),
-        type: formData.get('type'),
+        type: assignmentType,
         dueDate: formData.get('dueDate') || null,
         maxAttempts: Number(formData.get('maxAttempts')) || 1,
         questionIds: selectedQuestionIds,
@@ -123,9 +133,48 @@ function StaffCourseDetail() {
     const prompt = String(formData.get('qPrompt') || '').trim();
     const points = Number(formData.get('qPoints') || 10);
 
+    if (questionType === 'mcq') {
+      const options = mcqOptions
+        .map((option) => ({
+          id: option.id || crypto.randomUUID(),
+          text: option.text.trim(),
+        }))
+        .filter((option) => option.text.length > 0);
+
+      if (options.length < 2) {
+        alert('MCQ requires at least two options.');
+        return;
+      }
+
+      try {
+        await questionsApi.create({
+          courseId,
+          title,
+          type: 'mcq',
+          prompt,
+          points,
+          options,
+          allowMultiple: false,
+        });
+        setShowCreateQuestion(false);
+        setQuestionType('written');
+        setMcqOptions([
+          { id: crypto.randomUUID(), text: '' },
+          { id: crypto.randomUUID(), text: '' },
+        ]);
+        (e.currentTarget as HTMLFormElement).reset();
+        loadData();
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        alert('Failed to create question: ' + message);
+      }
+      return;
+    }
+
     try {
-      await questionsApi.create({ courseId, title, prompt, points });
+      await questionsApi.create({ courseId, title, type: 'written', prompt, points });
       setShowCreateQuestion(false);
+      setQuestionType('written');
       (e.currentTarget as HTMLFormElement).reset();
       loadData();
     } catch (err: unknown) {
@@ -219,12 +268,12 @@ function StaffCourseDetail() {
                   <select
                     name="type"
                     required
+                    value={assignmentType}
+                    onChange={(event) => setAssignmentType(event.target.value as 'mcq' | 'written')}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   >
                     <option value="mcq">MCQ</option>
                     <option value="written">Written</option>
-                    <option value="coding">Coding</option>
-                    <option value="uml">UML</option>
                   </select>
                 </div>
                 <div>
@@ -249,11 +298,13 @@ function StaffCourseDetail() {
 
               <div className="border-t border-gray-200 pt-4">
                 <h3 className="text-sm font-medium text-gray-900">Questions (optional)</h3>
-                {questions.length === 0 ? (
-                  <p className="mt-2 text-sm text-gray-500">No questions in this course yet. Create some below.</p>
+                {questions.filter((q) => q.type === assignmentType).length === 0 ? (
+                  <p className="mt-2 text-sm text-gray-500">
+                    No {assignmentType.toUpperCase()} questions yet. Create some below.
+                  </p>
                 ) : (
                   <div className="mt-2 space-y-2 max-h-48 overflow-auto border border-gray-200 rounded p-3">
-                    {questions.map((q) => (
+                    {questions.filter((q) => q.type === assignmentType).map((q) => (
                       <label key={q.id} className="flex items-start gap-3 text-sm">
                         <input
                           type="checkbox"
@@ -354,6 +405,18 @@ function StaffCourseDetail() {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700">Type</label>
+                <select
+                  name="qType"
+                  value={questionType}
+                  onChange={(event) => setQuestionType(event.target.value as 'mcq' | 'written')}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                >
+                  <option value="written">Written</option>
+                  <option value="mcq">MCQ</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700">Prompt</label>
                 <textarea
                   name="qPrompt"
@@ -375,6 +438,53 @@ function StaffCourseDetail() {
                   />
                 </div>
               </div>
+
+              {questionType === 'mcq' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700">Options</label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMcqOptions((prev) => [...prev, { id: crypto.randomUUID(), text: '' }])
+                      }
+                      className="text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      Add option
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {mcqOptions.map((option, index) => (
+                      <div key={option.id} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={option.text}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setMcqOptions((prev) =>
+                              prev.map((item) => (item.id === option.id ? { ...item, text: value } : item))
+                            );
+                          }}
+                          className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          placeholder={`Option ${index + 1}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMcqOptions((prev) => prev.filter((item) => item.id !== option.id))
+                          }
+                          className="text-sm text-gray-500 hover:text-red-600"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Single-choice only for now. Multi-correct will be added later.
+                  </p>
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -400,6 +510,9 @@ function StaffCourseDetail() {
                     </p>
                     <p className="mt-2 text-xs text-gray-500">{q.points} pts</p>
                   </div>
+                  <span className="px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded">
+                    {q.type.toUpperCase()}
+                  </span>
                 </div>
               </div>
             ))}

@@ -12,16 +12,16 @@ Steps 1-4 of the implementation plan have been completed successfully. The found
 - `users` - User accounts with roles (admin, staff, student)
 - `courses` - Course information (code, name, academic year, semester)
 - `enrollments` - Course membership with role-based access (lecturer, TA, lab_exec, student)
-- `assignments` - Assignments with type support (MCQ, written, coding, UML)
+- `assignments` - Assignments with type support (MCQ, written, coding, UML; UI currently supports MCQ/written)
 - `questions` - Reusable question pool with rubrics and metadata
 - `assignment_questions` - Mapping questions to assignments
 - `submissions` - Student assignment attempts with status tracking
-- `answers` - Individual question responses with file upload support
+- `answers` - Individual question responses (file upload planned for UML phase)
 - `marks` - Grading results with manual/AI-assisted flags
 
 **Key Features**:
 - Full Drizzle ORM relations for easy querying
-- Support for 4 assignment types (MCQ, written, coding, UML)
+- Schema supports 4 assignment types; current UI/API focus on MCQ and written
 - Course-scoped roles (separate from global roles)
 - Attempt tracking and submission lifecycle (draft → submitted → grading → graded)
 - Extensible rubric/content fields using JSONB
@@ -68,13 +68,13 @@ Steps 1-4 of the implementation plan have been completed successfully. The found
 #### Assignments API (`/api/assignments`)
 - `GET /course/:courseId` - List assignments for a course
 - `GET /:id` - Get assignment with questions
-- `POST /` - Create assignment (staff/admin only)
+- `POST /` - Create assignment (staff/admin only; MCQ/written only)
 - `PATCH /:id/publish` - Publish/unpublish assignment
 
 #### Submissions API (`/api/submissions`)
 - `GET /assignment/:assignmentId` - List submissions (own for students, all for staff)
 - `POST /start` - Start new submission (creates draft)
-- `POST /:submissionId/answers` - Save answer (upsert)
+- `POST /:submissionId/answers` - Save answer (upsert; strict due date cutoff for draft saves)
 - `POST /:submissionId/submit` - Finalize submission
 - `POST /:submissionId/grade` - Grade submission (staff/admin only)
 
@@ -125,7 +125,7 @@ Steps 1-4 of the implementation plan have been completed successfully. The found
 - View all courses
 - Create new courses
 - Manage course enrollments (view list)
-- Create assignments with all metadata
+- Create MCQ/written assignments and attach matching questions
 - Publish/unpublish assignments
 - View enrollments table
 - Role-based access (admin/staff only)
@@ -194,10 +194,12 @@ src/
 ## Next Steps (Phases 2-4)
 
 ### Phase 2: Question Pools & Timed Attempts
-- [ ] Question management UI (create/edit/delete questions)
-- [ ] Add questions to assignments (drag-drop or multi-select)
+- [x] Question management UI (create MCQ/written questions)
+- [x] Add questions to assignments at creation (MCQ/written)
+- [x] Silent auto-save draft answers
+- [x] Strict due date cutoff for draft saves (dueAt)
+- [ ] Edit/delete questions
 - [ ] Timed attempt enforcement (client + server validation)
-- [ ] Auto-save draft answers
 - [ ] Attempt history view for students
 
 ### Phase 3: UML Submission Support
@@ -279,9 +281,9 @@ curl -X POST http://localhost:3000/api/courses/{courseId}/enroll \
 ## Known Limitations / TODOs
 
 1. **No Bulk Enrollment**: Currently one-by-one API calls
-2. **No Question UI**: Questions table exists but no CRUD interface yet
+2. **Partial Question UI**: Create and list questions only (no edit/delete/search)
 3. **No File Upload**: UML submissions need Supabase Storage integration
-4. **No Validation**: Assignment constraints (due dates, time limits) not enforced yet
+4. **Partial Validation**: Strict due date cutoff enforced for draft saves; time limits still not enforced
 5. **No Pagination**: All lists returned in full
 6. **No Search/Filter**: Dashboards show all items
 7. **Route Guards**: Client-side only (server middleware protects APIs)

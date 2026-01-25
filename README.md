@@ -1,6 +1,6 @@
 # UML Assessment Platform
 
-An automated assessment platform for UML diagrams with support for multiple assessment modes (MCQ, written, coding, UML), designed for on-premise school deployment with LLM-assisted grading capabilities.
+An automated assessment platform for UML diagrams with support for multiple assessment modes (currently MCQ and written; UML planned), designed for on-premise school deployment with LLM-assisted grading capabilities.
 
 ## 📚 Documentation
 
@@ -8,17 +8,18 @@ An automated assessment platform for UML diagrams with support for multiple asse
 - **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - Current status, completed features, architecture
 - **[Development Plan](DEVELOPMENT_PLAN.md)** - Full roadmap, phases, NFRs, timeline
 
-## ✨ Features (Phase 1 - Completed)
+## ✨ Features (Phase 1 Complete, Phase 2 In Progress)
 
 ### For Students
 - 📚 View enrolled courses
 - 📝 Browse and start assignments
-- 💾 Submit answers (with file upload support for UML diagrams)
+- 💾 Submit answers
+- 🔄 Silent auto-save for MCQ/written drafts
 - 📊 Track submission status
 
 ### For Staff/Lecturers
 - 🎓 Create and manage courses
-- 📋 Create assignments (MCQ, written, coding, UML)
+- 📋 Create assignments (MCQ, written)
 - 👥 View course enrollments
 - ✅ Publish/unpublish assignments
 - 📊 Manual grading interface

@@ -3,18 +3,30 @@ import { db } from '../../db/index.js';
 import { questions } from '../../db/schema.js';
 import { requireAuth, type AuthContext } from '../middleware/auth.js';
 import { desc, eq } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
+
+type McqOption = {
+  id?: string;
+  text?: string;
+};
 
 type CreateQuestionBody = {
   courseId: string;
   title: string;
+  type: 'mcq' | 'written';
   prompt: string;
   points?: number;
+  options?: McqOption[];
+  allowMultiple?: boolean;
 };
 
 type UpdateQuestionBody = {
   title?: string;
+  type?: 'mcq' | 'written';
   prompt?: string;
   points?: number;
+  options?: McqOption[];
+  allowMultiple?: boolean;
 };
 
 const app = new Hono<AuthContext>();
@@ -50,18 +62,54 @@ app.post('/', requireAuth, async (c) => {
 
   const body = (await c.req.json()) as CreateQuestionBody;
 
-  if (!body.courseId || !body.title || !body.prompt) {
-    return c.json({ error: 'courseId, title and prompt are required' }, 400);
+  if (!body.courseId || !body.title || !body.prompt || !body.type) {
+    return c.json({ error: 'courseId, title, type and prompt are required' }, 400);
+  }
+
+  if (body.allowMultiple) {
+    return c.json({ error: 'Multiple-correct MCQ is not supported yet' }, 400);
+  }
+
+  if (body.type !== 'mcq' && body.type !== 'written') {
+    return c.json({ error: 'Invalid question type' }, 400);
+  }
+
+  const prompt = body.prompt.trim();
+  if (!prompt) {
+    return c.json({ error: 'Prompt is required' }, 400);
+  }
+
+  const points = body.points ?? 10;
+  let content: Record<string, unknown> = { prompt };
+
+  if (body.type === 'mcq') {
+    const rawOptions = Array.isArray(body.options) ? body.options : [];
+    const options = rawOptions
+      .map((option) => ({
+        id: option.id ?? randomUUID(),
+        text: (option.text ?? '').trim(),
+      }))
+      .filter((option) => option.text.length > 0);
+
+    if (options.length < 2) {
+      return c.json({ error: 'MCQ requires at least two options' }, 400);
+    }
+
+    content = {
+      prompt,
+      options,
+      allowMultiple: false,
+    };
   }
 
   const [row] = await db
     .insert(questions)
     .values({
       courseId: body.courseId,
-      type: 'written',
+      type: body.type,
       title: body.title,
-      content: { prompt: body.prompt },
-      points: body.points ?? 10,
+      content,
+      points,
       createdBy: user!.id,
       updatedAt: new Date(),
     })
@@ -80,10 +128,68 @@ app.put('/:id', requireAuth, async (c) => {
   const id = c.req.param('id');
   const body = (await c.req.json()) as UpdateQuestionBody;
 
+  const [existing] = await db
+    .select()
+    .from(questions)
+    .where(eq(questions.id, id))
+    .limit(1);
+
+  if (!existing) {
+    return c.json({ error: 'Question not found' }, 404);
+  }
+
+  if (body.type && body.type !== existing.type) {
+    return c.json({ error: 'Changing question type is not supported' }, 400);
+  }
+
+  if (body.allowMultiple) {
+    return c.json({ error: 'Multiple-correct MCQ is not supported yet' }, 400);
+  }
+
   const patch: Record<string, unknown> = { updatedAt: new Date() };
   if (typeof body.title === 'string') patch.title = body.title;
   if (typeof body.points === 'number') patch.points = body.points;
-  if (typeof body.prompt === 'string') patch.content = { prompt: body.prompt };
+
+  const existingContent = (existing.content ?? {}) as Record<string, unknown>;
+  const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : undefined;
+
+  if (existing.type === 'written') {
+    if (prompt !== undefined) {
+      if (!prompt) {
+        return c.json({ error: 'Prompt is required' }, 400);
+      }
+      patch.content = { prompt };
+    }
+  }
+
+  if (existing.type === 'mcq') {
+    const rawOptions = Array.isArray(body.options)
+      ? body.options
+      : (existingContent.options as McqOption[] | undefined) ?? [];
+    const updatedPrompt = prompt ?? (existingContent.prompt as string | undefined) ?? '';
+
+    const options = rawOptions
+      .map((option) => ({
+        id: option.id ?? randomUUID(),
+        text: (option.text ?? '').trim(),
+      }))
+      .filter((option) => option.text.length > 0);
+
+    if (prompt !== undefined || body.options) {
+      if (!updatedPrompt) {
+        return c.json({ error: 'Prompt is required' }, 400);
+      }
+      if (options.length < 2) {
+        return c.json({ error: 'MCQ requires at least two options' }, 400);
+      }
+
+      patch.content = {
+        prompt: updatedPrompt,
+        options,
+        allowMultiple: false,
+      };
+    }
+  }
 
   const [updated] = await db
     .update(questions)

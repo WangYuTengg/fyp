@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../../db/index.js';
 import { assignments, assignmentQuestions, questions, enrollments } from '../../db/schema.js';
 import { requireAuth, type AuthContext } from '../middleware/auth.js';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 
 const app = new Hono<AuthContext>();
 
@@ -121,7 +121,7 @@ app.post('/', requireAuth, async (c) => {
     return c.json({ error: 'Missing required fields' }, 400);
   }
 
-  const allowedTypes = ['mcq', 'written', 'coding', 'uml'] as const;
+  const allowedTypes = ['mcq', 'written'] as const;
   type AssignmentType = (typeof allowedTypes)[number];
   if (!allowedTypes.includes(type as AssignmentType)) {
     return c.json({ error: 'Invalid assignment type' }, 400);
@@ -147,6 +147,23 @@ app.post('/', requireAuth, async (c) => {
     .returning();
 
   if (Array.isArray(questionIds) && questionIds.length > 0) {
+    const questionRows = await db
+      .select({ id: questions.id, type: questions.type, courseId: questions.courseId })
+      .from(questions)
+      .where(inArray(questions.id, questionIds));
+
+    if (questionRows.length !== questionIds.length) {
+      return c.json({ error: 'One or more questions were not found' }, 400);
+    }
+
+    const invalidQuestion = questionRows.find(
+      (question) => question.type !== assignmentType || question.courseId !== courseId
+    );
+
+    if (invalidQuestion) {
+      return c.json({ error: 'All questions must match the assignment type and course' }, 400);
+    }
+
     await db.insert(assignmentQuestions).values(
       questionIds.map((questionId, index) => ({
         assignmentId: assignment.id,

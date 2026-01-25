@@ -164,6 +164,22 @@ app.post('/:submissionId/answers', requireAuth, async (c) => {
     return c.json({ error: 'Cannot modify submitted assignment' }, 400);
   }
 
+  const [assignment] = await db
+    .select()
+    .from(assignments)
+    .where(eq(assignments.id, submission.assignmentId))
+    .limit(1);
+
+  if (assignment?.dueDate) {
+    const now = new Date();
+    if (now > assignment.dueDate) {
+      return c.json(
+        { error: 'Assignment is past due. You can only submit your last saved answers.' },
+        409
+      );
+    }
+  }
+
   // Upsert answer
   const [existingAnswer] = await db
     .select()
