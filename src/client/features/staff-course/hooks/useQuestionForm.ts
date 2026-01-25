@@ -1,13 +1,36 @@
 import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { questionsApi, type McqOption } from '../../../lib/api';
+import type { StaffAssignment } from '../types';
 
-export function useQuestionForm(courseId: string, onSuccess: () => void) {
+export function useQuestionForm(courseId: string, _assignments: StaffAssignment[]) {
   const [showForm, setShowForm] = useState(false);
   const [questionType, setQuestionType] = useState<'mcq' | 'written'>('written');
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>('');
   const [mcqOptions, setMcqOptions] = useState<McqOption[]>([
     { id: crypto.randomUUID(), text: '' },
     { id: crypto.randomUUID(), text: '' },
   ]);
+  const queryClient = useQueryClient();
+
+  const createMutation = useMutation({
+    mutationFn: (data: Parameters<typeof questionsApi.create>[0]) => questionsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['questions', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
+      setShowForm(false);
+      setQuestionType('written');
+      setSelectedAssignmentId('');
+      setMcqOptions([
+        { id: crypto.randomUUID(), text: '' },
+        { id: crypto.randomUUID(), text: '' },
+      ]);
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      alert('Failed to create question: ' + message);
+    },
+  });
 
   const createQuestion = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -30,41 +53,27 @@ export function useQuestionForm(courseId: string, onSuccess: () => void) {
         return;
       }
 
-      try {
-        await questionsApi.create({
-          courseId,
-          title,
-          type: 'mcq',
-          prompt,
-          points,
-          options,
-          allowMultiple: false,
-        });
-        setShowForm(false);
-        setQuestionType('written');
-        setMcqOptions([
-          { id: crypto.randomUUID(), text: '' },
-          { id: crypto.randomUUID(), text: '' },
-        ]);
-        (e.currentTarget as HTMLFormElement).reset();
-        onSuccess();
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        alert('Failed to create question: ' + message);
-      }
+      createMutation.mutate({
+        courseId,
+        title,
+        type: 'mcq',
+        prompt,
+        points,
+        options,
+        allowMultiple: false,
+        assignmentId: selectedAssignmentId || undefined,
+      } as Parameters<typeof questionsApi.create>[0]);
       return;
     }
 
-    try {
-      await questionsApi.create({ courseId, title, type: 'written', prompt, points });
-      setShowForm(false);
-      setQuestionType('written');
-      (e.currentTarget as HTMLFormElement).reset();
-      onSuccess();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      alert('Failed to create question: ' + message);
-    }
+    createMutation.mutate({
+      courseId,
+      title,
+      type: 'written',
+      prompt,
+      points,
+      assignmentId: selectedAssignmentId || undefined,
+    } as Parameters<typeof questionsApi.create>[0]);
   };
 
   return {
@@ -74,6 +83,9 @@ export function useQuestionForm(courseId: string, onSuccess: () => void) {
     setQuestionType,
     mcqOptions,
     setMcqOptions,
+    selectedAssignmentId,
+    setSelectedAssignmentId,
     createQuestion,
+    isCreating: createMutation.isPending,
   };
 }

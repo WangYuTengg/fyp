@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { db } from '../../db/index.js';
-import { questions } from '../../db/schema.js';
+import { questions, assignmentQuestions } from '../../db/schema.js';
 import { requireAuth, type AuthContext } from '../middleware/auth.js';
 import { desc, eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
@@ -18,6 +18,7 @@ type CreateQuestionBody = {
   points?: number;
   options?: McqOption[];
   allowMultiple?: boolean;
+  assignmentId?: string;
 };
 
 type UpdateQuestionBody = {
@@ -62,8 +63,8 @@ app.post('/', requireAuth, async (c) => {
 
   const body = (await c.req.json()) as CreateQuestionBody;
 
-  if (!body.courseId || !body.title || !body.prompt || !body.type) {
-    return c.json({ error: 'courseId, title, type and prompt are required' }, 400);
+  if (!body.courseId || !body.title || !body.type) {
+    return c.json({ error: 'courseId, title, and type are required' }, 400);
   }
 
   if (body.allowMultiple) {
@@ -74,10 +75,7 @@ app.post('/', requireAuth, async (c) => {
     return c.json({ error: 'Invalid question type' }, 400);
   }
 
-  const prompt = body.prompt.trim();
-  if (!prompt) {
-    return c.json({ error: 'Prompt is required' }, 400);
-  }
+  const prompt = (body.prompt || '').trim();
 
   const points = body.points ?? 10;
   let content: Record<string, unknown> = { prompt };
@@ -114,6 +112,23 @@ app.post('/', requireAuth, async (c) => {
       updatedAt: new Date(),
     })
     .returning();
+
+  // If assignmentId is provided, link the question to the assignment
+  if (body.assignmentId) {
+    // Get the current max order for questions in this assignment
+    const existingQuestions = await db
+      .select()
+      .from(assignmentQuestions)
+      .where(eq(assignmentQuestions.assignmentId, body.assignmentId));
+
+    const nextOrder = existingQuestions.length + 1;
+
+    await db.insert(assignmentQuestions).values({
+      assignmentId: body.assignmentId,
+      questionId: row.id,
+      order: nextOrder,
+    });
+  }
 
   return c.json(row, 201);
 });

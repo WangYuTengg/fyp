@@ -7,6 +7,7 @@ type CreateAssignmentFormProps = {
   selectedQuestionIds: string[];
   setSelectedQuestionIds: (ids: string[]) => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  isSubmitting?: boolean;
 };
 
 export function CreateAssignmentForm({
@@ -16,6 +17,7 @@ export function CreateAssignmentForm({
   selectedQuestionIds,
   setSelectedQuestionIds,
   onSubmit,
+  isSubmitting = false,
 }: CreateAssignmentFormProps) {
   return (
     <div className="mb-6 p-4 border border-gray-200 rounded-lg">
@@ -105,9 +107,10 @@ export function CreateAssignmentForm({
 
         <button
           type="submit"
-          className="w-full bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+          disabled={isSubmitting}
+          className="w-full bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Create Assignment
+          {isSubmitting ? 'Creating...' : 'Create Assignment'}
         </button>
       </form>
     </div>

@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useStaffCourse } from './hooks/useStaffCourse';
 import { useAssignmentForm } from './hooks/useAssignmentForm';
@@ -14,13 +14,16 @@ type StaffCourseDetailProps = {
   courseId: string;
 };
 
+type TabType = 'assignments' | 'questions';
+
 export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
   const { user, dbUser, loading: authLoading, setAdminViewAs } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<TabType>('assignments');
 
-  const { course, assignments, questions, loading, reload } = useStaffCourse(courseId, user, dbUser);
-  const assignmentForm = useAssignmentForm(courseId, reload);
-  const questionForm = useQuestionForm(courseId, reload);
+  const { course, assignments, questions, loading } = useStaffCourse(courseId, user, dbUser);
+  const assignmentForm = useAssignmentForm(courseId);
+  const questionForm = useQuestionForm(courseId, assignments);
 
   useEffect(() => {
     if (!authLoading) {
@@ -46,69 +49,109 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
     <div className="space-y-6">
       <CourseHeader course={course} />
 
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Assignments</h2>
-          <button
-            onClick={() => assignmentForm.setShowForm(!assignmentForm.showForm)}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
-          >
-            {assignmentForm.showForm ? 'Cancel' : 'Create Assignment'}
-          </button>
+      <div className="bg-white shadow rounded-lg">
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex">
+            <button
+              onClick={() => setActiveTab('assignments')}
+              className={`${
+                activeTab === 'assignments'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm transition-colors`}
+            >
+              Assignments
+            </button>
+            <button
+              onClick={() => setActiveTab('questions')}
+              className={`${
+                activeTab === 'questions'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm transition-colors`}
+            >
+              Question Pool
+            </button>
+          </nav>
         </div>
 
-        {assignmentForm.showForm && (
-          <CreateAssignmentForm
-            assignmentType={assignmentForm.assignmentType}
-            setAssignmentType={assignmentForm.setAssignmentType}
-            questions={questions}
-            selectedQuestionIds={assignmentForm.selectedQuestionIds}
-            setSelectedQuestionIds={assignmentForm.setSelectedQuestionIds}
-            onSubmit={assignmentForm.createAssignment}
-          />
-        )}
+        {/* Tab Content */}
+        <div className="p-6">
+          {activeTab === 'assignments' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-semibold">Assignments</h2>
+                <button
+                  onClick={() => assignmentForm.setShowForm(!assignmentForm.showForm)}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+                >
+                  {assignmentForm.showForm ? 'Cancel' : 'Create Assignment'}
+                </button>
+              </div>
 
-        <div className="space-y-4">
-          {assignments.map((assignment) => (
-            <AssignmentCard
-              key={assignment.id}
-              assignment={assignment}
-              onTogglePublish={assignmentForm.togglePublish}
-            />
-          ))}
+              {assignmentForm.showForm && (
+                <CreateAssignmentForm
+                  assignmentType={assignmentForm.assignmentType}
+                  setAssignmentType={assignmentForm.setAssignmentType}
+                  questions={questions}
+                  selectedQuestionIds={assignmentForm.selectedQuestionIds}
+                  setSelectedQuestionIds={assignmentForm.setSelectedQuestionIds}
+                  onSubmit={assignmentForm.createAssignment}
+                  isSubmitting={assignmentForm.isCreating}
+                />
+              )}
+
+              <div className="space-y-4">
+                {assignments.map((assignment) => (
+                  <AssignmentCard
+                    key={assignment.id}
+                    assignment={assignment}
+                    onTogglePublish={assignmentForm.togglePublish}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'questions' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-semibold">Question Pool</h2>
+                <button
+                  onClick={() => questionForm.setShowForm(!questionForm.showForm)}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+                >
+                  {questionForm.showForm ? 'Cancel' : 'Create Question'}
+                </button>
+              </div>
+
+              {questionForm.showForm && (
+                <CreateQuestionForm
+                  questionType={questionForm.questionType}
+                  setQuestionType={questionForm.setQuestionType}
+                  mcqOptions={questionForm.mcqOptions}
+                  setMcqOptions={questionForm.setMcqOptions}
+                  onSubmit={questionForm.createQuestion}
+                  isSubmitting={questionForm.isCreating}
+                  assignments={assignments}
+                  selectedAssignmentId={questionForm.selectedAssignmentId}
+                  setSelectedAssignmentId={questionForm.setSelectedAssignmentId}
+                />
+              )}
+
+              {questions.length === 0 ? (
+                <p className="text-gray-500">No questions created yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  {questions.map((question) => (
+                    <QuestionCard key={question.id} question={question} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Question Pool</h2>
-          <button
-            onClick={() => questionForm.setShowForm(!questionForm.showForm)}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
-          >
-            {questionForm.showForm ? 'Cancel' : 'Create Question'}
-          </button>
-        </div>
-
-        {questionForm.showForm && (
-          <CreateQuestionForm
-            questionType={questionForm.questionType}
-            setQuestionType={questionForm.setQuestionType}
-            mcqOptions={questionForm.mcqOptions}
-            setMcqOptions={questionForm.setMcqOptions}
-            onSubmit={questionForm.createQuestion}
-          />
-        )}
-
-        {questions.length === 0 ? (
-          <p className="text-gray-500">No questions created yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {questions.map((question) => (
-              <QuestionCard key={question.id} question={question} />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

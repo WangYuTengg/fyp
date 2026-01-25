@@ -143,6 +143,7 @@ export const questionsApi = {
     points?: number;
     options?: McqOption[];
     allowMultiple?: boolean;
+    assignmentId?: string;
   }) =>
     apiClient<Question>('/api/questions', {
       method: 'POST',
