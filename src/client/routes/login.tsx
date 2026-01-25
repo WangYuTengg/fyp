@@ -28,11 +28,14 @@ function Login() {
     setMessage('');
 
     try {
+      const redirectUrl = `${window.location.origin}/`;
+      console.log('Requesting magic link with redirect URL:', redirectUrl);
+      
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: redirectUrl,
         },
       });
 
