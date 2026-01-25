@@ -19,6 +19,34 @@ export function CreateAssignmentForm({
   onSubmit,
   isSubmitting = false,
 }: CreateAssignmentFormProps) {
+  // Set default due date to tomorrow at 11:59 PM
+  const getDefaultDueDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(23, 59, 0, 0);
+    
+    // Format as datetime-local value (YYYY-MM-DDTHH:mm)
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    const hours = String(tomorrow.getHours()).padStart(2, '0');
+    const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // Get minimum datetime (now)
+  const getMinDateTime = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   return (
     <div className="mb-6 p-4 border border-gray-200 rounded-lg">
       <form onSubmit={onSubmit} className="space-y-4">
@@ -58,6 +86,8 @@ export function CreateAssignmentForm({
             <input
               type="datetime-local"
               name="dueDate"
+              defaultValue={getDefaultDueDate()}
+              min={getMinDateTime()}
               className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>

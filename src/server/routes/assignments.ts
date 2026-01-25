@@ -130,6 +130,15 @@ app.post('/', requireAuth, async (c) => {
   const assignmentType = type as AssignmentType;
   const maxAttemptsValue = typeof maxAttempts === 'number' && maxAttempts > 0 ? maxAttempts : 1;
 
+  // Validate due date is in the future
+  if (dueDate) {
+    const dueDateObj = new Date(dueDate);
+    const now = new Date();
+    if (dueDateObj <= now) {
+      return c.json({ error: 'Due date must be in the future' }, 400);
+    }
+  }
+
   const [assignment] = await db
     .insert(assignments)
     .values({
