@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../../db/index.js';
 import { questions, assignmentQuestions } from '../../db/schema.js';
 import { requireAuth, type AuthContext } from '../middleware/auth.js';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, and, or, ilike, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
 type McqOption = {
@@ -19,6 +19,7 @@ type CreateQuestionBody = {
   options?: McqOption[];
   allowMultiple?: boolean;
   assignmentId?: string;
+  tags?: string[];
 };
 
 type UpdateQuestionBody = {
@@ -28,6 +29,7 @@ type UpdateQuestionBody = {
   points?: number;
   options?: McqOption[];
   allowMultiple?: boolean;
+  tags?: string[];
 };
 
 const app = new Hono<AuthContext>();
@@ -44,11 +46,42 @@ app.get('/course/:courseId', requireAuth, async (c) => {
   }
 
   const courseId = c.req.param('courseId');
+  const search = c.req.query('search');
+  const tagsParam = c.req.query('tags');
+  const typesParam = c.req.query('types');
+
+  // Parse comma-separated tags and types
+  const tags = tagsParam ? tagsParam.split(',').filter(Boolean) : [];
+  const types = typesParam ? typesParam.split(',').filter(Boolean) : [];
+
+  // Build WHERE conditions
+  const conditions = [eq(questions.courseId, courseId)];
+
+  // Text search on title and description
+  if (search && search.trim()) {
+    const searchTerm = `%${search.trim()}%`;
+    conditions.push(
+      or(
+        ilike(questions.title, searchTerm),
+        ilike(questions.description, searchTerm)
+      )!
+    );
+  }
+
+  // Filter by tags (any match)
+  if (tags.length > 0) {
+    conditions.push(sql`${questions.tags} && ${tags}`);
+  }
+
+  // Filter by question types
+  if (types.length > 0) {
+    conditions.push(sql`${questions.type} = ANY(${types})`);
+  }
 
   const rows = await db
     .select()
     .from(questions)
-    .where(eq(questions.courseId, courseId))
+    .where(and(...conditions))
     .orderBy(desc(questions.createdAt));
 
   return c.json(rows);
@@ -108,6 +141,7 @@ app.post('/', requireAuth, async (c) => {
       title: body.title,
       content,
       points,
+      tags: body.tags ?? null,
       createdBy: user!.id,
       updatedAt: new Date(),
     })
@@ -164,6 +198,7 @@ app.put('/:id', requireAuth, async (c) => {
   const patch: Record<string, unknown> = { updatedAt: new Date() };
   if (typeof body.title === 'string') patch.title = body.title;
   if (typeof body.points === 'number') patch.points = body.points;
+  if (Array.isArray(body.tags)) patch.tags = body.tags;
 
   const existingContent = (existing.content ?? {}) as Record<string, unknown>;
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : undefined;

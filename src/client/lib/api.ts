@@ -137,7 +137,19 @@ export const submissionsApi = {
 };
 
 export const questionsApi = {
-  listByCourse: (courseId: string) => apiClient<Question[]>(`/api/questions/course/${courseId}`),
+  listByCourse: (courseId: string, filters?: {
+    search?: string;
+    tags?: string[];
+    types?: Array<'mcq' | 'written' | 'coding' | 'uml'>;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.search) params.set('search', filters.search);
+    if (filters?.tags?.length) params.set('tags', filters.tags.join(','));
+    if (filters?.types?.length) params.set('types', filters.types.join(','));
+    
+    const query = params.toString();
+    return apiClient<Question[]>(`/api/questions/course/${courseId}${query ? `?${query}` : ''}`);
+  },
   create: (data: {
     courseId: string;
     title: string;
@@ -147,6 +159,7 @@ export const questionsApi = {
     options?: McqOption[];
     allowMultiple?: boolean;
     assignmentId?: string;
+    tags?: string[];
   }) =>
     apiClient<Question>('/api/questions', {
       method: 'POST',
@@ -159,6 +172,7 @@ export const questionsApi = {
     points?: number;
     options?: McqOption[];
     allowMultiple?: boolean;
+    tags?: string[];
   }) =>
     apiClient<Question>(`/api/questions/${id}`, {
       method: 'PUT',
@@ -168,4 +182,8 @@ export const questionsApi = {
     apiClient<{ success: true }>(`/api/questions/${id}`, {
       method: 'DELETE',
     }),
+};
+
+export const tagsApi = {
+  listByCourse: (courseId: string) => apiClient<string[]>(`/api/tags/course/${courseId}`),
 };

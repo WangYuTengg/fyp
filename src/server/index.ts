@@ -10,6 +10,7 @@ import coursesRoutes from './routes/courses.js';
 import assignmentsRoutes from './routes/assignments.js';
 import submissionsRoutes from './routes/submissions.js';
 import questionsRoutes from './routes/questions.js';
+import tagsRoutes from './routes/tags.js';
 import { authMiddleware, type AuthContext } from './middleware/auth.js';
 
 const app = new Hono<AuthContext>();
@@ -23,6 +24,7 @@ app.route('/api/courses', coursesRoutes);
 app.route('/api/assignments', assignmentsRoutes);
 app.route('/api/submissions', submissionsRoutes);
 app.route('/api/questions', questionsRoutes);
+app.route('/api/tags', tagsRoutes);
 
 // Health check
 app.get('/api/health', (c) => {

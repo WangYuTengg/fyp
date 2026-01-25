@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { useStaffCourse } from './hooks/useStaffCourse';
+import { useStaffCourse, type QuestionFilters } from './hooks/useStaffCourse';
 import { useAssignmentForm } from './hooks/useAssignmentForm';
 import { useQuestionForm } from './hooks/useQuestionForm';
 import { CourseHeader } from './components/CourseHeader';
@@ -9,6 +9,8 @@ import { CreateAssignmentForm } from './components/CreateAssignmentForm';
 import { CreateQuestionForm } from './components/CreateQuestionForm';
 import { AssignmentCard } from './components/AssignmentCard';
 import { QuestionCard } from './components/QuestionCard';
+import { QuestionFilters as QuestionFiltersComponent } from './components/QuestionFilters';
+import { TagManager } from './components/TagManager';
 
 type StaffCourseDetailProps = {
   courseId: string;
@@ -20,8 +22,15 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
   const { user, dbUser, loading: authLoading, setAdminViewAs } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('assignments');
+  const [questionFilters, setQuestionFilters] = useState<QuestionFilters>({});
+  const [showTagManager, setShowTagManager] = useState(false);
 
-  const { course, assignments, questions, loading } = useStaffCourse(courseId, user, dbUser);
+  const { course, assignments, questions, tags, loading } = useStaffCourse(
+    courseId,
+    user,
+    dbUser,
+    questionFilters
+  );
   const assignmentForm = useAssignmentForm(courseId);
   const questionForm = useQuestionForm(courseId, assignments);
 
@@ -54,6 +63,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex">
             <button
+              type="button"
               onClick={() => setActiveTab('assignments')}
               className={`${
                 activeTab === 'assignments'
@@ -64,6 +74,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
               Assignments
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('questions')}
               className={`${
                 activeTab === 'questions'
@@ -83,6 +94,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-semibold">Assignments</h2>
                 <button
+                  type="button"
                   onClick={() => assignmentForm.setShowForm(!assignmentForm.showForm)}
                   className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
                 >
@@ -119,13 +131,27 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-semibold">Question Pool</h2>
-                <button
-                  onClick={() => questionForm.setShowForm(!questionForm.showForm)}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
-                >
-                  {questionForm.showForm ? 'Cancel' : 'Create Question'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTagManager(!showTagManager)}
+                    className="bg-gray-500 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded"
+                  >
+                    {showTagManager ? 'Hide Tags' : 'Manage Tags'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => questionForm.setShowForm(!questionForm.showForm)}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+                  >
+                    {questionForm.showForm ? 'Cancel' : 'Create Question'}
+                  </button>
+                </div>
               </div>
+
+              {showTagManager && (
+                <TagManager tags={tags} />
+              )}
 
               {questionForm.showForm && (
                 <CreateQuestionForm
@@ -138,11 +164,18 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                   assignments={assignments}
                   selectedAssignmentId={questionForm.selectedAssignmentId}
                   setSelectedAssignmentId={questionForm.setSelectedAssignmentId}
+                  tags={tags}
                 />
               )}
 
+              <QuestionFiltersComponent
+                filters={questionFilters}
+                setFilters={setQuestionFilters}
+                availableTags={tags}
+              />
+
               {questions.length === 0 ? (
-                <p className="text-gray-500">No questions created yet.</p>
+                <p className="text-gray-500">No questions found.</p>
               ) : (
                 <div className="space-y-4">
                   {questions.map((question) => (
@@ -150,6 +183,8 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                       key={question.id} 
                       question={question} 
                       onDelete={questionForm.deleteQuestion}
+                      onEdit={questionForm.editQuestion}
+                      availableTags={tags}
                     />
                   ))}
                 </div>

@@ -18,6 +18,7 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['questions', courseId] });
       queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['tags', courseId] });
       setShowForm(false);
       setQuestionType('written');
       setSelectedAssignmentId('');
@@ -37,10 +38,25 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['questions', courseId] });
       queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['tags', courseId] });
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       alert('Failed to delete question: ' + message);
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof questionsApi.update>[1] }) =>
+      questionsApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['questions', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['tags', courseId] });
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      alert('Failed to update question: ' + message);
     },
   });
 
@@ -51,6 +67,8 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
     const title = String(formData.get('qTitle') || '').trim();
     const prompt = String(formData.get('qPrompt') || '').trim();
     const points = Number(formData.get('qPoints') || 10);
+    const tagsJson = String(formData.get('tags') || '[]');
+    const tags = JSON.parse(tagsJson) as string[];
 
     if (questionType === 'mcq') {
       const options = mcqOptions
@@ -74,6 +92,7 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
         options,
         allowMultiple: false,
         assignmentId: selectedAssignmentId || undefined,
+        tags: tags.length > 0 ? tags : undefined,
       } as Parameters<typeof questionsApi.create>[0]);
       return;
     }
@@ -85,6 +104,7 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
       prompt,
       points,
       assignmentId: selectedAssignmentId || undefined,
+      tags: tags.length > 0 ? tags : undefined,
     } as Parameters<typeof questionsApi.create>[0]);
   };
 
@@ -99,6 +119,10 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
     setSelectedAssignmentId,
     createQuestion,
     deleteQuestion: (questionId: string) => deleteMutation.mutate(questionId),
+    editQuestion: (id: string, data: Parameters<typeof questionsApi.update>[1]) =>
+      editMutation.mutate({ id, data }),
     isCreating: createMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+    isEditing: editMutation.isPending,
   };
 }

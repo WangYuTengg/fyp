@@ -60,8 +60,14 @@
    - [ ] UML question editor (reference diagram upload, deferred)
 - [ ] Edit/delete questions
 - [x] Question list (staff only)
-- [ ] Question search/filter
-- [ ] Tag/categorize questions
+- [ ] Tag manager component
+   - [ ] Create/delete tags for course
+   - [ ] Tag list display
+- [ ] Chip-based tag input on question create/edit forms
+- [ ] Question pool filters:
+   - [ ] Text search (title + prompt)
+   - [ ] Tags multi-select (existing tags)
+   - [ ] Question type multi-select (MCQ/written/UML, default all)
 
 ### Assignment Builder
 - [x] "Add Questions" UI for assignments (MCQ/written only)

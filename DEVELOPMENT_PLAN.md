@@ -69,8 +69,12 @@
    - [x] MCQ: options (single-choice)
    - [x] Written: prompt entry
    - [ ] UML: reference diagram, PlantUML DSL (deferred)
-- [ ] Tag/categorize questions
-- [ ] Search and filter question pool
+- [ ] Tag manager component (CRUD tags for the course)
+- [ ] Chip-based tag input on question create/edit
+- [ ] Search and filter question pool:
+   - [ ] Text search (title + prompt)
+   - [ ] Tags multi-select filter (existing tags only)
+   - [ ] Question type multi-select filter (default: all types)
 
 #### Assignment Builder
 - [x] Add questions to assignment at creation (MCQ/written only)
