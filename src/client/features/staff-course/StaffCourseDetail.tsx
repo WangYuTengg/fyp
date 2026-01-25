@@ -1,0 +1,115 @@
+import { useNavigate } from '@tanstack/react-router';
+import { useEffect } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { useStaffCourse } from './hooks/useStaffCourse';
+import { useAssignmentForm } from './hooks/useAssignmentForm';
+import { useQuestionForm } from './hooks/useQuestionForm';
+import { CourseHeader } from './components/CourseHeader';
+import { CreateAssignmentForm } from './components/CreateAssignmentForm';
+import { CreateQuestionForm } from './components/CreateQuestionForm';
+import { AssignmentCard } from './components/AssignmentCard';
+import { QuestionCard } from './components/QuestionCard';
+
+type StaffCourseDetailProps = {
+  courseId: string;
+};
+
+export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
+  const { user, dbUser, loading: authLoading, setAdminViewAs } = useAuth();
+  const navigate = useNavigate();
+
+  const { course, assignments, questions, loading, reload } = useStaffCourse(courseId, user, dbUser);
+  const assignmentForm = useAssignmentForm(courseId, reload);
+  const questionForm = useQuestionForm(courseId, reload);
+
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        navigate({ to: '/login' });
+      } else if (dbUser && dbUser.role !== 'admin' && dbUser.role !== 'staff') {
+        navigate({ to: '/student' });
+      } else if (dbUser?.role === 'admin') {
+        setAdminViewAs('staff');
+      }
+    }
+  }, [authLoading, user, dbUser, navigate, setAdminViewAs]);
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>;
+  }
+
+  if (!course) {
+    return <div className="text-center py-8">Course not found</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <CourseHeader course={course} />
+
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Assignments</h2>
+          <button
+            onClick={() => assignmentForm.setShowForm(!assignmentForm.showForm)}
+            className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+          >
+            {assignmentForm.showForm ? 'Cancel' : 'Create Assignment'}
+          </button>
+        </div>
+
+        {assignmentForm.showForm && (
+          <CreateAssignmentForm
+            assignmentType={assignmentForm.assignmentType}
+            setAssignmentType={assignmentForm.setAssignmentType}
+            questions={questions}
+            selectedQuestionIds={assignmentForm.selectedQuestionIds}
+            setSelectedQuestionIds={assignmentForm.setSelectedQuestionIds}
+            onSubmit={assignmentForm.createAssignment}
+          />
+        )}
+
+        <div className="space-y-4">
+          {assignments.map((assignment) => (
+            <AssignmentCard
+              key={assignment.id}
+              assignment={assignment}
+              onTogglePublish={assignmentForm.togglePublish}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Question Pool</h2>
+          <button
+            onClick={() => questionForm.setShowForm(!questionForm.showForm)}
+            className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+          >
+            {questionForm.showForm ? 'Cancel' : 'Create Question'}
+          </button>
+        </div>
+
+        {questionForm.showForm && (
+          <CreateQuestionForm
+            questionType={questionForm.questionType}
+            setQuestionType={questionForm.setQuestionType}
+            mcqOptions={questionForm.mcqOptions}
+            setMcqOptions={questionForm.setMcqOptions}
+            onSubmit={questionForm.createQuestion}
+          />
+        )}
+
+        {questions.length === 0 ? (
+          <p className="text-gray-500">No questions created yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {questions.map((question) => (
+              <QuestionCard key={question.id} question={question} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
