@@ -38,7 +38,25 @@ export function Sidebar() {
   const navigate = useNavigate();
 
   if (loading || !dbUser) {
-    return null;
+    return (
+      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
+        <div className="flex-1 flex flex-col min-h-0 bg-white border-r border-gray-200">
+          <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+            <div className="flex items-center shrink-0 px-4">
+              <div className="text-blue-600 text-lg font-bold">
+                UML Platform
+              </div>
+            </div>
+            <div className="mt-8 flex-1 px-3">
+              <div className="animate-pulse space-y-3">
+                <div className="h-10 bg-gray-200 rounded"></div>
+                <div className="h-10 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const filteredNavigation = navigation.filter((item) => {
