@@ -68,27 +68,27 @@ app.post('/start', requireAuth, async (c) => {
     return c.json({ error: 'Assignment not found' }, 404);
   }
 
-  // Check for existing draft submission
-  const [existingDraft] = await db
+  // Check for any existing submission (draft or submitted)
+  const [existingSubmission] = await db
     .select()
     .from(submissions)
     .where(
       and(
         eq(submissions.assignmentId, assignmentId),
-        eq(submissions.userId, user.id),
-        eq(submissions.status, 'draft')
+        eq(submissions.userId, user.id)
       )
     )
+    .orderBy(desc(submissions.createdAt))
     .limit(1);
 
-  if (existingDraft) {
-    // Load answers for the draft
+  if (existingSubmission) {
+    // Load answers for the submission
     const existingAnswers = await db
       .select()
       .from(answers)
-      .where(eq(answers.submissionId, existingDraft.id));
+      .where(eq(answers.submissionId, existingSubmission.id));
 
-    return c.json({ ...existingDraft, answers: existingAnswers });
+    return c.json({ ...existingSubmission, answers: existingAnswers });
   }
 
   // Admins can start a submission for UI inspection without enrollment.
