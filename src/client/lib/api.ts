@@ -150,6 +150,28 @@ export const submissionsApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+  uploadFile: async (submissionId: string, questionId: string, file: File) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('questionId', questionId);
+
+    const response = await fetch(`${API_BASE}/api/submissions/${submissionId}/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session?.access_token}`,
+      },
+      body: formData, // Don't set Content-Type, let browser set it with boundary
+    });
+
+    if (!response.ok) {
+      const error = await response.json() as ApiError;
+      throw new ApiRequestError(error.error || 'Upload failed', response.status);
+    }
+
+    return response.json();
+  },
 };
 
 export const questionsApi = {

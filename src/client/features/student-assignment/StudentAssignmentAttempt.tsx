@@ -6,6 +6,7 @@ import { useAnswerManagement } from './hooks/useAnswerManagement';
 import { AssignmentHeader } from './components/AssignmentHeader';
 import { QuestionCard } from './components/QuestionCard';
 import { Timer } from './components/Timer';
+import { submissionsApi } from '../../lib/api';
 
 type StudentAssignmentAttemptProps = {
   assignmentId: string;
@@ -90,6 +91,15 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     }
   };
 
+  // Handle file upload for UML questions
+  const handleFileUpload = async (questionId: string, file: File) => {
+    if (!submission) {
+      throw new Error('No active submission');
+    }
+
+    await submissionsApi.uploadFile(submission.id, questionId, file);
+  };
+
   if (loading) {
     return <div className="text-center py-8">Loading assignment...</div>;
   }
@@ -137,18 +147,23 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
             <p className="text-gray-500">No questions in this assignment yet.</p>
           </div>
         ) : (
-          questions.map((aq) => (
-            <QuestionCard
-              key={aq.id}
-              assignmentQuestion={aq}
-              answer={answers[aq.question.id]}
-              onUpdateAnswer={updateAnswer}
-              onSave={saveAnswer}
-              isSaving={saving[aq.question.id] ?? false}
-              isSubmitted={submitted}
-              isPastDue={isPastDue}
-            />
-          ))
+          questions.map((aq) => {
+            const savedAnswer = submission?.answers?.find((a) => a.questionId === aq.question.id);
+            return (
+              <QuestionCard
+                key={aq.id}
+                assignmentQuestion={aq}
+                answer={answers[aq.question.id]}
+                onUpdateAnswer={updateAnswer}
+                onSave={saveAnswer}
+                onFileUpload={handleFileUpload}
+                isSaving={saving[aq.question.id] ?? false}
+                isSubmitted={submitted}
+                isPastDue={isPastDue}
+                currentFileUrl={savedAnswer?.fileUrl}
+              />
+            );
+          })
         )}
       </div>
 

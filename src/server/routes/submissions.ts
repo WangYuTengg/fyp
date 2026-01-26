@@ -3,6 +3,7 @@ import { db } from '../../db/index.js';
 import { submissions, assignments, answers, marks, enrollments } from '../../db/schema.js';
 import { requireAuth, type AuthContext } from '../middleware/auth.js';
 import { eq, and, desc, count } from 'drizzle-orm';
+import { uploadFile, validateFile } from '../lib/storage.js';
 
 const app = new Hono<AuthContext>();
 
@@ -334,6 +335,115 @@ app.post('/:submissionId/grade', requireAuth, async (c) => {
     .where(eq(submissions.id, submissionId));
 
   return c.json(mark, 201);
+});
+
+// Upload file for UML question answer
+app.post('/:submissionId/upload', requireAuth, async (c) => {
+  const submissionId = c.req.param('submissionId');
+  const user = c.get('user')!;
+
+  // Verify ownership
+  const [submission] = await db
+    .select()
+    .from(submissions)
+    .where(eq(submissions.id, submissionId))
+    .limit(1);
+
+  if (!submission) {
+    return c.json({ error: 'Submission not found' }, 404);
+  }
+
+  if (submission.userId !== user.id) {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  if (submission.status !== 'draft') {
+    return c.json({ error: 'Cannot upload files to submitted assignment' }, 400);
+  }
+
+  // Get form data
+  const formData = await c.req.formData();
+  const file = formData.get('file') as File | null;
+  const questionId = formData.get('questionId') as string | null;
+
+  if (!file || !questionId) {
+    return c.json({ error: 'File and questionId required' }, 400);
+  }
+
+  // Validate file
+  const validation = validateFile({
+    size: file.size,
+    type: file.type,
+    name: file.name,
+  });
+
+  if (!validation.valid) {
+    return c.json({ error: validation.error }, 400);
+  }
+
+  try {
+    // Convert file to buffer
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Upload to storage
+    const uploadResult = await uploadFile(
+      user.id,
+      submissionId,
+      questionId,
+      buffer,
+      file.name
+    );
+
+    // Update or create answer with file URL
+    const [existingAnswer] = await db
+      .select()
+      .from(answers)
+      .where(
+        and(
+          eq(answers.submissionId, submissionId),
+          eq(answers.questionId, questionId)
+        )
+      )
+      .limit(1);
+
+    if (existingAnswer) {
+      // Update existing answer
+      const [updated] = await db
+        .update(answers)
+        .set({
+          fileUrl: uploadResult.publicUrl,
+          updatedAt: new Date(),
+        })
+        .where(eq(answers.id, existingAnswer.id))
+        .returning();
+
+      return c.json({
+        answer: updated,
+        fileUrl: uploadResult.publicUrl,
+        filePath: uploadResult.path,
+      });
+    } else {
+      // Create new answer
+      const [newAnswer] = await db
+        .insert(answers)
+        .values({
+          submissionId,
+          questionId,
+          content: { umlText: '' }, // Placeholder for UML questions
+          fileUrl: uploadResult.publicUrl,
+        })
+        .returning();
+
+      return c.json({
+        answer: newAnswer,
+        fileUrl: uploadResult.publicUrl,
+        filePath: uploadResult.path,
+      });
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json({ error: `Upload failed: ${message}` }, 500);
+  }
 });
 
 export default app;
