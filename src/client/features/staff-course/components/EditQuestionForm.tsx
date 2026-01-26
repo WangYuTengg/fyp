@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { McqOption, Question } from '../../../lib/api';
+import { UMLEditor } from '../../../components/UMLEditor';
 
 type EditQuestionFormProps = {
   question: Question;
@@ -9,18 +10,24 @@ type EditQuestionFormProps = {
     points?: number;
     options?: McqOption[];
     tags?: string[];
+    referenceDiagram?: string;
   }) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
   availableTags: string[];
 };
 
-function getContent(content: unknown): { prompt: string; options?: McqOption[] } {
+function getContent(content: unknown): { 
+  prompt: string; 
+  options?: McqOption[];
+  referenceDiagram?: string;
+} {
   if (typeof content !== 'object' || content === null) return { prompt: '' };
   const record = content as Record<string, unknown>;
   const prompt = typeof record.prompt === 'string' ? record.prompt : '';
   const options = Array.isArray(record.options) ? record.options as McqOption[] : undefined;
-  return { prompt, options };
+  const referenceDiagram = typeof record.referenceDiagram === 'string' ? record.referenceDiagram : undefined;
+  return { prompt, options, referenceDiagram };
 }
 
 export function EditQuestionForm({
@@ -37,6 +44,7 @@ export function EditQuestionForm({
   const [mcqOptions, setMcqOptions] = useState<McqOption[]>(
     content.options || []
   );
+  const [referenceDiagram, setReferenceDiagram] = useState(content.referenceDiagram || '');
   const [selectedTags, setSelectedTags] = useState<string[]>(question.tags || []);
   const [newTagInput, setNewTagInput] = useState('');
 
@@ -76,6 +84,12 @@ export function EditQuestionForm({
       }
 
       updateData.options = options;
+    } else if (question.type === 'uml') {
+      if (!referenceDiagram.trim()) {
+        alert('UML question requires a reference diagram.');
+        return;
+      }
+      updateData.referenceDiagram = referenceDiagram;
     }
 
     onSubmit(question.id, updateData);
@@ -215,6 +229,19 @@ export function EditQuestionForm({
             >
               + Add option
             </button>
+          </div>
+        )}
+
+        {/* UML Reference Diagram */}
+        {question.type === 'uml' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Reference Diagram (PlantUML)
+            </label>
+            <UMLEditor
+              initialValue={referenceDiagram}
+              onChange={setReferenceDiagram}
+            />
           </div>
         )}
 

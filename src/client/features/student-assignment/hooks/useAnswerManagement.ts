@@ -14,6 +14,37 @@ export function useAnswerManagement(
   const dirtyRef = useRef<Set<string>>(new Set());
   const answersRef = useRef<Record<string, AnswerState>>({});
 
+  // Hydrate answers from submission
+  useEffect(() => {
+    if (!submission?.answers) return;
+
+    const hydratedAnswers: Record<string, AnswerState> = {};
+    for (const answer of submission.answers) {
+      const question = questionsById.get(answer.questionId);
+      if (!question) continue;
+
+      if (question.type === 'mcq' && answer.content.selectedOptionIds) {
+        hydratedAnswers[answer.questionId] = {
+          type: 'mcq',
+          selectedOptionIds: answer.content.selectedOptionIds,
+        };
+      } else if (question.type === 'uml' && answer.content.umlText) {
+        hydratedAnswers[answer.questionId] = {
+          type: 'uml',
+          umlText: answer.content.umlText,
+        };
+      } else if (question.type === 'written' && answer.content.text !== undefined) {
+        hydratedAnswers[answer.questionId] = {
+          type: 'written',
+          text: answer.content.text,
+        };
+      }
+    }
+
+    setAnswers(hydratedAnswers);
+    setSubmitted(submission.status !== 'draft');
+  }, [submission, questionsById]);
+
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
@@ -47,10 +78,14 @@ export function useAnswerManagement(
       }
 
       const draft = answersRef.current[questionId];
-      const content =
-        question.type === 'mcq'
-          ? { selectedOptionIds: draft?.type === 'mcq' ? draft.selectedOptionIds : [] }
-          : { text: draft?.type === 'written' ? draft.text : '' };
+      let content;
+      if (question.type === 'mcq') {
+        content = { selectedOptionIds: draft?.type === 'mcq' ? draft.selectedOptionIds : [] };
+      } else if (question.type === 'uml') {
+        content = { umlText: draft?.type === 'uml' ? draft.umlText : '' };
+      } else {
+        content = { text: draft?.type === 'written' ? draft.text : '' };
+      }
 
       try {
         if (!silent) {

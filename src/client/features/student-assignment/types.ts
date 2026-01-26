@@ -26,8 +26,24 @@ export type Submission = {
   assignmentId: string;
   userId: string;
   status: 'draft' | 'submitted' | 'grading' | 'graded';
+  answers?: Answer[];
+};
+
+export type Answer = {
+  id: string;
+  submissionId: string;
+  questionId: string;
+  content: {
+    text?: string;
+    selectedOptionIds?: string[];
+    umlText?: string;
+  };
+  fileUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type AnswerState =
   | { type: 'written'; text: string }
-  | { type: 'mcq'; selectedOptionIds: string[] };
+  | { type: 'mcq'; selectedOptionIds: string[] }
+  | { type: 'uml'; umlText: string };

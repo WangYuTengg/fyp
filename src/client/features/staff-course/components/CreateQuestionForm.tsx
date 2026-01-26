@@ -1,10 +1,11 @@
 import { useState } from "react";
 import type { McqOption } from "../../../lib/api";
 import type { StaffAssignment } from "../types";
+import { UMLEditor } from "../../../components/UMLEditor";
 
 type CreateQuestionFormProps = {
-  questionType: "mcq" | "written";
-  setQuestionType: (type: "mcq" | "written") => void;
+  questionType: "mcq" | "written" | "uml";
+  setQuestionType: (type: "mcq" | "written" | "uml") => void;
   mcqOptions: McqOption[];
   setMcqOptions: (options: McqOption[]) => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
@@ -29,6 +30,7 @@ export function CreateQuestionForm({
 }: CreateQuestionFormProps) {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState("");
+  const [umlDiagram, setUmlDiagram] = useState("");
 
   const handleAddTag = (tag: string) => {
     const normalized = tag.trim().toLowerCase();
@@ -53,6 +55,7 @@ export function CreateQuestionForm({
     <div className="mb-6 p-4 border border-gray-200 rounded-lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         <input type="hidden" name="tags" value={JSON.stringify(selectedTags)} />
+        <input type="hidden" name="umlDiagram" value={umlDiagram} />
         <div>
           <label className="block text-sm font-medium text-gray-700">Title</label>
           <input
@@ -84,11 +87,12 @@ export function CreateQuestionForm({
           <label className="block text-sm font-medium text-gray-700">Question Type</label>
           <select
             value={questionType}
-            onChange={(event) => setQuestionType(event.target.value as "mcq" | "written")}
+            onChange={(event) => setQuestionType(event.target.value as "mcq" | "written" | "uml")}
             className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
             <option value="written">Written</option>
             <option value="mcq">MCQ</option>
+            <option value="uml">UML Diagram</option>
           </select>
         </div>
 
@@ -208,6 +212,22 @@ export function CreateQuestionForm({
             >
               + Add option
             </button>
+          </div>
+        )}
+
+        {questionType === "uml" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Reference UML Diagram
+            </label>
+            <p className="text-sm text-gray-600 mb-3">
+              Create a reference diagram that students will see as an example or template.
+            </p>
+            <UMLEditor 
+              initialValue={umlDiagram}
+              onChange={setUmlDiagram}
+              height="300px"
+            />
           </div>
         )}
 

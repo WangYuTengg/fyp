@@ -5,7 +5,7 @@ import type { StaffAssignment } from '../types';
 
 export function useQuestionForm(courseId: string, _assignments: StaffAssignment[]) {
   const [showForm, setShowForm] = useState(false);
-  const [questionType, setQuestionType] = useState<'mcq' | 'written'>('written');
+  const [questionType, setQuestionType] = useState<'mcq' | 'written' | 'uml'>('written');
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>('');
   const [mcqOptions, setMcqOptions] = useState<McqOption[]>([
     { id: crypto.randomUUID(), text: '' },
@@ -69,6 +69,7 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
     const points = Number(formData.get('qPoints') || 10);
     const tagsJson = String(formData.get('tags') || '[]');
     const tags = JSON.parse(tagsJson) as string[];
+    const umlDiagram = String(formData.get('umlDiagram') || '');
 
     if (questionType === 'mcq') {
       const options = mcqOptions
@@ -91,6 +92,20 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
         points,
         options,
         allowMultiple: false,
+        assignmentId: selectedAssignmentId || undefined,
+        tags: tags.length > 0 ? tags : undefined,
+      } as Parameters<typeof questionsApi.create>[0]);
+      return;
+    }
+
+    if (questionType === 'uml') {
+      createMutation.mutate({
+        courseId,
+        title,
+        type: 'uml',
+        prompt,
+        points,
+        referenceDiagram: umlDiagram,
         assignmentId: selectedAssignmentId || undefined,
         tags: tags.length > 0 ? tags : undefined,
       } as Parameters<typeof questionsApi.create>[0]);

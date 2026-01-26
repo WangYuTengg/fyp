@@ -31,13 +31,18 @@ export type WrittenContent = {
   prompt: string;
 };
 
+export type UMLContent = {
+  prompt: string;
+  referenceDiagram: string;
+};
+
 export type Question = {
   id: string;
   courseId: string | null;
   type: 'mcq' | 'written' | 'coding' | 'uml';
   title: string;
   description: string | null;
-  content: McqContent | WrittenContent | unknown;
+  content: McqContent | WrittenContent | UMLContent | unknown;
   rubric: unknown;
   points: number;
   tags: string[] | null;
@@ -153,13 +158,14 @@ export const questionsApi = {
   create: (data: {
     courseId: string;
     title: string;
-    type: 'mcq' | 'written';
+    type: 'mcq' | 'written' | 'uml';
     prompt: string;
     points?: number;
     options?: McqOption[];
     allowMultiple?: boolean;
     assignmentId?: string;
     tags?: string[];
+    referenceDiagram?: string;
   }) =>
     apiClient<Question>('/api/questions', {
       method: 'POST',
@@ -167,12 +173,13 @@ export const questionsApi = {
     }),
   update: (id: string, data: {
     title?: string;
-    type?: 'mcq' | 'written';
+    type?: 'mcq' | 'written' | 'uml';
     prompt?: string;
     points?: number;
     options?: McqOption[];
     allowMultiple?: boolean;
     tags?: string[];
+    referenceDiagram?: string;
   }) =>
     apiClient<Question>(`/api/questions/${id}`, {
       method: 'PUT',

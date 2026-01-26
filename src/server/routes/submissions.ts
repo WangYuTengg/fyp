@@ -68,6 +68,29 @@ app.post('/start', requireAuth, async (c) => {
     return c.json({ error: 'Assignment not found' }, 404);
   }
 
+  // Check for existing draft submission
+  const [existingDraft] = await db
+    .select()
+    .from(submissions)
+    .where(
+      and(
+        eq(submissions.assignmentId, assignmentId),
+        eq(submissions.userId, user.id),
+        eq(submissions.status, 'draft')
+      )
+    )
+    .limit(1);
+
+  if (existingDraft) {
+    // Load answers for the draft
+    const existingAnswers = await db
+      .select()
+      .from(answers)
+      .where(eq(answers.submissionId, existingDraft.id));
+
+    return c.json({ ...existingDraft, answers: existingAnswers });
+  }
+
   // Admins can start a submission for UI inspection without enrollment.
   if (user.role === 'admin') {
     const [{ value: attemptCount }] = await db
@@ -91,7 +114,7 @@ app.post('/start', requireAuth, async (c) => {
       })
       .returning();
 
-    return c.json(submission, 201);
+    return c.json({ ...submission, answers: [] }, 201);
   }
 
   const [enrollment] = await db
@@ -135,7 +158,7 @@ app.post('/start', requireAuth, async (c) => {
     })
     .returning();
 
-  return c.json(submission, 201);
+  return c.json({ ...submission, answers: [] }, 201);
 });
 
 // Save answer to a submission

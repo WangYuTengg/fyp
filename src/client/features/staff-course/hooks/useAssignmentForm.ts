@@ -5,7 +5,7 @@ import { assignmentsApi } from '../../../lib/api';
 export function useAssignmentForm(courseId: string) {
   const [showForm, setShowForm] = useState(false);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
-  const [assignmentType, setAssignmentType] = useState<'mcq' | 'written'>('mcq');
+  const [assignmentType, setAssignmentType] = useState<'mcq' | 'written' | 'uml'>('mcq');
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
@@ -44,7 +44,7 @@ export function useAssignmentForm(courseId: string) {
     },
   });
 
-  const handleAssignmentTypeChange = (newType: 'mcq' | 'written') => {
+  const handleAssignmentTypeChange = (newType: 'mcq' | 'written' | 'uml') => {
     setAssignmentType(newType);
     setSelectedQuestionIds([]);
   };

@@ -13,23 +13,25 @@ type McqOption = {
 type CreateQuestionBody = {
   courseId: string;
   title: string;
-  type: 'mcq' | 'written';
+  type: 'mcq' | 'written' | 'uml';
   prompt: string;
   points?: number;
   options?: McqOption[];
   allowMultiple?: boolean;
   assignmentId?: string;
   tags?: string[];
+  referenceDiagram?: string;
 };
 
 type UpdateQuestionBody = {
   title?: string;
-  type?: 'mcq' | 'written';
+  type?: 'mcq' | 'written' | 'uml';
   prompt?: string;
   points?: number;
   options?: McqOption[];
   allowMultiple?: boolean;
   tags?: string[];
+  referenceDiagram?: string;
 };
 
 const app = new Hono<AuthContext>();
@@ -104,7 +106,7 @@ app.post('/', requireAuth, async (c) => {
     return c.json({ error: 'Multiple-correct MCQ is not supported yet' }, 400);
   }
 
-  if (body.type !== 'mcq' && body.type !== 'written') {
+  if (body.type !== 'mcq' && body.type !== 'written' && body.type !== 'uml') {
     return c.json({ error: 'Invalid question type' }, 400);
   }
 
@@ -130,6 +132,13 @@ app.post('/', requireAuth, async (c) => {
       prompt,
       options,
       allowMultiple: false,
+    };
+  }
+
+  if (body.type === 'uml') {
+    content = {
+      prompt,
+      referenceDiagram: body.referenceDiagram || '',
     };
   }
 
@@ -209,6 +218,23 @@ app.put('/:id', requireAuth, async (c) => {
         return c.json({ error: 'Prompt is required' }, 400);
       }
       patch.content = { prompt };
+    }
+  }
+
+  if (existing.type === 'uml') {
+    const referenceDiagram = typeof body.referenceDiagram === 'string'
+      ? body.referenceDiagram.trim()
+      : (existingContent.referenceDiagram as string | undefined) ?? '';
+    const updatedPrompt = prompt ?? (existingContent.prompt as string | undefined) ?? '';
+
+    if (prompt !== undefined || body.referenceDiagram !== undefined) {
+      if (!referenceDiagram) {
+        return c.json({ error: 'Reference diagram is required for UML questions' }, 400);
+      }
+      patch.content = {
+        prompt: updatedPrompt,
+        referenceDiagram,
+      };
     }
   }
 

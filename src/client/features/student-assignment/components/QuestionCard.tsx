@@ -1,5 +1,7 @@
 import type { AnswerState, AssignmentQuestion } from '../types';
 import { getPrompt, getMcqOptions } from '../utils/questionHelpers';
+import { UMLEditor } from '../../../components/UMLEditor';
+import { UMLViewer } from '../../../components/UMLViewer';
 
 type QuestionCardProps = {
   assignmentQuestion: AssignmentQuestion;
@@ -10,6 +12,15 @@ type QuestionCardProps = {
   isSubmitted: boolean;
   isPastDue: boolean;
 };
+
+function hasReferenceDiagram(content: unknown): content is { referenceDiagram: string } {
+  return (
+    typeof content === 'object' &&
+    content !== null &&
+    'referenceDiagram' in content &&
+    typeof (content as { referenceDiagram: unknown }).referenceDiagram === 'string'
+  );
+}
 
 export function QuestionCard({
   assignmentQuestion,
@@ -70,7 +81,27 @@ export function QuestionCard({
         </div>
       )}
 
-      {question.type !== 'written' && question.type !== 'mcq' && (
+      {question.type === 'uml' && (
+        <div className="space-y-4">
+          {hasReferenceDiagram(question.content) && (
+            <UMLViewer 
+              umlText={question.content.referenceDiagram}
+              title="Reference Diagram"
+            />
+          )}
+          
+          <UMLEditor
+            initialValue={answer?.type === 'uml' ? answer.umlText : ''}
+            onChange={(value) => {
+              onUpdateAnswer(question.id, { type: 'uml', umlText: value });
+            }}
+            readOnly={isSubmitted}
+            height="350px"
+          />
+        </div>
+      )}
+
+      {question.type !== 'written' && question.type !== 'mcq' && question.type !== 'uml' && (
         <p className="text-sm text-gray-500">This question type is not supported yet.</p>
       )}
 

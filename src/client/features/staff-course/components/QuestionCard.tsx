@@ -11,6 +11,7 @@ type QuestionCardProps = {
     points?: number;
     options?: McqOption[];
     tags?: string[];
+    referenceDiagram?: string;
   }) => void;
   availableTags?: string[];
   isEditing?: boolean;

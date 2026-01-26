@@ -30,9 +30,11 @@
     "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.11.5",
+    "plantuml-encoder": "^1.4.0",
     "postgres": "^3.4.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
     "tsx": "^4.21.0"
   },
   "devDependencies": {

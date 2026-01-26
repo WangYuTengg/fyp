@@ -1,8 +1,8 @@
 import type { Question } from '../../../lib/api';
 
 type CreateAssignmentFormProps = {
-  assignmentType: 'mcq' | 'written';
-  setAssignmentType: (type: 'mcq' | 'written') => void;
+  assignmentType: 'mcq' | 'written' | 'uml';
+  setAssignmentType: (type: 'mcq' | 'written' | 'uml') => void;
   questions: Question[];
   selectedQuestionIds: string[];
   setSelectedQuestionIds: (ids: string[]) => void;
@@ -74,11 +74,12 @@ export function CreateAssignmentForm({
               name="type"
               required
               value={assignmentType}
-              onChange={(event) => setAssignmentType(event.target.value as 'mcq' | 'written')}
+              onChange={(event) => setAssignmentType(event.target.value as 'mcq' | 'written' | 'uml')}
               className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
               <option value="mcq">MCQ</option>
               <option value="written">Written</option>
+              <option value="uml">UML</option>
             </select>
           </div>
           <div>
