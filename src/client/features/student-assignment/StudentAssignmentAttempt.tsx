@@ -1,10 +1,11 @@
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useAssignmentData } from './hooks/useAssignmentData';
 import { useAnswerManagement } from './hooks/useAnswerManagement';
 import { AssignmentHeader } from './components/AssignmentHeader';
 import { QuestionCard } from './components/QuestionCard';
+import { Timer } from './components/Timer';
 
 type StudentAssignmentAttemptProps = {
   assignmentId: string;
@@ -30,10 +31,47 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     saving,
     submitted,
     toast,
+    lastSaved,
     saveAnswer,
     submit,
     updateAnswer,
   } = useAnswerManagement(submission, questionsById, isPastDue);
+
+  const hasDirtyAnswers = useRef(false);
+
+  // Track if there are unsaved changes
+  useEffect(() => {
+    hasDirtyAnswers.current = Object.keys(answers).some((questionId) => {
+      const answer = answers[questionId];
+      const savedAnswer = submission?.answers?.find((a) => a.questionId === questionId);
+      
+      if (!answer || !savedAnswer) return true; // New answer not yet saved
+      
+      if (answer.type === 'mcq' && savedAnswer.content.selectedOptionIds) {
+        return JSON.stringify(answer.selectedOptionIds) !== JSON.stringify(savedAnswer.content.selectedOptionIds);
+      } else if (answer.type === 'uml') {
+        return answer.umlText !== savedAnswer.content.umlText;
+      } else if (answer.type === 'written') {
+        return answer.text !== savedAnswer.content.text;
+      }
+      return false;
+    });
+  }, [answers, submission]);
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    if (submitted) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasDirtyAnswers.current) {
+        e.preventDefault();
+        e.returnValue = ''; // Required for Chrome
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [submitted]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -43,6 +81,14 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
       setAdminViewAs('student');
     }
   }, [authLoading, user, navigate, dbUser, setAdminViewAs]);
+
+  // Auto-submit when time runs out
+  const handleTimeUp = () => {
+    if (!submitted && submission) {
+      alert('⏰ Time is up! Submitting your assignment...');
+      submit();
+    }
+  };
 
   if (loading) {
     return <div className="text-center py-8">Loading assignment...</div>;
@@ -60,6 +106,8 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     return <div className="text-center py-8">Assignment not found</div>;
   }
 
+  const hasTimeLimit = assignment.timeLimit && submission;
+
   return (
     <div className="space-y-6">
       <AssignmentHeader
@@ -68,7 +116,20 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
         isPastDue={isPastDue}
         submitted={submitted}
         toast={toast}
+        lastSaved={lastSaved}
+        isSaving={Object.values(saving).some((s) => s)}
       />
+
+      {/* Timer */}
+      {hasTimeLimit && !submitted && submission?.startedAt && assignment.timeLimit && (
+        <div className="flex justify-center">
+          <Timer
+            startedAt={submission.startedAt}
+            timeLimitMinutes={assignment.timeLimit}
+            onTimeUp={handleTimeUp}
+          />
+        </div>
+      )}
 
       <div className="space-y-4">
         {questions.length === 0 ? (

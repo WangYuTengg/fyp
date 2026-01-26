@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { db } from '../../db/index.js';
-import { assignments, assignmentQuestions, questions, enrollments } from '../../db/schema.js';
+import { assignments, assignmentQuestions, questions, enrollments, submissions } from '../../db/schema.js';
 import { requireAuth, type AuthContext } from '../middleware/auth.js';
 import { eq, and, desc, inArray } from 'drizzle-orm';
 
@@ -40,6 +40,31 @@ app.get('/course/:courseId', requireAuth, async (c) => {
         : eq(assignments.courseId, courseId)
     )
     .orderBy(desc(assignments.createdAt));
+
+  // For students, include submission status
+  if (user.role === 'student') {
+    const assignmentIds = assignmentsList.map((a) => a.id);
+    const userSubmissions = await db
+      .select()
+      .from(submissions)
+      .where(
+        and(
+          eq(submissions.userId, user.id),
+          inArray(submissions.assignmentId, assignmentIds)
+        )
+      );
+
+    const submissionsByAssignment = new Map(
+      userSubmissions.map((s) => [s.assignmentId, s])
+    );
+
+    const assignmentsWithStatus = assignmentsList.map((assignment) => ({
+      ...assignment,
+      submissionStatus: submissionsByAssignment.get(assignment.id)?.status || null,
+    }));
+
+    return c.json(assignmentsWithStatus);
+  }
 
   return c.json(assignmentsList);
 });
@@ -226,6 +251,126 @@ app.delete('/:id', requireAuth, async (c) => {
 
   if (!deleted) {
     return c.json({ error: 'Assignment not found' }, 404);
+  }
+
+  return c.json({ success: true });
+});
+
+// Add questions to an assignment (staff/admin only)
+app.post('/:id/questions', requireAuth, async (c) => {
+  const assignmentId = c.req.param('id');
+  const user = c.get('user')!;
+
+  if (user.role !== 'admin' && user.role !== 'staff') {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  const body = await c.req.json();
+  const { questionIds } = body as { questionIds?: string[] };
+
+  if (!Array.isArray(questionIds) || questionIds.length === 0) {
+    return c.json({ error: 'questionIds array required' }, 400);
+  }
+
+  // Get the assignment
+  const [assignment] = await db
+    .select()
+    .from(assignments)
+    .where(eq(assignments.id, assignmentId))
+    .limit(1);
+
+  if (!assignment) {
+    return c.json({ error: 'Assignment not found' }, 404);
+  }
+
+  // Validate questions exist, match type, and belong to the same course
+  const questionRows = await db
+    .select({ id: questions.id, type: questions.type, courseId: questions.courseId })
+    .from(questions)
+    .where(inArray(questions.id, questionIds));
+
+  if (questionRows.length !== questionIds.length) {
+    return c.json({ error: 'One or more questions were not found' }, 400);
+  }
+
+  const invalidQuestion = questionRows.find(
+    (question) => question.type !== assignment.type || question.courseId !== assignment.courseId
+  );
+
+  if (invalidQuestion) {
+    return c.json({ error: 'All questions must match the assignment type and course' }, 400);
+  }
+
+  // Get current max order
+  const existingQuestions = await db
+    .select()
+    .from(assignmentQuestions)
+    .where(eq(assignmentQuestions.assignmentId, assignmentId));
+
+  const maxOrder = existingQuestions.length > 0
+    ? Math.max(...existingQuestions.map((q) => q.order))
+    : 0;
+
+  // Insert new questions (skip duplicates due to unique constraint)
+  const newQuestions = await db
+    .insert(assignmentQuestions)
+    .values(
+      questionIds.map((questionId, index) => ({
+        assignmentId,
+        questionId,
+        order: maxOrder + index + 1,
+      }))
+    )
+    .onConflictDoNothing()
+    .returning();
+
+  return c.json(newQuestions, 201);
+});
+
+// Remove a question from an assignment (staff/admin only)
+app.delete('/questions/:questionLinkId', requireAuth, async (c) => {
+  const questionLinkId = c.req.param('questionLinkId');
+  const user = c.get('user')!;
+
+  if (user.role !== 'admin' && user.role !== 'staff') {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  const [deleted] = await db
+    .delete(assignmentQuestions)
+    .where(eq(assignmentQuestions.id, questionLinkId))
+    .returning();
+
+  if (!deleted) {
+    return c.json({ error: 'Assignment question not found' }, 404);
+  }
+
+  return c.json({ success: true });
+});
+
+// Reorder questions in an assignment (staff/admin only)
+app.patch('/questions/reorder', requireAuth, async (c) => {
+  const user = c.get('user')!;
+
+  if (user.role !== 'admin' && user.role !== 'staff') {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  const body = await c.req.json();
+  const { questionLinks } = body as {
+    questionLinks?: Array<{ id: string; order: number }>;
+  };
+
+  if (!Array.isArray(questionLinks) || questionLinks.length === 0) {
+    return c.json({ error: 'questionLinks array required' }, 400);
+  }
+
+  // Update all orders in a transaction-like batch
+  for (const link of questionLinks) {
+    await db
+      .update(assignmentQuestions)
+      .set({ order: link.order })
+      .where(eq(assignmentQuestions.id, link.id));
   }
 
   return c.json({ success: true });

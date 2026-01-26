@@ -261,6 +261,26 @@ app.post('/:submissionId/submit', requireAuth, async (c) => {
     return c.json({ error: 'Already submitted' }, 400);
   }
 
+  // Validate time limit
+  const [assignment] = await db
+    .select()
+    .from(assignments)
+    .where(eq(assignments.id, submission.assignmentId))
+    .limit(1);
+
+  if (assignment?.timeLimit) {
+    const startTime = new Date(submission.startedAt).getTime();
+    const endTime = startTime + assignment.timeLimit * 60 * 1000;
+    const now = Date.now();
+
+    if (now > endTime) {
+      return c.json(
+        { error: 'Time limit exceeded. Submission is being accepted but marked as late.' },
+        409
+      );
+    }
+  }
+
   const [updated] = await db
     .update(submissions)
     .set({

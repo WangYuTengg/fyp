@@ -119,6 +119,17 @@ export const assignmentsApi = {
   remove: (id: string) => apiClient<{ success: true }>(`/api/assignments/${id}`, {
     method: 'DELETE',
   }),
+  addQuestions: (assignmentId: string, questionIds: string[]) => apiClient<unknown>(`/api/assignments/${assignmentId}/questions`, {
+    method: 'POST',
+    body: JSON.stringify({ questionIds }),
+  }),
+  removeQuestion: (questionLinkId: string) => apiClient<{ success: true }>(`/api/assignments/questions/${questionLinkId}`, {
+    method: 'DELETE',
+  }),
+  reorderQuestions: (questionLinks: Array<{ id: string; order: number }>) => apiClient<{ success: true }>('/api/assignments/questions/reorder', {
+    method: 'PATCH',
+    body: JSON.stringify({ questionLinks }),
+  }),
 };
 
 // Submissions API

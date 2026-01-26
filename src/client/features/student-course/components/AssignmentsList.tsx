@@ -29,7 +29,19 @@ export function AssignmentsList({ assignments }: AssignmentsListProps) {
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{assignment.title}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900">{assignment.title}</h3>
+                    {assignment.submissionStatus === 'draft' && (
+                      <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">
+                        Draft
+                      </span>
+                    )}
+                    {assignment.submissionStatus === 'submitted' && (
+                      <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                        Submitted
+                      </span>
+                    )}
+                  </div>
                   <p className="text-gray-600 mt-1">{assignment.description}</p>
                   <div className="mt-2 flex gap-4 text-sm text-gray-500">
                     <span>Type: {assignment.type.toUpperCase()}</span>
@@ -45,7 +57,7 @@ export function AssignmentsList({ assignments }: AssignmentsListProps) {
                   onClick={() => startAssignment(assignment.id)}
                   className="ml-4 bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
                 >
-                  Start
+                  {assignment.submissionStatus === 'submitted' ? 'View' : assignment.submissionStatus === 'draft' ? 'Resume' : 'Start'}
                 </button>
               </div>
             </div>

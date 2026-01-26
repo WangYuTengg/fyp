@@ -11,6 +11,7 @@ export function useAnswerManagement(
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const dirtyRef = useRef<Set<string>>(new Set());
   const answersRef = useRef<Record<string, AnswerState>>({});
 
@@ -96,6 +97,7 @@ export function useAnswerManagement(
           content,
         });
         dirtyRef.current.delete(questionId);
+        setLastSaved(new Date());
       } catch (err: unknown) {
         if (isBlockingError(err)) {
           const message = err instanceof Error ? err.message : String(err);
@@ -149,6 +151,7 @@ export function useAnswerManagement(
     saving,
     submitted,
     toast,
+    lastSaved,
     saveAnswer,
     submit,
     updateAnswer,

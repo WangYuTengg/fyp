@@ -14,4 +14,5 @@ export type StudentAssignment = {
   type: string;
   dueDate: string | null;
   maxAttempts: number | null;
+  submissionStatus?: 'draft' | 'submitted' | null;
 };

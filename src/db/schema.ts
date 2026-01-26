@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, pgEnum, integer, boolean, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, pgEnum, integer, boolean, jsonb, unique, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Define enums
@@ -38,7 +38,9 @@ export const enrollments = pgTable('enrollments', {
   courseId: uuid('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
   role: courseRoleEnum('role').default('student').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  uniqueUserCourse: unique().on(table.userId, table.courseId),
+}));
 
 // Question pool (reusable questions)
 export const questions = pgTable('questions', {
@@ -54,7 +56,9 @@ export const questions = pgTable('questions', {
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  courseIdIdx: index('questions_course_id_idx').on(table.courseId),
+}));
 
 // Assignments
 export const assignments = pgTable('assignments', {
@@ -80,7 +84,9 @@ export const assignmentQuestions = pgTable('assignment_questions', {
   questionId: uuid('question_id').notNull().references(() => questions.id, { onDelete: 'cascade' }),
   order: integer('order').notNull(),
   points: integer('points'), // Override question's default points
-});
+}, (table) => ({
+  uniqueAssignmentQuestion: unique().on(table.assignmentId, table.questionId),
+}));
 
 // Student submissions (one per assignment attempt)
 export const submissions = pgTable('submissions', {
@@ -94,7 +100,10 @@ export const submissions = pgTable('submissions', {
   gradedAt: timestamp('graded_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index('submissions_user_id_idx').on(table.userId),
+  assignmentIdIdx: index('submissions_assignment_id_idx').on(table.assignmentId),
+}));
 
 // Individual answers to questions
 export const answers = pgTable('answers', {
@@ -106,7 +115,9 @@ export const answers = pgTable('answers', {
   aiGradingSuggestion: jsonb('ai_grading_suggestion'), // LLM output for stretch goal
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  uniqueSubmissionQuestion: unique().on(table.submissionId, table.questionId),
+}));
 
 // Marks/grades for submissions
 export const marks = pgTable('marks', {

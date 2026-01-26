@@ -15,6 +15,13 @@
       "when": 1769278170038,
       "tag": "0001_optimal_quasar",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769434114296,
+      "tag": "0002_lonely_warhawk",
+      "breakpoints": true
     }
   ]
 }

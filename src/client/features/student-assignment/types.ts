@@ -18,6 +18,7 @@ export type AssignmentDetails = {
   type: string;
   courseId: string;
   dueDate: string | null;
+  timeLimit: number | null;
   questions: AssignmentQuestion[];
 };
 
@@ -26,6 +27,7 @@ export type Submission = {
   assignmentId: string;
   userId: string;
   status: 'draft' | 'submitted' | 'grading' | 'graded';
+  startedAt: string;
   answers?: Answer[];
 };
 

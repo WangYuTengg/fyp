@@ -122,9 +122,10 @@ An automated assessment platform for UML diagrams with LLM-assisted grading, des
 
 ---
 
-## 🟡 Phase 2: In Progress (70% Complete)
+## ✅ Phase 2: Complete (100%)
 
-### ✅ Completed in Phase 2
+### Completed Features
+
 1. ✅ **Tag Management System**
    - Tags automatically created when added to questions
    - Tag normalization (lowercase, trim)
@@ -150,98 +151,36 @@ An automated assessment platform for UML diagrams with LLM-assisted grading, des
 5. ✅ **Auto-Save**
    - Periodic auto-save every 30 seconds (silent)
    - Due date cutoff enforcement (cannot save drafts after due date)
+   - Last saved timestamp display
+   - Auto-save spinner indicator
 
-### ❌ Remaining Phase 2 Tasks
+6. ✅ **Assignment-Question Management**
+   - POST /api/assignments/:id/questions - Add questions to assignment
+   - DELETE /api/assignment-questions/:questionLinkId - Remove question from assignment
+   - PATCH /api/assignment-questions/reorder - Reorder questions
+   - Server-side validation (type match, course match, duplicate prevention)
 
-#### 1. Assignment-Question Management (Not Started)
-**Priority: High** | **Estimated: 2 days**
+7. ✅ **Timer Enforcement**
+   - Timer countdown component with visual feedback
+   - Auto-submit when time expires
+   - Warning alert at 5 minutes remaining
+   - Server-side time limit validation on submit
+   - Elapsed time calculation from submission startedAt
 
-Currently, questions can only be added to assignments at creation time. Need to support:
-- [ ] Add questions to existing assignments
-- [ ] Remove questions from assignments
-- [ ] Reorder questions (drag-drop or up/down buttons)
-- [ ] Override points per question
-- [ ] Preview assignment as student would see it
+8. ✅ **Draft Indicators & Navigation Warnings**
+   - "Last saved" timestamp in AssignmentHeader
+   - Auto-save spinner when saving
+   - Draft/Submitted badges on student assignment list
+   - Resume/View/Start button labels based on status
+   - beforeunload warning for unsaved changes
 
-**Required Work:**
-- Create `POST /api/assignments/:id/questions` endpoint
-- Create `DELETE /api/assignment-questions/:id` endpoint
-- Create `PATCH /api/assignment-questions/:id/reorder` endpoint
-- Build `AssignmentBuilder` component (question management UI)
-- Add assignment detail view for staff
-
-**Files to Create/Modify:**
-- `src/server/routes/assignments.ts` - New endpoints
-- `src/client/features/staff-course/components/AssignmentBuilder.tsx` - New component
-- `src/client/features/staff-course/hooks/useAssignmentBuilder.ts` - New hook
-- `src/client/routes/staff/assignments/$assignmentId.tsx` - New route
-
----
-
-#### 2. Timer Enforcement (Not Started)
-**Priority: Medium** | **Estimated: 1 day**
-
-Assignments have a `timeLimit` field (in minutes) but it's not enforced.
-
-**Client-Side:**
-- [ ] Timer countdown component (show remaining time)
-- [ ] Auto-submit when time runs out
-- [ ] Warning when 5 minutes remaining
-- [ ] Store start time in submission
-
-**Server-Side:**
-- [ ] Validate elapsed time on submit
-- [ ] Reject submissions that exceed time limit
-- [ ] Calculate elapsed time from `startedAt`
-
-**Files to Modify:**
-- `src/client/features/student-assignment/components/Timer.tsx` - New component
-- `src/client/features/student-assignment/StudentAssignmentAttempt.tsx` - Integrate timer
-- `src/server/routes/submissions.ts` - Add time validation on submit
-
----
-
-#### 3. Draft Resume & Indicators (Not Started)
-**Priority: Medium** | **Estimated: 1 day**
-
-Students can auto-save but there's no UI feedback.
-
-**Requirements:**
-- [ ] "Last saved" timestamp display
-- [ ] Auto-save indicator (spinner when saving)
-- [ ] "Draft" badge on assignment cards
-- [ ] Navigation warning for unsaved changes (`beforeunload`)
-- [ ] Resume draft automatically on page reload (currently works but no visual indication)
-
-**Files to Modify:**
-- `src/client/features/student-assignment/components/AssignmentHeader.tsx` - Add last saved indicator
-- `src/client/features/student-assignment/StudentAssignmentAttempt.tsx` - Add beforeunload handler
-- `src/client/features/student-course/components/AssignmentsList.tsx` - Show draft badge
-
----
-
-#### 4. Database Constraints & Indexes (Not Started)
-**Priority: Low** | **Estimated: 30 minutes**
-
-Add integrity constraints and performance indexes.
-
-**Required Constraints:**
-- [ ] Unique constraint on `(userId, courseId)` in `enrollments`
-- [ ] Unique constraint on `(submissionId, questionId)` in `answers`
-- [ ] Unique constraint on `(assignmentId, questionId)` in `assignment_questions`
-
-**Required Indexes:**
-- [ ] Index on `questions.courseId`
-- [ ] GIN index on `questions.tags` (for array containment queries)
-- [ ] Index on `submissions.userId`
-- [ ] Index on `submissions.assignmentId`
-
-**Command:**
-```bash
-# Modify src/db/schema.ts with unique() and index() modifiers
-npm run db:generate
-npm run db:migrate
-```
+9. ✅ **Database Constraints & Indexes**
+   - Unique constraint on (userId, courseId) in enrollments
+   - Unique constraint on (submissionId, questionId) in answers
+   - Unique constraint on (assignmentId, questionId) in assignment_questions
+   - Index on questions.courseId
+   - Index on submissions.userId
+   - Index on submissions.assignmentId
 
 ---
 
