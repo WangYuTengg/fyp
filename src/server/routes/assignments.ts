@@ -121,7 +121,7 @@ app.post('/', requireAuth, async (c) => {
     return c.json({ error: 'Missing required fields' }, 400);
   }
 
-  const allowedTypes = ['mcq', 'written'] as const;
+  const allowedTypes = ['mcq', 'written', 'uml'] as const;
   type AssignmentType = (typeof allowedTypes)[number];
   if (!allowedTypes.includes(type as AssignmentType)) {
     return c.json({ error: 'Invalid assignment type' }, 400);
