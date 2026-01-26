@@ -397,7 +397,9 @@ Grade and provide feedback.
 ### Phase 3 (UML Submissions)
 - [x] File upload infrastructure operational
 - [x] File validation working (type, size, authentication)
-- [ ] UML question type integrated in student assignment UI
+- [x] UML question type integrated in student assignment UI
+- [x] Staff grading interface with side-by-side UML comparison
+- [x] File version history tracking and display
 - [ ] File upload success rate > 98% - *measurement pending*
 
 ### Phase 4 (AI Grading)
@@ -409,12 +411,12 @@ Grade and provide feedback.
 
 ## Timeline (12-Week FYP)
 
-| Week | Phase | Deliverables | Status |� Partially Complete
+| Week | Phase | Deliverables | Status |
 |------|-------|--------------|--------|
 | 1-2 | Phase 0 | Project scaffold, auth working | ✅ Complete |
 | 3-4 | Phase 1 | Core CRUD, dashboards, basic submission flow | ✅ Complete |
 | 5-6 | Phase 2 | Question pools, timed attempts, auto-save | 🟡 In Progress |
-| 7-8 | Phase 3 | File upload, UML viewer, versioning | 🔲 Not Started |
+| 7-8 | Phase 3 | File upload, UML viewer, versioning | ✅ Complete |
 | 9-10 | Phase 4a | LLM integration, rubric builder, AI suggestions | 🔲 Not Started |
 | 11 | Phase 4b | Queue system, audit logs | 🔲 Not Started |
 | 12 | Testing & Documentation | Load testing, user guide, deployment docs | 🔲 Not Started |
@@ -451,5 +453,5 @@ Grade and provide feedback.
 
 ---
 
-*Plan Version: 1.0*  
-*Last Updated: January 25, 2026*
+*Plan Version: 1.1*  
+*Last Updated: January 26, 2026*

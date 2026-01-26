@@ -119,6 +119,20 @@ export const answers = pgTable('answers', {
   uniqueSubmissionQuestion: unique().on(table.submissionId, table.questionId),
 }));
 
+// File upload history for version tracking
+export const fileUploads = pgTable('file_uploads', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  answerId: uuid('answer_id').notNull().references(() => answers.id, { onDelete: 'cascade' }),
+  fileUrl: text('file_url').notNull(),
+  filePath: text('file_path').notNull(), // Storage path
+  fileName: text('file_name').notNull(),
+  fileSize: integer('file_size').notNull(), // in bytes
+  mimeType: text('mime_type').notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
+}, (table) => ({
+  answerIdIdx: index('file_uploads_answer_id_idx').on(table.answerId),
+}));
+
 // Marks/grades for submissions
 export const marks = pgTable('marks', {
   id: uuid('id').defaultRandom().primaryKey(),

@@ -22,6 +22,13 @@
       "when": 1769434114296,
       "tag": "0002_lonely_warhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769442846222,
+      "tag": "0003_gigantic_switch",
+      "breakpoints": true
     }
   ]
 }

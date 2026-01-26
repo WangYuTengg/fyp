@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import type { StaffAssignment } from '../types';
 
 type AssignmentCardProps = {
@@ -53,6 +54,15 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
           </div>
         </div>
         <div className="ml-4 flex gap-2">
+          {assignment.isPublished && (
+            <Link
+              to="/staff/grading"
+              search={{ assignmentId: assignment.id, submissionId: undefined }}
+              className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+            >
+              Grade
+            </Link>
+          )}
           <button
             onClick={() => onTogglePublish(assignment.id, assignment.isPublished)}
             className={`font-medium py-2 px-4 rounded ${

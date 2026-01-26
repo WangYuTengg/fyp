@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { db } from '../../db/index.js';
-import { submissions, assignments, answers, marks, enrollments } from '../../db/schema.js';
+import { submissions, assignments, answers, marks, enrollments, fileUploads, questions, users } from '../../db/schema.js';
 import { requireAuth, type AuthContext } from '../middleware/auth.js';
 import { eq, and, desc, count } from 'drizzle-orm';
 import { uploadFile, validateFile } from '../lib/storage.js';
@@ -46,6 +46,80 @@ app.get('/assignment/:assignmentId', requireAuth, async (c) => {
 
     return c.json(allSubmissions);
   }
+});
+
+// Get a single submission by ID with all details (answers, marks, user info)
+app.get('/:submissionId', requireAuth, async (c) => {
+  const submissionId = c.req.param('submissionId');
+  const user = c.get('user')!;
+
+  const [submission] = await db
+    .select()
+    .from(submissions)
+    .where(eq(submissions.id, submissionId))
+    .limit(1);
+
+  if (!submission) {
+    return c.json({ error: 'Submission not found' }, 404);
+  }
+
+  // Check authorization
+  const isOwner = submission.userId === user.id;
+  const isStaff = user.role === 'admin' || user.role === 'staff';
+
+  if (!isOwner && !isStaff) {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  // Load answers with question details
+  const submissionAnswers = await db
+    .select({
+      id: answers.id,
+      submissionId: answers.submissionId,
+      questionId: answers.questionId,
+      content: answers.content,
+      fileUrl: answers.fileUrl,
+      createdAt: answers.createdAt,
+      updatedAt: answers.updatedAt,
+      question: {
+        id: questions.id,
+        title: questions.title,
+        type: questions.type,
+        content: questions.content,
+        points: questions.points,
+      },
+    })
+    .from(answers)
+    .innerJoin(questions, eq(answers.questionId, questions.id))
+    .where(eq(answers.submissionId, submissionId));
+
+  // Load marks
+  const submissionMarks = await db
+    .select()
+    .from(marks)
+    .where(eq(marks.submissionId, submissionId));
+
+  // Load user info if staff is viewing
+  let userInfo = null;
+  if (isStaff) {
+    const [submitter] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        fullName: users.name,
+      })
+      .from(users)
+      .where(eq(users.id, submission.userId))
+      .limit(1);
+    userInfo = submitter;
+  }
+
+  return c.json({
+    ...submission,
+    answers: submissionAnswers,
+    marks: submissionMarks,
+    user: userInfo,
+  });
 });
 
 // Start a new submission (creates draft)
@@ -417,6 +491,16 @@ app.post('/:submissionId/upload', requireAuth, async (c) => {
         .where(eq(answers.id, existingAnswer.id))
         .returning();
 
+      // Record in file upload history
+      await db.insert(fileUploads).values({
+        answerId: updated.id,
+        fileUrl: uploadResult.publicUrl,
+        filePath: uploadResult.path,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || 'application/octet-stream',
+      });
+
       return c.json({
         answer: updated,
         fileUrl: uploadResult.publicUrl,
@@ -434,6 +518,16 @@ app.post('/:submissionId/upload', requireAuth, async (c) => {
         })
         .returning();
 
+      // Record in file upload history
+      await db.insert(fileUploads).values({
+        answerId: newAnswer.id,
+        fileUrl: uploadResult.publicUrl,
+        filePath: uploadResult.path,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || 'application/octet-stream',
+      });
+
       return c.json({
         answer: newAnswer,
         fileUrl: uploadResult.publicUrl,
@@ -444,6 +538,46 @@ app.post('/:submissionId/upload', requireAuth, async (c) => {
     const message = err instanceof Error ? err.message : String(err);
     return c.json({ error: `Upload failed: ${message}` }, 500);
   }
+});
+
+// Get file upload history for an answer
+app.get('/answer/:answerId/file-history', requireAuth, async (c) => {
+  const answerId = c.req.param('answerId');
+  const user = c.get('user')!;
+
+  // Get answer to verify ownership
+  const [answer] = await db
+    .select({
+      id: answers.id,
+      submission: {
+        id: submissions.id,
+        userId: submissions.userId,
+      },
+    })
+    .from(answers)
+    .innerJoin(submissions, eq(answers.submissionId, submissions.id))
+    .where(eq(answers.id, answerId))
+    .limit(1);
+
+  if (!answer) {
+    return c.json({ error: 'Answer not found' }, 404);
+  }
+
+  const isOwner = answer.submission.userId === user.id;
+  const isStaff = user.role === 'admin' || user.role === 'staff';
+
+  if (!isOwner && !isStaff) {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  // Get upload history
+  const history = await db
+    .select()
+    .from(fileUploads)
+    .where(eq(fileUploads.answerId, answerId))
+    .orderBy(desc(fileUploads.uploadedAt));
+
+  return c.json(history);
 });
 
 export default app;

@@ -135,6 +135,7 @@ export const assignmentsApi = {
 // Submissions API
 export const submissionsApi = {
   getByAssignment: (assignmentId: string) => apiClient<unknown[]>(`/api/submissions/assignment/${assignmentId}`),
+  getById: (submissionId: string) => apiClient<unknown>(`/api/submissions/${submissionId}`),
   start: (assignmentId: string) => apiClient<unknown>('/api/submissions/start', {
     method: 'POST',
     body: JSON.stringify({ assignmentId }),
@@ -172,6 +173,7 @@ export const submissionsApi = {
 
     return response.json();
   },
+  getFileHistory: (answerId: string) => apiClient<unknown[]>(`/api/submissions/answer/${answerId}/file-history`),
 };
 
 export const questionsApi = {
