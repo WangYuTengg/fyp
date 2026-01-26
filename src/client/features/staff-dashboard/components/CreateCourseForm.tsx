@@ -4,9 +4,7 @@ type CreateCourseFormProps = {
 
 export function CreateCourseForm({ onSubmit }: CreateCourseFormProps) {
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h2 className="text-xl font-semibold mb-4">Create New Course</h2>
-      <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Course Code</label>
           <input
@@ -69,6 +67,5 @@ export function CreateCourseForm({ onSubmit }: CreateCourseFormProps) {
           Create Course
         </button>
       </form>
-    </div>
   );
 }

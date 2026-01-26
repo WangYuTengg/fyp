@@ -1,9 +1,9 @@
 type DashboardHeaderProps = {
   onCreateClick: () => void;
-  showingForm: boolean;
+  showingForm?: boolean;
 };
 
-export function DashboardHeader({ onCreateClick, showingForm }: DashboardHeaderProps) {
+export function DashboardHeader({ onCreateClick }: DashboardHeaderProps) {
   return (
     <div className="flex justify-between items-center">
       <div>
@@ -16,7 +16,7 @@ export function DashboardHeader({ onCreateClick, showingForm }: DashboardHeaderP
         onClick={onCreateClick}
         className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
       >
-        {showingForm ? 'Cancel' : 'Create Course'}
+        Create Course
       </button>
     </div>
   );

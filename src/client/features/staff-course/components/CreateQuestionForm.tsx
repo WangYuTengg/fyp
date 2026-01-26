@@ -52,8 +52,7 @@ export function CreateQuestionForm({
   };
 
   return (
-    <div className="mb-6 p-4 border border-gray-200 rounded-lg">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
         <input type="hidden" name="tags" value={JSON.stringify(selectedTags)} />
         <input type="hidden" name="umlDiagram" value={umlDiagram} />
         <div>
@@ -239,6 +238,5 @@ export function CreateQuestionForm({
           {isSubmitting ? "Creating..." : "Create Question"}
         </button>
       </form>
-    </div>
   );
 }

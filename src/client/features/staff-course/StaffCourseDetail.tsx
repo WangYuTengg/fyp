@@ -1,6 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { Modal } from '../../components/Modal';
 import { useStaffCourse, type QuestionFilters } from './hooks/useStaffCourse';
 import { useAssignmentForm } from './hooks/useAssignmentForm';
 import { useQuestionForm } from './hooks/useQuestionForm';
@@ -95,14 +96,19 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                 <h2 className="text-2xl font-semibold">Assignments</h2>
                 <button
                   type="button"
-                  onClick={() => assignmentForm.setShowForm(!assignmentForm.showForm)}
+                  onClick={() => assignmentForm.setShowForm(true)}
                   className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
                 >
-                  {assignmentForm.showForm ? 'Cancel' : 'Create Assignment'}
+                  Create Assignment
                 </button>
               </div>
 
-              {assignmentForm.showForm && (
+              <Modal
+                isOpen={assignmentForm.showForm}
+                onClose={() => assignmentForm.setShowForm(false)}
+                title="Create Assignment"
+                size="xl"
+              >
                 <CreateAssignmentForm
                   assignmentType={assignmentForm.assignmentType}
                   setAssignmentType={assignmentForm.setAssignmentType}
@@ -112,7 +118,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                   onSubmit={assignmentForm.createAssignment}
                   isSubmitting={assignmentForm.isCreating}
                 />
-              )}
+              </Modal>
 
               <div className="space-y-4">
                 {assignments.map((assignment) => (
@@ -141,10 +147,10 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => questionForm.setShowForm(!questionForm.showForm)}
+                    onClick={() => questionForm.setShowForm(true)}
                     className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
                   >
-                    {questionForm.showForm ? 'Cancel' : 'Create Question'}
+                    Create Question
                   </button>
                 </div>
               </div>
@@ -153,7 +159,12 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                 <TagManager tags={tags} />
               )}
 
-              {questionForm.showForm && (
+              <Modal
+                isOpen={questionForm.showForm}
+                onClose={() => questionForm.setShowForm(false)}
+                title="Create Question"
+                size="2xl"
+              >
                 <CreateQuestionForm
                   questionType={questionForm.questionType}
                   setQuestionType={questionForm.setQuestionType}
@@ -166,7 +177,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                   setSelectedAssignmentId={questionForm.setSelectedAssignmentId}
                   tags={tags}
                 />
-              )}
+              </Modal>
 
               <QuestionFiltersComponent
                 filters={questionFilters}

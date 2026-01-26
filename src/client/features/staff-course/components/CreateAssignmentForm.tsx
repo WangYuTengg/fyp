@@ -48,8 +48,7 @@ export function CreateAssignmentForm({
   };
 
   return (
-    <div className="mb-6 p-4 border border-gray-200 rounded-lg">
-      <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Title</label>
           <input
@@ -144,6 +143,5 @@ export function CreateAssignmentForm({
           {isSubmitting ? 'Creating...' : 'Create Assignment'}
         </button>
       </form>
-    </div>
   );
 }

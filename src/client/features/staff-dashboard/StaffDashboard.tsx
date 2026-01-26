@@ -1,5 +1,6 @@
 import { useStaffDashboard } from './hooks/useStaffDashboard';
 import { useCourseForm } from './hooks/useCourseForm';
+import { Modal } from '../../components/Modal';
 import { DashboardHeader } from './components/DashboardHeader';
 import { CreateCourseForm } from './components/CreateCourseForm';
 import { CourseGrid } from './components/CourseGrid';
@@ -27,13 +28,17 @@ export function StaffDashboard() {
   return (
     <div className="space-y-6">
       <DashboardHeader 
-        onCreateClick={() => courseForm.setShowForm(!courseForm.showForm)}
-        showingForm={courseForm.showForm}
+        onCreateClick={() => courseForm.setShowForm(true)}
       />
 
-      {courseForm.showForm && (
+      <Modal
+        isOpen={courseForm.showForm}
+        onClose={() => courseForm.setShowForm(false)}
+        title="Create New Course"
+        size="lg"
+      >
         <CreateCourseForm onSubmit={courseForm.createCourse} />
-      )}
+      </Modal>
 
       <CourseGrid courses={courses} />
     </div>
