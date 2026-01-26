@@ -17,6 +17,29 @@ export type AuthContext = {
 };
 
 /**
+ * Determine user role based on email pattern
+ */
+function getRoleFromEmail(email: string): 'admin' | 'staff' | 'student' {
+  // Check for admin
+  if (email === 'yrloke@ntu.edu.sg') {
+    return 'admin';
+  }
+  
+  // Check for staff
+  if (email.endsWith('staff.main.ntu.edu.sg')) {
+    return 'staff';
+  }
+  
+  // Check for student
+  if (email.endsWith('@e.ntu.edu.sg')) {
+    return 'student';
+  }
+  
+  // Default to student
+  return 'student';
+}
+
+/**
  * Middleware to validate Supabase JWT and attach current user to context
  */
 export async function authMiddleware(c: Context<AuthContext>, next: Next) {
@@ -47,13 +70,14 @@ export async function authMiddleware(c: Context<AuthContext>, next: Next) {
 
     // Auto-create user if they don't exist (first login)
     if (!dbUser) {
+      const role = getRoleFromEmail(supabaseUser.email!);
       [dbUser] = await db
         .insert(users)
         .values({
           email: supabaseUser.email!,
           name: supabaseUser.user_metadata?.name || null,
           supabaseId: supabaseUser.id,
-          role: 'student', // Default role
+          role, // Role determined by email
         })
         .returning();
     }
