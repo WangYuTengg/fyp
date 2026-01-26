@@ -58,29 +58,30 @@
 
 ---
 
-### 🔲 Phase 2: Question Pools & Assignment Builder
+### � Phase 2: Question Pools & Assignment Builder
 **Duration**: Week 5-6  
-**Status**: 🟡 In Progress
+**Status**: 🟡 In Progress (Started January 26, 2026)
 
 #### Question Management UI
 - [x] Create questions (MCQ + written)
-- [ ] Edit/delete questions
+- [x] Edit questions (full edit form with all question types)
+- [x] Delete questions (via QuestionCard)
 - [x] Question type-specific editors:
    - [x] MCQ: options (single-choice)
    - [x] Written: prompt entry
-   - [ ] UML: reference diagram, PlantUML DSL (deferred)
-- [ ] Tag manager component (CRUD tags for the course)
-- [ ] Chip-based tag input on question create/edit
-- [ ] Search and filter question pool:
-   - [ ] Text search (title + prompt)
-   - [ ] Tags multi-select filter (existing tags only)
-   - [ ] Question type multi-select filter (default: all types)
+   - [ ] UML: reference diagram, PlantUML DSL (deferred to Phase 3)
+- [x] Tag manager component (read-only display)
+- [x] Tag input on question create/edit (array-based)
+- [x] Search and filter question pool:
+   - [x] Text search (title + description)
+   - [x] Tags multi-select filter (chip-based UI)
+   - [x] Question type multi-select filter (all 4 types: MCQ, written, coding, UML)
 
 #### Assignment Builder
 - [x] Add questions to assignment at creation (MCQ/written only)
-- [ ] Add/remove questions after creation
+- [ ] Add/remove questions after creation (edit mode)
 - [ ] Drag-drop question ordering
-- [ ] Override points per question
+- [ ] Override points per question (currently uses default from question)
 - [ ] Preview assignment as student would see it
 
 #### Attempt Enforcement
@@ -91,46 +92,57 @@
 
 #### Auto-Save & Draft Management
 - [x] Periodic auto-save of draft answers (every 30s, silent)
-- [ ] Resume draft on re-entry
+- [x] Resume draft on re-entry (hydration from submission.answers)
 - [ ] Submission confirmation dialog
+- [x] Dirty tracking (tracks unsaved changes)
 
 **Deliverables**:
-- Students can take MCQ/written assignments with strict due dates
-- Staff can build assignments from the question pool (MCQ/written)
-- Silent auto-save for drafts
+- ✅ Students can take MCQ/written assignments with strict due dates
+- ✅ Staff can build assignments from the question pool (MCQ/written)
+- ✅ Silent auto-save for drafts (30s interval)
+- ⏳ Assignment editing (add/remove questions post-creation)
+- ⏳ Timer and submission confirmation UI
 
 ---
 
-### 🔲 Phase 3: UML Submission & File Handling
+### � Phase 3: UML Submission & File Handling
 **Duration**: Week 7-8  
-**Status**: 🔲 Not Started
+**Status**: 🟡 Partially Complete
 
 #### File Upload Infrastructure
-- [ ] Integrate Supabase Storage (or self-hosted MinIO for on-prem)
-- [ ] Upload API endpoint with validation
-- [ ] File type restrictions (.png, .jpg, .puml, .svg)
-- [ ] Size limits (e.g., 5MB per file)
-- [ ] Secure signed URLs for file access
+- [x] Integrate Supabase Storage (bucket: `submissions`)
+- [x] Upload API endpoint with validation (`POST /api/submissions/:id/upload`)
+- [x] File type restrictions (.png, .jpg, .jpeg, .svg, .puml)
+- [x] Size limits (5MB per file)
+- [x] Public URLs and signed URL generation
+- [x] Storage utility functions (`src/server/lib/storage.ts`)
+- [x] File validation (server + client)
+- [x] FileUpload component (drag-drop, preview)
 
 #### UML Diagram Viewer
+- [x] UMLViewer component exists (`src/client/components/UMLViewer.tsx`)
+- [ ] Integration with student assignment attempt UI
 - [ ] Image preview (PNG/JPG)
 - [ ] PlantUML/Mermaid renderer (if textual format submitted)
 - [ ] Side-by-side view (student submission vs. reference)
 
 #### Submission Versioning
-- [ ] Track file versions (if student re-uploads)
+- [x] File path includes timestamp for versioning
+- [ ] Track file versions in UI (if student re-uploads)
 - [ ] Diff view for textual UML (PlantUML DSL)
 - [ ] Submission history timeline
 
 #### Basic Validation
-- [ ] Due date enforcement (hard deadline vs. late penalty)
-- [ ] File type validation
-- [ ] Completeness check (all required files uploaded)
+- [x] Due date enforcement (hard deadline)
+- [x] File type validation (client + server)
+- [ ] Completeness check UI (all required files uploaded)
 
 **Deliverables**:
-- Students can upload UML diagrams
-- Staff can view submissions with diagrams
-- Version history available
+- ✅ File upload infrastructure functional (Supabase Storage)
+- ✅ API endpoint for file uploads with validation
+- ⏳ UML diagram viewer integration in student UI
+- ⏳ Version history UI
+- ⏳ Staff grading interface for UML submissions
 
 ---
 
@@ -377,12 +389,16 @@ Grade and provide feedback.
 - [ ] < 2% error rate on submissions
 
 ### Phase 2 (Question Pools)
-- [ ] 80% of assignments use question pool (vs. one-off questions)
-- [ ] Average assignment creation time < 15 minutes
+- [x] Question pool UI functional (create, edit, delete, filter)
+- [x] Tag-based organization implemented
+- [ ] 80% of assignments use question pool (vs. one-off questions) - *measurement pending*
+- [ ] Average assignment creation time < 15 minutes - *measurement pending*
 
 ### Phase 3 (UML Submissions)
-- [ ] 100% of UML assignments support file upload
-- [ ] File upload success rate > 98%
+- [x] File upload infrastructure operational
+- [x] File validation working (type, size, authentication)
+- [ ] UML question type integrated in student assignment UI
+- [ ] File upload success rate > 98% - *measurement pending*
 
 ### Phase 4 (AI Grading)
 - [ ] AI suggestions available for 90% of UML submissions
@@ -393,15 +409,15 @@ Grade and provide feedback.
 
 ## Timeline (12-Week FYP)
 
-| Week | Phase | Deliverables |
-|------|-------|--------------|
-| 1-2 | Phase 0 | Project scaffold, auth working |
-| 3-4 | Phase 1 | Core CRUD, dashboards, basic submission flow |
-| 5-6 | Phase 2 | Question pools, timed attempts, auto-save |
-| 7-8 | Phase 3 | File upload, UML viewer, versioning |
-| 9-10 | Phase 4a | LLM integration, rubric builder, AI suggestions |
-| 11 | Phase 4b | Queue system, audit logs |
-| 12 | Testing & Documentation | Load testing, user guide, deployment docs |
+| Week | Phase | Deliverables | Status |� Partially Complete
+|------|-------|--------------|--------|
+| 1-2 | Phase 0 | Project scaffold, auth working | ✅ Complete |
+| 3-4 | Phase 1 | Core CRUD, dashboards, basic submission flow | ✅ Complete |
+| 5-6 | Phase 2 | Question pools, timed attempts, auto-save | 🟡 In Progress |
+| 7-8 | Phase 3 | File upload, UML viewer, versioning | 🔲 Not Started |
+| 9-10 | Phase 4a | LLM integration, rubric builder, AI suggestions | 🔲 Not Started |
+| 11 | Phase 4b | Queue system, audit logs | 🔲 Not Started |
+| 12 | Testing & Documentation | Load testing, user guide, deployment docs | 🔲 Not Started |
 
 ---
 
