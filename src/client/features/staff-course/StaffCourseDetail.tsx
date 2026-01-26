@@ -46,7 +46,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
     }
   }, [authLoading, user, dbUser, navigate, setAdminViewAs]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return <div className="text-center py-8">Loading...</div>;
   }
 

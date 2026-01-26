@@ -23,7 +23,7 @@ export function StudentCourseDetail({ courseId }: StudentCourseDetailProps) {
     }
   }, [authLoading, user, navigate, dbUser, setAdminViewAs]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return <div className="text-center py-8">Loading...</div>;
   }
 
