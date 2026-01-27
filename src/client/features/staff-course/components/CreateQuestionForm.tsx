@@ -187,30 +187,112 @@ export function CreateQuestionForm({
         </div>
 
         {questionType === "mcq" && (
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">Options</label>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">Options</label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="showCorrectAnswers"
+                  defaultChecked={false}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-gray-700">Show correct answers to students</span>
+              </label>
+            </div>
+            
             {mcqOptions.map((option, index) => (
-              <input
-                key={option.id}
-                type="text"
-                value={option.text}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setMcqOptions(
-                    mcqOptions.map((item, itemIndex) => (itemIndex === index ? { ...item, text: value } : item)),
-                  );
-                }}
-                className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                placeholder={`Option ${index + 1}`}
-              />
+              <div key={option.id} className="flex gap-3 items-start p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center pt-3">
+                  <input
+                    type="checkbox"
+                    checked={option.isCorrect || false}
+                    onChange={(e) => {
+                      setMcqOptions(
+                        mcqOptions.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, isCorrect: e.target.checked } : item
+                        )
+                      );
+                    }}
+                    className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    title="Mark as correct answer"
+                  />
+                </div>
+                
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={option.text}
+                    onChange={(e) => {
+                      setMcqOptions(
+                        mcqOptions.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, text: e.target.value } : item
+                        )
+                      );
+                    }}
+                    className="block w-full rounded-md border-gray-300 px-3 py-2 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder={`Option ${index + 1}`}
+                  />
+                </div>
+                
+                <div className="w-24">
+                  <input
+                    type="number"
+                    value={option.points ?? 0}
+                    onChange={(e) => {
+                      setMcqOptions(
+                        mcqOptions.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, points: Number(e.target.value) } : item
+                        )
+                      );
+                    }}
+                    className="block w-full rounded-md border-gray-300 px-3 py-2 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="Points"
+                    min="0"
+                    step="0.5"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Points</p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => setMcqOptions(mcqOptions.filter((_, i) => i !== index))}
+                  className="text-red-600 hover:text-red-800 font-bold text-xl pt-2"
+                  disabled={mcqOptions.length <= 2}
+                  title="Remove option"
+                >
+                  ×
+                </button>
+              </div>
             ))}
+            
             <button
               type="button"
-              onClick={() => setMcqOptions([...mcqOptions, { id: crypto.randomUUID(), text: "" }])}
+              onClick={() => setMcqOptions([
+                ...mcqOptions,
+                { id: crypto.randomUUID(), text: "", points: 0, isCorrect: false }
+              ])}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
               + Add option
             </button>
+            
+            <input type="hidden" name="mcqOptions" value={JSON.stringify(mcqOptions)} />
+          </div>
+        )}
+
+        {questionType === "written" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Model Answer (optional)
+              <span className="text-gray-500 font-normal ml-2">- Reference for graders</span>
+            </label>
+            <textarea
+              name="modelAnswer"
+              rows={4}
+              className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Provide a reference answer to guide grading..."
+            />
           </div>
         )}
 

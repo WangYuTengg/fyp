@@ -19,16 +19,20 @@ export class ApiRequestError extends Error {
 export type McqOption = {
   id: string;
   text: string;
+  points?: number; // Points awarded if selected (for partial credit)
+  isCorrect?: boolean; // Whether this is a correct answer
 };
 
 export type McqContent = {
   prompt: string;
   options: McqOption[];
   allowMultiple?: boolean;
+  showCorrectAnswers?: boolean; // Whether to show correct answers to students
 };
 
 export type WrittenContent = {
   prompt: string;
+  modelAnswer?: string; // Reference answer for graders
 };
 
 export type UMLContent = {

@@ -8,6 +8,8 @@ import { randomUUID } from 'crypto';
 type McqOption = {
   id?: string;
   text?: string;
+  points?: number;
+  isCorrect?: boolean;
 };
 
 type CreateQuestionBody = {
@@ -21,6 +23,8 @@ type CreateQuestionBody = {
   assignmentId?: string;
   tags?: string[];
   referenceDiagram?: string;
+  showCorrectAnswers?: boolean;
+  modelAnswer?: string;
 };
 
 type UpdateQuestionBody = {
@@ -32,6 +36,8 @@ type UpdateQuestionBody = {
   allowMultiple?: boolean;
   tags?: string[];
   referenceDiagram?: string;
+  showCorrectAnswers?: boolean;
+  modelAnswer?: string;
 };
 
 const app = new Hono<AuthContext>();
@@ -121,6 +127,8 @@ app.post('/', requireAuth, async (c) => {
       .map((option) => ({
         id: option.id ?? randomUUID(),
         text: (option.text ?? '').trim(),
+        points: option.points ?? 0,
+        isCorrect: option.isCorrect ?? false,
       }))
       .filter((option) => option.text.length > 0);
 
@@ -132,6 +140,14 @@ app.post('/', requireAuth, async (c) => {
       prompt,
       options,
       allowMultiple: false,
+      showCorrectAnswers: body.showCorrectAnswers ?? false,
+    };
+  }
+
+  if (body.type === 'written') {
+    content = {
+      prompt,
+      modelAnswer: body.modelAnswer?.trim() || undefined,
     };
   }
 
@@ -217,7 +233,15 @@ app.put('/:id', requireAuth, async (c) => {
       if (!prompt) {
         return c.json({ error: 'Prompt is required' }, 400);
       }
-      patch.content = { prompt };
+      patch.content = { 
+        prompt,
+        modelAnswer: body.modelAnswer?.trim() || (existingContent.modelAnswer as string | undefined) || undefined,
+      };
+    } else if (body.modelAnswer !== undefined) {
+      patch.content = {
+        prompt: (existingContent.prompt as string | undefined) ?? '',
+        modelAnswer: body.modelAnswer.trim() || undefined,
+      };
     }
   }
 
@@ -248,10 +272,12 @@ app.put('/:id', requireAuth, async (c) => {
       .map((option) => ({
         id: option.id ?? randomUUID(),
         text: (option.text ?? '').trim(),
+        points: option.points ?? 0,
+        isCorrect: option.isCorrect ?? false,
       }))
       .filter((option) => option.text.length > 0);
 
-    if (prompt !== undefined || body.options) {
+    if (prompt !== undefined || body.options || body.showCorrectAnswers !== undefined) {
       if (!updatedPrompt) {
         return c.json({ error: 'Prompt is required' }, 400);
       }
@@ -263,6 +289,7 @@ app.put('/:id', requireAuth, async (c) => {
         prompt: updatedPrompt,
         options,
         allowMultiple: false,
+        showCorrectAnswers: body.showCorrectAnswers ?? (existingContent.showCorrectAnswers as boolean | undefined) ?? false,
       };
     }
   }

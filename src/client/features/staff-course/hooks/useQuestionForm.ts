@@ -8,8 +8,8 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
   const [questionType, setQuestionType] = useState<'mcq' | 'written' | 'uml'>('written');
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>('');
   const [mcqOptions, setMcqOptions] = useState<McqOption[]>([
-    { id: crypto.randomUUID(), text: '' },
-    { id: crypto.randomUUID(), text: '' },
+    { id: crypto.randomUUID(), text: '', points: 0, isCorrect: false },
+    { id: crypto.randomUUID(), text: '', points: 0, isCorrect: false },
   ]);
   const queryClient = useQueryClient();
 
@@ -23,8 +23,8 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
       setQuestionType('written');
       setSelectedAssignmentId('');
       setMcqOptions([
-        { id: crypto.randomUUID(), text: '' },
-        { id: crypto.randomUUID(), text: '' },
+        { id: crypto.randomUUID(), text: '', points: 0, isCorrect: false },
+        { id: crypto.randomUUID(), text: '', points: 0, isCorrect: false },
       ]);
     },
     onError: (err: unknown) => {
@@ -70,16 +70,16 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
     const tagsJson = String(formData.get('tags') || '[]');
     const tags = JSON.parse(tagsJson) as string[];
     const umlDiagram = String(formData.get('umlDiagram') || '');
+    const showCorrectAnswers = formData.get('showCorrectAnswers') === 'on';
+    const modelAnswer = String(formData.get('modelAnswer') || '').trim();
 
     if (questionType === 'mcq') {
-      const options = mcqOptions
-        .map((option) => ({
-          id: option.id || crypto.randomUUID(),
-          text: option.text.trim(),
-        }))
-        .filter((option) => option.text.length > 0);
+      const mcqOptionsJson = String(formData.get('mcqOptions') || '[]');
+      const options = JSON.parse(mcqOptionsJson) as McqOption[];
 
-      if (options.length < 2) {
+      const validOptions = options.filter((option) => option.text.trim().length > 0);
+
+      if (validOptions.length < 2) {
         alert('MCQ requires at least two options.');
         return;
       }
@@ -90,8 +90,9 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
         type: 'mcq',
         prompt,
         points,
-        options,
+        options: validOptions,
         allowMultiple: false,
+        showCorrectAnswers,
         assignmentId: selectedAssignmentId || undefined,
         tags: tags.length > 0 ? tags : undefined,
       } as Parameters<typeof questionsApi.create>[0]);
@@ -117,6 +118,7 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
       title,
       type: 'written',
       prompt,
+      modelAnswer: modelAnswer || undefined,
       points,
       assignmentId: selectedAssignmentId || undefined,
       tags: tags.length > 0 ? tags : undefined,
