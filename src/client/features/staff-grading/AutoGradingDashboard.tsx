@@ -6,6 +6,7 @@ import {
   CheckCircleIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
+import { CostAnalytics } from './components/CostAnalytics';
 
 export function AutoGradingDashboard() {
   const [autoGradeOnSubmit, setAutoGradeOnSubmit] = useState(false);
@@ -178,6 +179,9 @@ export function AutoGradingDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Cost & Usage Analytics */}
+      <CostAnalytics />
     </div>
   );
 }

@@ -4,8 +4,10 @@ import {
   BookOpenIcon, 
   AcademicCapIcon,
   CpuChipIcon,
+  BellIcon,
 } from '@heroicons/react/24/outline';
 import { UserInfo } from './UserInfo';
+import { useEffect, useState } from 'react';
 
 interface NavItem {
   name: string;
@@ -32,6 +34,12 @@ const navigation: NavItem[] = [
     href: '/staff/auto-grading',
     icon: CpuChipIcon,
     roles: ['staff', 'admin']
+  },
+  {
+    name: 'Notifications',
+    href: '/staff/notifications',
+    icon: BellIcon,
+    roles: ['staff', 'admin']
   }
 ];
 
@@ -43,6 +51,28 @@ export function Sidebar() {
   const { dbUser, loading, effectiveRole, setAdminViewAs, adminViewAs } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch unread notification count for staff/admin
+  useEffect(() => {
+    const role = effectiveRole ?? dbUser?.role;
+    if (dbUser && (role === 'staff' || role === 'admin')) {
+      fetch('/api/notifications/unread-count')
+        .then(res => res.json())
+        .then(data => setUnreadCount(data.count || 0))
+        .catch(console.error);
+      
+      // Poll every 30 seconds
+      const interval = setInterval(() => {
+        fetch('/api/notifications/unread-count')
+          .then(res => res.json())
+          .then(data => setUnreadCount(data.count || 0))
+          .catch(console.error);
+      }, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [dbUser, effectiveRole]);
 
   if (loading || !dbUser) {
     return (
@@ -127,6 +157,8 @@ export function Sidebar() {
                               (location.pathname.startsWith(item.href + '/') && 
                                item.href !== '/student' && item.href !== '/staff');
               
+              const showBadge = item.href === '/staff/notifications' && unreadCount > 0;
+              
               return (
                 <Link
                   key={item.name + item.href}
@@ -145,7 +177,12 @@ export function Sidebar() {
                     )}
                     aria-hidden="true"
                   />
-                  {item.name}
+                  <span className="flex-1">{item.name}</span>
+                  {showBadge && (
+                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

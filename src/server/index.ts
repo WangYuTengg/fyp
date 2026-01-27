@@ -12,6 +12,7 @@ import submissionsRoutes from './routes/submissions.js';
 import questionsRoutes from './routes/questions.js';
 import tagsRoutes from './routes/tags.js';
 import autoGradeRoutes from './routes/auto-grade.js';
+import notificationsRoutes from './routes/notifications.js';
 import { authMiddleware, type AuthContext } from './middleware/auth.js';
 import { initializeWorker, shutdownWorker } from './lib/worker.js';
 import autoGradeWritten from './jobs/auto-grade-written.js';
@@ -30,6 +31,7 @@ app.route('/api/submissions', submissionsRoutes);
 app.route('/api/questions', questionsRoutes);
 app.route('/api/tags', tagsRoutes);
 app.route('/api/auto-grade', autoGradeRoutes);
+app.route('/api/notifications', notificationsRoutes);
 
 // Health check
 app.get('/api/health', (c) => {

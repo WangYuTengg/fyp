@@ -35,6 +35,7 @@ export type GradingAnswer = {
   fileUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  aiGradingSuggestion?: Record<string, unknown> | string | null;
   question?: {
     id: string;
     title: string;
