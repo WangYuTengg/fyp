@@ -43,6 +43,13 @@
       "when": 1769497193658,
       "tag": "0005_magical_micromacro",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1738000000000,
+      "tag": "0006_add_foreign_key_indexes",
+      "breakpoints": true
     }
   ]
 }

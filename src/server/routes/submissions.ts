@@ -4,6 +4,8 @@ import { submissions, assignments, answers, marks, enrollments, fileUploads, que
 import { requireAuth, type AuthContext } from '../middleware/auth.js';
 import { eq, and, desc, count } from 'drizzle-orm';
 import { uploadFile, validateFile, getSignedUrl } from '../lib/storage.js';
+import { startSubmissionSchema, saveAnswerSchema, bulkGradeSchema } from '../lib/validation-schemas.js';
+import { errorResponse, ErrorCodes } from '../lib/errors.js';
 
 const app = new Hono<AuthContext>();
 
@@ -142,11 +144,22 @@ app.get('/:submissionId', requireAuth, async (c) => {
 app.post('/start', requireAuth, async (c) => {
   const user = c.get('user')!;
   const body = await c.req.json();
-  const { assignmentId } = body;
-
-  if (!assignmentId) {
-    return c.json({ error: 'Assignment ID required' }, 400);
+  
+  // Validate request body
+  const validation = startSubmissionSchema.safeParse(body);
+  if (!validation.success) {
+    const firstError = validation.error.issues[0];
+    return c.json(
+      errorResponse(
+        'Validation failed',
+        { field: firstError?.path.join('.'), message: firstError?.message },
+        ErrorCodes.VALIDATION_ERROR
+      ),
+      400
+    );
   }
+
+  const { assignmentId } = validation.data;
 
   // Check enrollment
   const [assignment] = await db
@@ -262,7 +275,22 @@ app.post('/:submissionId/answers', requireAuth, async (c) => {
   const submissionId = c.req.param('submissionId');
   const user = c.get('user')!;
   const body = await c.req.json();
-  const { questionId, content, fileUrl } = body;
+  
+  // Validate request body
+  const validation = saveAnswerSchema.safeParse(body);
+  if (!validation.success) {
+    const firstError = validation.error.issues[0];
+    return c.json(
+      errorResponse(
+        'Validation failed',
+        { field: firstError?.path.join('.'), message: firstError?.message },
+        ErrorCodes.VALIDATION_ERROR
+      ),
+      400
+    );
+  }
+
+  const { questionId, content, fileUrl } = validation.data;
 
   // Verify ownership
   const [submission] = await db
@@ -307,6 +335,11 @@ app.post('/:submissionId/answers', requireAuth, async (c) => {
 
   if (!assignmentQuestion) {
     return c.json({ error: 'Question does not belong to this assignment' }, 400);
+  }
+
+  // Check if assignment is open (prevent saves before open date)
+  if (assignment.openDate && new Date() < assignment.openDate) {
+    return c.json({ error: 'Assignment is not yet open' }, 403);
   }
 
   // Allow saves after due date (will be marked late on submit)
@@ -413,68 +446,82 @@ app.post('/:submissionId/grade', requireAuth, async (c) => {
   const user = c.get('user')!;
 
   if (user.role !== 'admin' && user.role !== 'staff') {
-    return c.json({ error: 'Forbidden' }, 403);
+    return c.json(errorResponse('Forbidden', undefined, ErrorCodes.FORBIDDEN), 403);
   }
 
   const body = await c.req.json();
-  const { answerId, points, maxPoints, feedback } = body;
-
-  if (points === undefined || maxPoints === undefined) {
-    return c.json({ error: 'Points and maxPoints required' }, 400);
-  }
-
-  // Prevent duplicate marks: check if this answer already has a mark
-  if (answerId) {
-    const [existingMark] = await db
-      .select()
-      .from(marks)
-      .where(
-        and(
-          eq(marks.submissionId, submissionId),
-          eq(marks.answerId, answerId)
-        )
-      )
-      .limit(1);
-
-    if (existingMark) {
-      // Update existing mark instead of creating duplicate
-      const [updated] = await db
-        .update(marks)
-        .set({
-          points,
-          maxPoints,
-          feedback,
-          markedBy: user.id,
-          updatedAt: new Date(),
-        })
-        .where(eq(marks.id, existingMark.id))
-        .returning();
-
-      await db
-        .update(submissions)
-        .set({
-          status: 'graded',
-          gradedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(submissions.id, submissionId));
-
-      return c.json(updated);
+  
+  // Validate request body - support both bulk and single grade formats
+  const bulkValidation = bulkGradeSchema.safeParse(body);
+  
+  let gradesList;
+  if (bulkValidation.success) {
+    gradesList = bulkValidation.data.grades;
+  } else {
+    // Try legacy single-grade format
+    gradesList = [body as { answerId: string; points: number; maxPoints: number; feedback?: string }];
+    
+    // Validate single grade has required fields
+    if (gradesList[0].points === undefined || gradesList[0].maxPoints === undefined) {
+      return c.json(
+        errorResponse('Points and maxPoints required for all grades', undefined, ErrorCodes.VALIDATION_ERROR),
+        400
+      );
     }
   }
 
-  const [mark] = await db
-    .insert(marks)
-    .values({
-      submissionId,
-      answerId: answerId || null,
-      points,
-      maxPoints,
-      feedback,
-      markedBy: user.id,
-      isAiAssisted: false,
-    })
-    .returning();
+  const createdMarks = [];
+
+  for (const grade of gradesList) {
+    const { answerId, points, maxPoints, feedback } = grade;
+
+    // Prevent duplicate marks: check if this answer already has a mark
+    if (answerId) {
+      const [existingMark] = await db
+        .select()
+        .from(marks)
+        .where(
+          and(
+            eq(marks.submissionId, submissionId),
+            eq(marks.answerId, answerId)
+          )
+        )
+        .limit(1);
+
+      if (existingMark) {
+        // Update existing mark instead of creating duplicate
+        const [updated] = await db
+          .update(marks)
+          .set({
+            points,
+            maxPoints,
+            feedback,
+            markedBy: user.id,
+            updatedAt: new Date(),
+          })
+          .where(eq(marks.id, existingMark.id))
+          .returning();
+
+        createdMarks.push(updated);
+        continue;
+      }
+    }
+
+    const [mark] = await db
+      .insert(marks)
+      .values({
+        submissionId,
+        answerId: answerId || null,
+        points,
+        maxPoints,
+        feedback,
+        markedBy: user.id,
+        isAiAssisted: false,
+      })
+      .returning();
+
+    createdMarks.push(mark);
+  }
 
   // Update submission status
   await db
@@ -486,7 +533,7 @@ app.post('/:submissionId/grade', requireAuth, async (c) => {
     })
     .where(eq(submissions.id, submissionId));
 
-  return c.json(mark, 201);
+  return c.json(createdMarks, 201);
 });
 
 // Upload file for UML question answer

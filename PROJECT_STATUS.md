@@ -1,12 +1,13 @@
 # UML Assessment Platform - Project Status
 
-**Last Updated:** January 26, 2026
+**Last Updated:** January 27, 2026  
+**Stabilization Sprint Completed:** ✅ P0/P1 Issues Resolved
 
 ## Project Overview
 
 An automated assessment platform for UML diagrams with LLM-assisted grading, designed for on-premise school deployment.
 
-**Key Differentiator**: LLM-assisted UML diagram grading with human-in-the-loop oversight and audit trails.
+**Key Differentiator**: LLM-assisted UML diagram grading with vision model integration, human-in-the-loop oversight, and comprehensive audit trails.
 
 ---
 
@@ -14,12 +15,25 @@ An automated assessment platform for UML diagrams with LLM-assisted grading, des
 
 - **Frontend**: Vite + React + TypeScript + TanStack Router + Tailwind CSS
 - **Backend**: Hono + Supabase Auth + PostgreSQL + Drizzle ORM
+- **Background Jobs**: Graphile Worker
+- **LLM**: OpenAI GPT-4o / Anthropic Claude 3.5 Sonnet (configurable)
 - **DevOps**: Docker + GitHub Actions
-- **LLM** (Phase 4): OpenAI API or self-hosted (Llama, Mistral)
 
 ---
 
-## Current Status: Phase 2 (70% Complete)
+## Current Status: Phase 2.5 (85% Complete) - Post-Stabilization
+
+### 🎯 Recent Stabilization Sprint (Jan 27, 2026)
+
+**Completed:**
+- ✅ Fixed 5 critical P0 bugs (worker init, token calc, vision API, auth bypass, payload mismatch)
+- ✅ Implemented 8 P1 features (validation, error boundaries, rate limiting, indexes)
+- ✅ Created comprehensive documentation (API + Deployment guides)
+- ✅ Centralized configuration constants
+- ✅ Extended signed URL expiry to 24 hours
+- ✅ Added database indexes for performance
+
+**See:** [docs/STABILIZATION_REPORT.md](docs/STABILIZATION_REPORT.md) for full details.
 
 ### ✅ Completed Features
 

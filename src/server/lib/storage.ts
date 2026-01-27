@@ -1,15 +1,10 @@
 import { supabase } from './supabase.js';
+import { STORAGE_CONFIG } from '../config/constants.js';
 
-const STORAGE_BUCKET = 'submissions';
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_MIME_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/svg+xml',
-  'text/plain', // for .puml files
-];
-
-const ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.puml'];
+const STORAGE_BUCKET = STORAGE_CONFIG.BUCKET_NAME;
+const MAX_FILE_SIZE = STORAGE_CONFIG.MAX_FILE_SIZE;
+const ALLOWED_MIME_TYPES = STORAGE_CONFIG.ALLOWED_MIME_TYPES;
+const ALLOWED_EXTENSIONS = STORAGE_CONFIG.ALLOWED_EXTENSIONS;
 
 export type UploadResult = {
   path: string;
@@ -34,7 +29,7 @@ export function validateFile(file: {
 
   // Check file extension
   const extension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-  if (!ALLOWED_EXTENSIONS.includes(extension)) {
+  if (!ALLOWED_EXTENSIONS.includes(extension as any)) {
     return {
       valid: false,
       error: `File type not allowed. Allowed types: ${ALLOWED_EXTENSIONS.join(', ')}`,
@@ -42,7 +37,7 @@ export function validateFile(file: {
   }
 
   // Check MIME type (if available)
-  if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
+  if (file.type && !ALLOWED_MIME_TYPES.includes(file.type as any)) {
     return {
       valid: false,
       error: `MIME type not allowed. File type: ${file.type}`,
@@ -87,12 +82,12 @@ export async function uploadFile(
 }
 
 /**
- * Get signed URL for file (valid for 1 hour)
+ * Get signed URL for file (valid for 24 hours)
  */
 export async function getSignedUrl(filePath: string): Promise<string> {
   const { data, error } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .createSignedUrl(filePath, 3600); // 1 hour
+    .createSignedUrl(filePath, STORAGE_CONFIG.SIGNED_URL_EXPIRY);
 
   if (error) {
     throw new Error(`Failed to generate signed URL: ${error.message}`);

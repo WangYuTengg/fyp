@@ -5,6 +5,7 @@ dotenv.config();
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
+import { rateLimiter } from 'hono-rate-limiter';
 import authRoutes from './routes/auth.js';
 import coursesRoutes from './routes/courses.js';
 import assignmentsRoutes from './routes/assignments.js';
@@ -17,8 +18,22 @@ import { authMiddleware, type AuthContext } from './middleware/auth.js';
 import { initializeWorker, shutdownWorker } from './lib/worker.js';
 import autoGradeWritten from './jobs/auto-grade-written.js';
 import autoGradeUML from './jobs/auto-grade-uml.js';
+import { RATE_LIMIT_CONFIG } from './config/constants.js';
 
 const app = new Hono<AuthContext>();
+
+// Rate limiting middleware - apply to all API routes
+const limiter = rateLimiter({
+  windowMs: RATE_LIMIT_CONFIG.WINDOW_MS,
+  limit: RATE_LIMIT_CONFIG.MAX_REQUESTS,
+  standardHeaders: 'draft-6', // Return rate limit info in the `RateLimit-*` headers
+  keyGenerator: (c) => {
+    // Use IP address as key, fallback to a default for local dev
+    return c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'default';
+  },
+});
+
+app.use('/api/*', limiter);
 
 // Global auth middleware to attach user to all requests
 app.use('*', authMiddleware);
@@ -67,8 +82,9 @@ initializeWorker(taskList)
     console.log('✓ Graphile Worker initialized');
   })
   .catch((err) => {
-    console.error('Failed to initialize Graphile Worker:', err);
-    // Continue without worker - jobs will queue but not process
+    console.error('FATAL: Failed to initialize Graphile Worker:', err);
+    console.error('Auto-grading system will not function. Exiting...');
+    process.exit(1);
   });
 
 // Graceful shutdown

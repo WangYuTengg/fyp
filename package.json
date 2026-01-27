@@ -34,6 +34,7 @@
     "drizzle-orm": "^0.45.1",
     "graphile-worker": "^0.16.6",
     "hono": "^4.11.5",
+    "hono-rate-limiter": "^0.5.3",
     "plantuml-encoder": "^1.4.0",
     "postgres": "^3.4.8",
     "react": "^19.2.0",

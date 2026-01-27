@@ -9,11 +9,14 @@ import {
   assignmentQuestions,
   aiGradingJobs,
   aiUsageStats,
+  enrollments,
 } from '../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../middleware/auth.js';
 import { validateAssignmentHasAnswers } from '../lib/validators.js';
 import { addJob } from '../lib/worker.js';
 import { randomUUID } from 'crypto';
+import { batchAutoGradeSchema } from '../lib/validation-schemas.js';
+import { errorResponse, ErrorCodes } from '../lib/errors.js';
 
 const app = new Hono<AuthContext>();
 
@@ -28,18 +31,26 @@ app.post('/batch', authMiddleware, async (c) => {
   
   // Only staff/admin can trigger auto-grading
   if (!user || (user.role !== 'staff' && user.role !== 'admin')) {
-    return c.json({ error: 'Unauthorized' }, 403);
+    return c.json(errorResponse('Unauthorized', undefined, ErrorCodes.UNAUTHORIZED), 403);
   }
 
   const body = await c.req.json();
-  const { assignmentId, questionTypes } = body as {
-    assignmentId: string;
-    questionTypes?: ('written' | 'uml')[];
-  };
-
-  if (!assignmentId) {
-    return c.json({ error: 'assignmentId is required' }, 400);
+  
+  // Validate request body
+  const validation = batchAutoGradeSchema.safeParse(body);
+  if (!validation.success) {
+    const firstError = validation.error.issues[0];
+    return c.json(
+      errorResponse(
+        'Validation failed',
+        { field: firstError?.path.join('.'), message: firstError?.message },
+        ErrorCodes.VALIDATION_ERROR
+      ),
+      400
+    );
   }
+
+  const { assignmentId, questionTypes } = validation.data;
 
   try {
     // 1. Validate assignment exists
@@ -53,7 +64,22 @@ app.post('/batch', authMiddleware, async (c) => {
       return c.json({ error: 'Assignment not found' }, 404);
     }
 
-    // TODO: Add course ownership check for staff
+    // Verify staff is enrolled in the course as lecturer or TA
+    const [enrollment] = await db
+      .select()
+      .from(enrollments)
+      .where(
+        and(
+          eq(enrollments.userId, user.id),
+          eq(enrollments.courseId, assignment.courseId),
+          inArray(enrollments.role, ['lecturer', 'ta'])
+        )
+      )
+      .limit(1);
+
+    if (!enrollment && user.role !== 'admin') {
+      return c.json({ error: 'You do not have permission to auto-grade this assignment' }, 403);
+    }
 
     // 2. Validate all questions have model answers
     const validation = await validateAssignmentHasAnswers(assignmentId);

@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { answers, aiGradingJobs, aiUsageStats, staffNotifications, questions } from '../../db/schema.js';
-import { generateAIObject, generateAIText } from '../lib/ai.js';
+import { generateAIObject, generateAIVision } from '../lib/ai.js';
 import { getPrompt } from '../config/prompts.js';
 import { calculateCost } from '../config/pricing.js';
 import { getSignedUrl } from '../lib/storage.js';
@@ -106,7 +106,7 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
       const signedUrl = await getSignedUrl(fileUrl);
 
       // Extract PlantUML using vision model
-      const extractionPrompt = `You are a UML diagram expert. Analyze this image and extract the UML diagram as PlantUML syntax code.
+      const extractionPrompt = `Analyze this UML diagram image and extract the complete diagram as PlantUML syntax code.
 
 Output ONLY the PlantUML code starting with @startuml and ending with @enduml. Include all classes, relationships, attributes, and methods visible in the diagram.
 
@@ -114,21 +114,21 @@ Be precise with:
 - Class names and stereotypes
 - Relationship types (inheritance, composition, aggregation, association)
 - Multiplicity indicators
-- Attribute and method signatures`;
+- Attribute and method signatures
+- Visibility modifiers (+, -, #, ~)`;
 
-      // Note: Vision model requires special handling with image URL
-      // For now, use text-based extraction (simplified)
-      // TODO: Implement proper vision API call with image URL
-      const extractionResult = await generateAIText(
-        `${extractionPrompt}\n\nImage URL: ${signedUrl}`,
-        'You are a UML diagram analysis expert. Extract PlantUML code from diagrams.'
+      // Use vision-capable model for image analysis
+      const extractionResult = await generateAIVision(
+        signedUrl,
+        extractionPrompt,
+        'You are a UML diagram analysis expert. Extract PlantUML code from diagram images with high precision.'
       );
 
       extractedUml = extractionResult.text;
       studentUml = extractedUml;
       totalTokens += extractionResult.tokensUsed;
 
-      helpers.logger.info(`Extracted ${extractedUml.length} characters of PlantUML code`);
+      helpers.logger.info(`Extracted ${extractedUml.length} characters of PlantUML code using vision model`);
     } else {
       throw new Error('No UML text or file URL provided in answer');
     }

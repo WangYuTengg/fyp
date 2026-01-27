@@ -1,4 +1,4 @@
-import { generateText, generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
@@ -38,8 +38,8 @@ export async function generateAIText(prompt: string, systemPrompt?: string) {
   return {
     text,
     tokensUsed: usage?.totalTokens ?? 0,
-    inputTokens: (usage?.totalTokens ?? 0) - (usage?.totalTokens ?? 0), // AI SDK doesn't expose separate input/output in v3
-    outputTokens: usage?.totalTokens ?? 0,
+    inputTokens: usage?.inputTokens ?? 0,
+    outputTokens: usage?.outputTokens ?? 0,
   };
 }
 
@@ -53,18 +53,46 @@ export async function generateAIObject<T extends z.ZodType>(
 ): Promise<{ object: z.infer<T>; tokensUsed: number; inputTokens: number; outputTokens: number }> {
   const model = getModel();
   
-  const result = await generateObject({
+  const result = await generateText({
     model,
-    schema,
     prompt,
     ...(systemPrompt && { system: systemPrompt }),
-  } as any); // Type assertion needed due to complex AI SDK generics
+    output: Output.object({ schema }),
+  });
   
   return {
-    object: result.object as z.infer<T>,
+    object: result.output as z.infer<T>,
     tokensUsed: result.usage?.totalTokens ?? 0,
-    inputTokens: 0,
-    outputTokens: result.usage?.totalTokens ?? 0,
+    inputTokens: result.usage?.inputTokens ?? 0,
+    outputTokens: result.usage?.outputTokens ?? 0,
+  };
+}
+
+/**
+ * Extract text from image using vision-capable LLM
+ */
+export async function generateAIVision(imageUrl: string, prompt: string, systemPrompt?: string) {
+  const model = getModel();
+  
+  const { text, usage } = await generateText({
+    model,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: systemPrompt || 'You are a helpful assistant.' },
+          { type: 'image', image: imageUrl },
+          { type: 'text', text: prompt },
+        ],
+      },
+    ],
+  });
+  
+  return {
+    text,
+    tokensUsed: usage?.totalTokens ?? 0,
+    inputTokens: usage?.inputTokens ?? 0,
+    outputTokens: usage?.outputTokens ?? 0,
   };
 }
 

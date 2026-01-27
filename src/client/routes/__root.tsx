@@ -1,6 +1,7 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { AuthProvider } from '../contexts/AuthContext';
 import { Sidebar } from '../components/Sidebar';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useAuth } from '../hooks/useAuth';
 
 function RootComponent() {
@@ -29,8 +30,10 @@ function RootComponent() {
 
 export const Route = createRootRoute({
   component: () => (
-    <AuthProvider>
-      <RootComponent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <RootComponent />
+      </AuthProvider>
+    </ErrorBoundary>
   ),
 });
