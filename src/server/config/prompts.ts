@@ -49,6 +49,51 @@ ${params.modelAnswer}
         return prompt;
       },
     },
+
+    // v2: Stricter grading with more emphasis on technical precision
+    v2: {
+      system: `You are a strict academic grader who values precision and technical accuracy. Grade student answers rigorously against the model answer.
+
+Emphasize:
+- Exact technical terminology and definitions
+- Complete coverage of all key points
+- Precise explanations without ambiguity
+- Proper use of domain-specific language
+
+Minor errors or missing details should result in point deductions. Require comprehensive answers for full credit.
+
+Provide a confidence score (0-100) for your assessment.`,
+
+      user: (params: {
+        studentAnswer: string;
+        modelAnswer: string;
+        maxPoints: number;
+        rubric?: Array<{ id: string; description: string; maxPoints: number }>;
+      }) => {
+        let prompt = `Strictly evaluate this student answer:
+
+**Student Answer:**
+${params.studentAnswer}
+
+**Model Answer (Expected):**
+${params.modelAnswer}
+
+**Maximum Points:** ${params.maxPoints}
+`;
+
+        if (params.rubric && params.rubric.length > 0) {
+          prompt += `\n**Rubric (strict evaluation):**\n`;
+          params.rubric.forEach((criterion, idx) => {
+            prompt += `${idx + 1}. ${criterion.description} (max: ${criterion.maxPoints} pts)\n`;
+          });
+          prompt += `\nScore each criterion precisely. Deduct points for incomplete or imprecise responses.\n`;
+        } else {
+          prompt += `\nProvide exact score (0-${params.maxPoints}) with detailed justification for any point deductions.\n`;
+        }
+
+        return prompt;
+      },
+    },
   },
 
   uml: {
@@ -107,6 +152,75 @@ Provide:
 2. Comparison analysis
 3. Grade (0-${params.maxPoints}) with reasoning`,
     },
+
+    // v2: More detailed UML analysis with pattern recognition
+    v2: {
+      system: `You are an advanced UML diagram expert specializing in software architecture assessment. Evaluate diagrams with emphasis on design patterns, best practices, and UML standard compliance.
+
+Assessment criteria:
+- UML 2.x notation correctness
+- Complete element specification (visibility, types, parameters)
+- Relationship semantics and cardinality accuracy
+- Design pattern identification and proper implementation
+- Code organization and naming conventions
+- Scalability and maintainability considerations
+
+Be thorough in identifying both strengths and weaknesses. Award bonus points for elegant design solutions.
+
+Provide confidence score (0-100) based on diagram clarity and your certainty.`,
+
+      userText: (params: {
+        studentUML: string;
+        referenceUML: string;
+        maxPoints: number;
+      }) => `Comprehensively evaluate this UML diagram:
+
+**Student Submission (PlantUML):**
+\`\`\`plantuml
+${params.studentUML}
+\`\`\`
+
+**Reference Solution:**
+\`\`\`plantuml
+${params.referenceUML}
+\`\`\`
+
+**Maximum Points:** ${params.maxPoints}
+
+Analyze:
+- Structural completeness and correctness
+- Relationship types and multiplicities
+- Attribute/method specifications with visibility
+- Design patterns and architectural quality
+- UML standard compliance
+
+Provide detailed score (0-${params.maxPoints}) with element-by-element comparison.`,
+
+      userImage: (params: {
+        referenceUML: string;
+        maxPoints: number;
+      }) => `Perform detailed analysis of the UML diagram image.
+
+**Step 1:** Extract complete diagram structure including:
+- All classes with attributes (visibility, types)
+- All methods (visibility, parameters, return types)
+- All relationships with types and multiplicities
+- Any stereotypes or notes
+
+**Step 2:** Convert to PlantUML syntax.
+
+**Step 3:** Compare against reference:
+\`\`\`plantuml
+${params.referenceUML}
+\`\`\`
+
+**Maximum Points:** ${params.maxPoints}
+
+Deliverables:
+1. Extracted PlantUML code
+2. Detailed comparison analysis
+3. Grade (0-${params.maxPoints}) with comprehensive reasoning`,
+    },
   },
 } as const;
 
@@ -114,5 +228,9 @@ Provide:
  * Get active prompt for question type
  */
 export function getPrompt(type: 'written' | 'uml') {
-  return prompts[type][PROMPT_VERSION as 'v1'];
+  const version = (PROMPT_VERSION === 'v2' ? 'v2' : 'v1') as 'v1' | 'v2';
+  return {
+    ...prompts[type][version],
+    version,
+  };
 }

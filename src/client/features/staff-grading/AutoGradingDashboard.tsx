@@ -7,13 +7,21 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import { CostAnalytics } from './components/CostAnalytics';
+import { QueueMonitor } from './components/QueueMonitor';
+import { CostEstimateModal } from './components/CostEstimateModal';
 
 export function AutoGradingDashboard() {
   const [autoGradeOnSubmit, setAutoGradeOnSubmit] = useState(false);
   const [autoGradeMCQOnly, setAutoGradeMCQOnly] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
+  const [showCostModal, setShowCostModal] = useState(false);
 
   const handleTriggerAutoGrade = () => {
+    // Show cost estimate modal first
+    setShowCostModal(true);
+  };
+
+  const confirmAndRunGrading = () => {
     setIsRunning(true);
     // TODO: Call auto-grading API
     setTimeout(() => {
@@ -180,8 +188,20 @@ export function AutoGradingDashboard() {
         </div>
       </div>
 
+      {/* Queue Monitor */}
+      <QueueMonitor />
+
       {/* Cost & Usage Analytics */}
       <CostAnalytics />
+
+      {/* Cost Estimate Modal */}
+      <CostEstimateModal
+        isOpen={showCostModal}
+        onClose={() => setShowCostModal(false)}
+        onConfirm={confirmAndRunGrading}
+        assignmentId="placeholder" // TODO: Get from actual assignment selection
+        questionTypes={['written', 'uml']}
+      />
     </div>
   );
 }

@@ -89,6 +89,7 @@ export default async function autoGradeWritten(payload: AutoGradeWrittenPayload,
     // 3. Get prompt template (function-based prompts)
     const promptTemplate = getPrompt('written');
     const systemPrompt = promptTemplate.system;
+    const promptVersion = promptTemplate.version;
 
     // Build user prompt using function
     const rubric = questionContent.rubric || null;
@@ -130,7 +131,7 @@ export default async function autoGradeWritten(payload: AutoGradeWrittenPayload,
           model: `${provider}/${model}`,
           tokensUsed,
           cost,
-          promptVersion: 'v1',
+          promptVersion,
           gradedAt: new Date().toISOString(),
           criteriaScores: gradingResult.criteriaScores || null,
         },

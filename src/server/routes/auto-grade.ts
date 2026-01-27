@@ -276,14 +276,29 @@ app.get('/stats', authMiddleware, async (c) => {
 
     // Provider breakdown
     const providerBreakdown = filteredStats.reduce((acc, s) => {
-      if (!acc[s.provider]) {
-        acc[s.provider] = { tokens: 0, cost: 0, requests: 0 };
+      const key = s.provider;
+      if (!acc[key]) {
+        acc[key] = { tokens: 0, cost: 0, count: 0 };
       }
-      acc[s.provider].tokens += s.totalTokens;
-      acc[s.provider].cost += parseFloat(s.totalCost);
-      acc[s.provider].requests += s.requestCount;
+      acc[key].tokens += s.totalTokens;
+      acc[key].cost += parseFloat(s.totalCost);
+      acc[key].count += s.requestCount;
       return acc;
-    }, {} as Record<string, { tokens: number; cost: number; requests: number }>);
+    }, {} as Record<string, { tokens: number; cost: number; count: number }>);
+
+    // Convert to array for easier consumption
+    const providerBreakdownArray = Object.entries(providerBreakdown).map(([provider, data]) => ({
+      provider,
+      tokens: data.tokens,
+      cost: parseFloat(data.cost.toFixed(6)),
+      count: data.count,
+    }));
+
+    // Average processing time (weighted average across all stats)
+    const totalProcessingTime = filteredStats.reduce((sum, s) => {
+      return sum + (s.avgProcessingTime || 0) * s.requestCount;
+    }, 0);
+    const avgProcessingTime = totalRequests > 0 ? Math.round(totalProcessingTime / totalRequests) : null;
 
     // Average cost per request
     const avgCostPerRequest = totalRequests > 0 ? totalCost / totalRequests : 0;
@@ -297,7 +312,8 @@ app.get('/stats', authMiddleware, async (c) => {
       failureCount: totalFailures,
       successRate: parseFloat(successRate.toFixed(2)),
       avgCostPerRequest: parseFloat(avgCostPerRequest.toFixed(6)),
-      providerBreakdown,
+      avgProcessingTime,
+      providerBreakdown: providerBreakdownArray,
       dailyStats: filteredStats.map((s) => ({
         date: s.date.toISOString().split('T')[0],
         tokens: s.totalTokens,

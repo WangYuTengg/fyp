@@ -136,6 +136,7 @@ Be precise with:
     // 3. Get prompt template
     const promptTemplate = getPrompt('uml');
     const systemPrompt = promptTemplate.system;
+    const promptVersion = promptTemplate.version;
 
     // Build user prompt (function-based)
     const userPrompt = (promptTemplate as any).userText({
@@ -178,7 +179,7 @@ Be precise with:
           model: `${provider}/${model}`,
           tokensUsed: totalTokens,
           cost,
-          promptVersion: 'v1',
+          promptVersion,
           gradedAt: new Date().toISOString(),
           extractedUml: result.extractedUml || null,
           criteriaScores: result.criteriaScores || null,
