@@ -18,7 +18,9 @@ import { Route as StaffIndexRouteImport } from './routes/staff/index'
 import { Route as StaffSettingsRouteImport } from './routes/staff/settings'
 import { Route as StaffNotificationsRouteImport } from './routes/staff/notifications'
 import { Route as StaffGradingRouteImport } from './routes/staff/grading'
+import { Route as StaffAutoGradingSettingsRouteImport } from './routes/staff/auto-grading-settings'
 import { Route as StaffAutoGradingRouteImport } from './routes/staff/auto-grading'
+import { Route as StaffAnalyticsRouteImport } from './routes/staff/analytics'
 import { Route as StudentSubmissionsSubmissionIdRouteImport } from './routes/student/submissions/$submissionId'
 import { Route as StudentCoursesCourseIdRouteImport } from './routes/student/courses/$courseId'
 import { Route as StudentAssignmentsAssignmentIdRouteImport } from './routes/student/assignments/$assignmentId'
@@ -69,9 +71,20 @@ const StaffGradingRoute = StaffGradingRouteImport.update({
   path: '/grading',
   getParentRoute: () => StaffRoute,
 } as any)
+const StaffAutoGradingSettingsRoute =
+  StaffAutoGradingSettingsRouteImport.update({
+    id: '/auto-grading-settings',
+    path: '/auto-grading-settings',
+    getParentRoute: () => StaffRoute,
+  } as any)
 const StaffAutoGradingRoute = StaffAutoGradingRouteImport.update({
   id: '/auto-grading',
   path: '/auto-grading',
+  getParentRoute: () => StaffRoute,
+} as any)
+const StaffAnalyticsRoute = StaffAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => StaffRoute,
 } as any)
 const StudentSubmissionsSubmissionIdRoute =
@@ -102,7 +115,9 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
+  '/staff/analytics': typeof StaffAnalyticsRoute
   '/staff/auto-grading': typeof StaffAutoGradingRoute
+  '/staff/auto-grading-settings': typeof StaffAutoGradingSettingsRoute
   '/staff/grading': typeof StaffGradingRoute
   '/staff/notifications': typeof StaffNotificationsRoute
   '/staff/settings': typeof StaffSettingsRoute
@@ -116,7 +131,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/staff/analytics': typeof StaffAnalyticsRoute
   '/staff/auto-grading': typeof StaffAutoGradingRoute
+  '/staff/auto-grading-settings': typeof StaffAutoGradingSettingsRoute
   '/staff/grading': typeof StaffGradingRoute
   '/staff/notifications': typeof StaffNotificationsRoute
   '/staff/settings': typeof StaffSettingsRoute
@@ -133,7 +150,9 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
+  '/staff/analytics': typeof StaffAnalyticsRoute
   '/staff/auto-grading': typeof StaffAutoGradingRoute
+  '/staff/auto-grading-settings': typeof StaffAutoGradingSettingsRoute
   '/staff/grading': typeof StaffGradingRoute
   '/staff/notifications': typeof StaffNotificationsRoute
   '/staff/settings': typeof StaffSettingsRoute
@@ -151,7 +170,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/staff'
     | '/student'
+    | '/staff/analytics'
     | '/staff/auto-grading'
+    | '/staff/auto-grading-settings'
     | '/staff/grading'
     | '/staff/notifications'
     | '/staff/settings'
@@ -165,7 +186,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/staff/analytics'
     | '/staff/auto-grading'
+    | '/staff/auto-grading-settings'
     | '/staff/grading'
     | '/staff/notifications'
     | '/staff/settings'
@@ -181,7 +204,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/staff'
     | '/student'
+    | '/staff/analytics'
     | '/staff/auto-grading'
+    | '/staff/auto-grading-settings'
     | '/staff/grading'
     | '/staff/notifications'
     | '/staff/settings'
@@ -265,11 +290,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffGradingRouteImport
       parentRoute: typeof StaffRoute
     }
+    '/staff/auto-grading-settings': {
+      id: '/staff/auto-grading-settings'
+      path: '/auto-grading-settings'
+      fullPath: '/staff/auto-grading-settings'
+      preLoaderRoute: typeof StaffAutoGradingSettingsRouteImport
+      parentRoute: typeof StaffRoute
+    }
     '/staff/auto-grading': {
       id: '/staff/auto-grading'
       path: '/auto-grading'
       fullPath: '/staff/auto-grading'
       preLoaderRoute: typeof StaffAutoGradingRouteImport
+      parentRoute: typeof StaffRoute
+    }
+    '/staff/analytics': {
+      id: '/staff/analytics'
+      path: '/analytics'
+      fullPath: '/staff/analytics'
+      preLoaderRoute: typeof StaffAnalyticsRouteImport
       parentRoute: typeof StaffRoute
     }
     '/student/submissions/$submissionId': {
@@ -304,7 +343,9 @@ declare module '@tanstack/react-router' {
 }
 
 interface StaffRouteChildren {
+  StaffAnalyticsRoute: typeof StaffAnalyticsRoute
   StaffAutoGradingRoute: typeof StaffAutoGradingRoute
+  StaffAutoGradingSettingsRoute: typeof StaffAutoGradingSettingsRoute
   StaffGradingRoute: typeof StaffGradingRoute
   StaffNotificationsRoute: typeof StaffNotificationsRoute
   StaffSettingsRoute: typeof StaffSettingsRoute
@@ -313,7 +354,9 @@ interface StaffRouteChildren {
 }
 
 const StaffRouteChildren: StaffRouteChildren = {
+  StaffAnalyticsRoute: StaffAnalyticsRoute,
   StaffAutoGradingRoute: StaffAutoGradingRoute,
+  StaffAutoGradingSettingsRoute: StaffAutoGradingSettingsRoute,
   StaffGradingRoute: StaffGradingRoute,
   StaffNotificationsRoute: StaffNotificationsRoute,
   StaffSettingsRoute: StaffSettingsRoute,
