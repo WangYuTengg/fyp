@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon, ExclamationTriangleIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { apiClient } from '../../../lib/api';
 
 type CostEstimateModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
   assignmentId: string;
+  ungradedAnswers: number;
   questionTypes: ('written' | 'uml')[];
 };
 
@@ -20,11 +22,16 @@ type CostEstimate = {
   }[];
 };
 
+type StatsResponse = {
+  avgCostPerRequest: number;
+};
+
 export function CostEstimateModal({
   isOpen,
   onClose,
   onConfirm,
   assignmentId,
+  ungradedAnswers,
   questionTypes,
 }: CostEstimateModalProps) {
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
@@ -35,7 +42,8 @@ export function CostEstimateModal({
     if (isOpen && assignmentId) {
       fetchCostEstimate();
     }
-  }, [isOpen, assignmentId, questionTypes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, assignmentId, questionTypes, ungradedAnswers]);
 
   const fetchCostEstimate = async () => {
     setLoading(true);
@@ -43,28 +51,23 @@ export function CostEstimateModal({
     
     try {
       // Get average cost per answer from recent stats
-      const statsResponse = await fetch('/api/auto-grade/stats?period=week');
-      if (!statsResponse.ok) {
-        throw new Error('Failed to fetch cost statistics');
-      }
-      const stats = await statsResponse.json();
+      const stats = await apiClient<StatsResponse>('/api/auto-grade/stats?period=week');
       const avgCost = stats.avgCostPerRequest || 0.01; // Default to 1 cent if no data
 
-      // Count how many answers would be graded
-      // For now, use a simple estimate. In production, we'd query the actual count.
-      // This would require a new endpoint or expanding the existing batch endpoint
+      // Use actual ungraded answer count
+      const totalAnswers = ungradedAnswers;
       
-      // Rough estimate: assume ~5 answers per submission for demo
-      const estimatedAnswers = 50; // Placeholder - should come from API
-      const estimatedWritten = Math.round(estimatedAnswers * 0.6);
-      const estimatedUML = Math.round(estimatedAnswers * 0.4);
+      // Rough estimate of written vs UML split (60/40)
+      // In production, could fetch actual breakdown from backend
+      const estimatedWritten = Math.round(totalAnswers * 0.6);
+      const estimatedUML = Math.round(totalAnswers * 0.4);
 
       const writtenCost = questionTypes.includes('written') ? estimatedWritten * avgCost : 0;
       const umlCost = questionTypes.includes('uml') ? estimatedUML * (avgCost * 1.5) : 0; // UML slightly more expensive
       const totalCost = writtenCost + umlCost;
 
       setEstimate({
-        totalAnswers: estimatedAnswers,
+        totalAnswers,
         estimatedCost: totalCost,
         avgCostPerAnswer: avgCost,
         breakdown: ([

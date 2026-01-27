@@ -21,6 +21,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.23",
     "@ai-sdk/openai": "^3.0.19",
+    "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
     "@hono/node-server": "^1.19.9",
     "@supabase/supabase-js": "^2.91.1",
