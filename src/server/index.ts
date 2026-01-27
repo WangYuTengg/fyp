@@ -11,7 +11,11 @@ import assignmentsRoutes from './routes/assignments.js';
 import submissionsRoutes from './routes/submissions.js';
 import questionsRoutes from './routes/questions.js';
 import tagsRoutes from './routes/tags.js';
+import autoGradeRoutes from './routes/auto-grade.js';
 import { authMiddleware, type AuthContext } from './middleware/auth.js';
+import { initializeWorker, shutdownWorker } from './lib/worker.js';
+import autoGradeWritten from './jobs/auto-grade-written.js';
+import autoGradeUML from './jobs/auto-grade-uml.js';
 
 const app = new Hono<AuthContext>();
 
@@ -25,6 +29,7 @@ app.route('/api/assignments', assignmentsRoutes);
 app.route('/api/submissions', submissionsRoutes);
 app.route('/api/questions', questionsRoutes);
 app.route('/api/tags', tagsRoutes);
+app.route('/api/auto-grade', autoGradeRoutes);
 
 // Health check
 app.get('/api/health', (c) => {
@@ -48,6 +53,34 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const port = Number(process.env.PORT) || 3000;
+
+// Initialize Graphile Worker for background job processing
+const taskList = {
+  'auto-grade-written': autoGradeWritten as any,
+  'auto-grade-uml': autoGradeUML as any,
+};
+
+initializeWorker(taskList)
+  .then(() => {
+    console.log('✓ Graphile Worker initialized');
+  })
+  .catch((err) => {
+    console.error('Failed to initialize Graphile Worker:', err);
+    // Continue without worker - jobs will queue but not process
+  });
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  await shutdownWorker();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  await shutdownWorker();
+  process.exit(0);
+});
 
 console.log(`Server is running on http://localhost:${port}`);
 
