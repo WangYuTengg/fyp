@@ -30,7 +30,8 @@ export function CreateQuestionForm({
 }: CreateQuestionFormProps) {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState("");
-  const [umlDiagram, setUmlDiagram] = useState("");
+  const [umlTemplateDiagram, setUmlTemplateDiagram] = useState("");
+  const [umlModelAnswer, setUmlModelAnswer] = useState("");
 
   const handleAddTag = (tag: string) => {
     const normalized = tag.trim().toLowerCase();
@@ -54,7 +55,8 @@ export function CreateQuestionForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
         <input type="hidden" name="tags" value={JSON.stringify(selectedTags)} />
-        <input type="hidden" name="umlDiagram" value={umlDiagram} />
+        <input type="hidden" name="umlTemplateDiagram" value={umlTemplateDiagram} />
+        <input type="hidden" name="umlModelAnswer" value={umlModelAnswer} />
         <div>
           <label className="block text-sm font-medium text-gray-700">Title</label>
           <input
@@ -299,16 +301,30 @@ export function CreateQuestionForm({
         {questionType === "uml" && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Reference UML Diagram
+              Answer UML Diagram (for grading)
             </label>
             <p className="text-sm text-gray-600 mb-3">
-              Create a reference diagram that students will see as an example or template.
+              This is the expected solution used by staff/auto-grading. Students will not see this.
             </p>
-            <UMLEditor 
-              initialValue={umlDiagram}
-              onChange={setUmlDiagram}
+            <UMLEditor
+              initialValue={umlModelAnswer}
+              onChange={setUmlModelAnswer}
               height="300px"
             />
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Template / Reference Diagram (optional)
+              </label>
+              <p className="text-sm text-gray-600 mb-3">
+                Optional starter diagram shown to students (e.g., a partial diagram or scaffold).
+              </p>
+              <UMLEditor
+                initialValue={umlTemplateDiagram}
+                onChange={setUmlTemplateDiagram}
+                height="250px"
+              />
+            </div>
           </div>
         )}
 

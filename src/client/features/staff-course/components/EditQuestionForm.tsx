@@ -98,11 +98,13 @@ export function EditQuestionForm({
     } else if (question.type === 'written') {
       updateData.modelAnswer = modelAnswer;
     } else if (question.type === 'uml') {
-      if (!referenceDiagram.trim()) {
-        alert('UML question requires a reference diagram.');
+      if (!modelAnswer.trim() && !referenceDiagram.trim()) {
+        alert('UML question requires an answer diagram (PlantUML code).');
         return;
       }
-      updateData.referenceDiagram = referenceDiagram;
+      // modelAnswer is used for grading; referenceDiagram is optional template shown to students.
+      updateData.modelAnswer = modelAnswer.trim() || undefined;
+      updateData.referenceDiagram = referenceDiagram.trim() || undefined;
     }
 
     onSubmit(question.id, updateData);
@@ -305,6 +307,28 @@ export function EditQuestionForm({
           </div>
         )}
 
+        {question.type === 'uml' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Answer UML Diagram (for grading)</label>
+              <UMLEditor
+                initialValue={modelAnswer}
+                onChange={setModelAnswer}
+                height="300px"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Template / Reference Diagram (optional)</label>
+              <UMLEditor
+                initialValue={referenceDiagram}
+                onChange={setReferenceDiagram}
+                height="250px"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Written Model Answer */}
         {question.type === 'written' && (
           <div>
@@ -318,19 +342,6 @@ export function EditQuestionForm({
               rows={4}
               className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               placeholder="Provide a reference answer to guide grading..."
-            />
-          </div>
-        )}
-
-        {/* UML Reference Diagram */}
-        {question.type === 'uml' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Reference Diagram (PlantUML)
-            </label>
-            <UMLEditor
-              initialValue={referenceDiagram}
-              onChange={setReferenceDiagram}
             />
           </div>
         )}

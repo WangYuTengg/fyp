@@ -37,7 +37,8 @@ export type WrittenContent = {
 
 export type UMLContent = {
   prompt: string;
-  referenceDiagram: string;
+  referenceDiagram?: string;
+  modelAnswer?: string; // Reference answer for graders / auto-grading (should be omitted for students)
 };
 
 export type Question = {
@@ -205,6 +206,7 @@ export const questionsApi = {
     assignmentId?: string;
     tags?: string[];
     referenceDiagram?: string;
+    modelAnswer?: string;
   }) =>
     apiClient<Question>('/api/questions', {
       method: 'POST',
@@ -219,6 +221,7 @@ export const questionsApi = {
     allowMultiple?: boolean;
     tags?: string[];
     referenceDiagram?: string;
+    modelAnswer?: string;
   }) =>
     apiClient<Question>(`/api/questions/${id}`, {
       method: 'PUT',

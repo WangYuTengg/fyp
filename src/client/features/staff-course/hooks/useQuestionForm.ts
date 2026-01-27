@@ -69,7 +69,8 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
     const points = Number(formData.get('qPoints') || 10);
     const tagsJson = String(formData.get('tags') || '[]');
     const tags = JSON.parse(tagsJson) as string[];
-    const umlDiagram = String(formData.get('umlDiagram') || '');
+    const umlTemplateDiagram = String(formData.get('umlTemplateDiagram') || '');
+    const umlModelAnswer = String(formData.get('umlModelAnswer') || '');
     const showCorrectAnswers = formData.get('showCorrectAnswers') === 'on';
     const modelAnswer = String(formData.get('modelAnswer') || '').trim();
 
@@ -100,13 +101,18 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
     }
 
     if (questionType === 'uml') {
+      if (!umlModelAnswer.trim()) {
+        alert('UML question requires an answer diagram (PlantUML code).');
+        return;
+      }
       createMutation.mutate({
         courseId,
         title,
         type: 'uml',
         prompt,
         points,
-        referenceDiagram: umlDiagram,
+        modelAnswer: umlModelAnswer,
+        referenceDiagram: umlTemplateDiagram || undefined,
         assignmentId: selectedAssignmentId || undefined,
         tags: tags.length > 0 ? tags : undefined,
       } as Parameters<typeof questionsApi.create>[0]);

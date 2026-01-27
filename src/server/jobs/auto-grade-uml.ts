@@ -85,10 +85,15 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
 
     const questionContent = questionData.content as any;
     const maxPoints = questionData.points;
-    const referenceDiagram = questionContent.referenceDiagram;
 
-    if (!referenceDiagram) {
-      throw new Error(`Question ${questionId} has no reference UML diagram`);
+    // Prefer modelAnswer (hidden reference used for grading). Fall back to legacy referenceDiagram.
+    const referenceDiagram =
+      (typeof questionContent.modelAnswer === 'string' && questionContent.modelAnswer.trim().length > 0)
+        ? questionContent.modelAnswer
+        : questionContent.referenceDiagram;
+
+    if (!referenceDiagram || String(referenceDiagram).trim().length === 0) {
+      throw new Error(`Question ${questionId} has no UML answer diagram`);
     }
 
     const answerContent = answerData.content as any;

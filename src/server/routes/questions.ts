@@ -154,8 +154,17 @@ app.post('/', requireAuth, async (c) => {
   if (body.type === 'uml') {
     content = {
       prompt,
-      referenceDiagram: body.referenceDiagram || '',
+      referenceDiagram: body.referenceDiagram?.trim() || '',
+      modelAnswer: body.modelAnswer?.trim() || undefined,
     };
+
+    const hasAnyDiagram =
+      (content.referenceDiagram && String(content.referenceDiagram).trim().length > 0) ||
+      (content.modelAnswer && String(content.modelAnswer).trim().length > 0);
+
+    if (!hasAnyDiagram) {
+      return c.json({ error: 'UML question requires an answer diagram (PlantUML code)' }, 400);
+    }
   }
 
   const [row] = await db
@@ -249,15 +258,23 @@ app.put('/:id', requireAuth, async (c) => {
     const referenceDiagram = typeof body.referenceDiagram === 'string'
       ? body.referenceDiagram.trim()
       : (existingContent.referenceDiagram as string | undefined) ?? '';
+    const modelAnswer = typeof body.modelAnswer === 'string'
+      ? body.modelAnswer.trim()
+      : (existingContent.modelAnswer as string | undefined) ?? undefined;
     const updatedPrompt = prompt ?? (existingContent.prompt as string | undefined) ?? '';
 
-    if (prompt !== undefined || body.referenceDiagram !== undefined) {
-      if (!referenceDiagram) {
-        return c.json({ error: 'Reference diagram is required for UML questions' }, 400);
+    if (prompt !== undefined || body.referenceDiagram !== undefined || body.modelAnswer !== undefined) {
+      const hasAnyDiagram =
+        (referenceDiagram && referenceDiagram.trim().length > 0) ||
+        (modelAnswer && modelAnswer.trim().length > 0);
+      if (!hasAnyDiagram) {
+        return c.json({ error: 'UML question requires an answer diagram (PlantUML code)' }, 400);
       }
+
       patch.content = {
         prompt: updatedPrompt,
         referenceDiagram,
+        modelAnswer,
       };
     }
   }

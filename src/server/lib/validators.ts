@@ -20,7 +20,7 @@ export type ValidationResult = {
 /**
  * Validate that all questions in an assignment have model answers
  * - Written questions need modelAnswer in content
- * - UML questions need referenceDiagram in content
+ * - UML questions need modelAnswer (or legacy referenceDiagram) in content
  * - MCQ questions need correct answers marked (isCorrect flags)
  * 
  * @param assignmentId - Assignment to validate
@@ -70,9 +70,10 @@ export async function validateAssignmentHasAnswers(
         });
       }
     } else if (question.type === 'uml') {
-      // Check for referenceDiagram
-      const hasReferenceDiagram = content.referenceDiagram && typeof content.referenceDiagram === 'string' && content.referenceDiagram.trim().length > 0;
-      if (!hasReferenceDiagram) {
+      const hasUmlAnswer =
+        (content.modelAnswer && typeof content.modelAnswer === 'string' && content.modelAnswer.trim().length > 0) ||
+        (content.referenceDiagram && typeof content.referenceDiagram === 'string' && content.referenceDiagram.trim().length > 0);
+      if (!hasUmlAnswer) {
         missingAnswers.push({
           questionId: question.id,
           title: question.title,
@@ -125,7 +126,10 @@ export async function validateQuestionHasAnswer(
   if (question.type === 'written') {
     return !!(content.modelAnswer && typeof content.modelAnswer === 'string' && content.modelAnswer.trim().length > 0);
   } else if (question.type === 'uml') {
-    return !!(content.referenceDiagram && typeof content.referenceDiagram === 'string' && content.referenceDiagram.trim().length > 0);
+    return !!(
+      (content.modelAnswer && typeof content.modelAnswer === 'string' && content.modelAnswer.trim().length > 0) ||
+      (content.referenceDiagram && typeof content.referenceDiagram === 'string' && content.referenceDiagram.trim().length > 0)
+    );
   } else if (question.type === 'mcq') {
     const options = content.options as Array<{ isCorrect?: boolean }> | undefined;
     return !!(options && options.some((opt) => opt.isCorrect === true));

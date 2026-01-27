@@ -118,7 +118,45 @@ app.get('/:id', requireAuth, async (c) => {
     .where(eq(assignmentQuestions.assignmentId, assignmentId))
     .orderBy(assignmentQuestions.order);
 
-  return c.json({ ...assignment, questions: assignmentQs });
+  // Students should not receive model answers or correctness keys in the API payload.
+  // (UI may not render them, but they would be visible in network/devtools.)
+  const sanitizedQuestions = user.role === 'student'
+    ? assignmentQs.map((row) => {
+        const q = row.question;
+        const content = (q.content ?? {}) as any;
+
+        if (q.type === 'written' || q.type === 'uml') {
+          const rest = { ...content };
+          delete rest.modelAnswer;
+          return { ...row, question: { ...q, content: rest } };
+        }
+
+        if (q.type === 'mcq') {
+          const options = Array.isArray(content.options) ? content.options : [];
+          const safeOptions = options.map((opt: any) => ({
+            id: opt.id,
+            text: opt.text,
+          }));
+
+          return {
+            ...row,
+            question: {
+              ...q,
+              content: {
+                ...content,
+                options: safeOptions,
+                // Never disclose answer keys to students.
+                showCorrectAnswers: false,
+              },
+            },
+          };
+        }
+
+        return row;
+      })
+    : assignmentQs;
+
+  return c.json({ ...assignment, questions: sanitizedQuestions });
 });
 
 // Create an assignment (staff/admin only)

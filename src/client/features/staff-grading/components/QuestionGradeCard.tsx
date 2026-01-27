@@ -175,7 +175,10 @@ export function QuestionGradeCard({
 
     if (question.type === 'uml') {
       const umlText = answer.content.umlText;
-      const refDiagram = question.content.referenceDiagram;
+      const answerDiagram = (typeof question.content.modelAnswer === 'string' && question.content.modelAnswer.trim().length > 0)
+        ? question.content.modelAnswer
+        : question.content.referenceDiagram;
+      const templateDiagram = question.content.referenceDiagram;
       
       return (
         <div className="space-y-4">
@@ -197,20 +200,26 @@ export function QuestionGradeCard({
             )}
           </div>
 
-          {refDiagram && typeof refDiagram === 'string' ? (
+          {answerDiagram && typeof answerDiagram === 'string' ? (
             <div>
               <button
                 type="button"
                 onClick={() => setShowReference(!showReference)}
                 className="text-blue-600 hover:text-blue-800 font-medium text-sm"
               >
-                {showReference ? '▼ Hide' : '▶ Show'} Reference Diagram
+                {showReference ? '▼ Hide' : '▶ Show'} Answer Diagram
               </button>
               {showReference ? (
                 <div className="mt-2">
-                  <UMLViewer umlText={refDiagram} title="Reference Diagram" />
+                  <UMLViewer umlText={answerDiagram} title="Answer Diagram" />
                 </div>
               ) : null}
+            </div>
+          ) : null}
+
+          {templateDiagram && typeof templateDiagram === 'string' && templateDiagram.trim().length > 0 ? (
+            <div className="text-xs text-gray-500">
+              Template diagram is available in the question (shown to students).
             </div>
           ) : null}
         </div>

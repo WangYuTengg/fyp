@@ -111,6 +111,44 @@ app.get('/:submissionId', requireAuth, async (c) => {
     })
   );
 
+  // If a student is viewing their own submission, do not leak model answers / keys via question.content.
+  const sanitizedAnswers = !isStaff
+    ? answersWithSignedUrls.map((answer) => {
+        const q = answer.question;
+        const content = (q?.content ?? {}) as any;
+
+        if (!q) return answer;
+
+        if (q.type === 'written' || q.type === 'uml') {
+          const rest = { ...content };
+          delete rest.modelAnswer;
+          return { ...answer, question: { ...q, content: rest } };
+        }
+
+        if (q.type === 'mcq') {
+          const options = Array.isArray(content.options) ? content.options : [];
+          const safeOptions = options.map((opt: any) => ({
+            id: opt.id,
+            text: opt.text,
+          }));
+
+          return {
+            ...answer,
+            question: {
+              ...q,
+              content: {
+                ...content,
+                options: safeOptions,
+                showCorrectAnswers: false,
+              },
+            },
+          };
+        }
+
+        return answer;
+      })
+    : answersWithSignedUrls;
+
   // Load marks
   const submissionMarks = await db
     .select()
@@ -134,7 +172,7 @@ app.get('/:submissionId', requireAuth, async (c) => {
 
   return c.json({
     ...submission,
-    answers: answersWithSignedUrls,
+    answers: sanitizedAnswers,
     marks: submissionMarks,
     user: userInfo,
   });
