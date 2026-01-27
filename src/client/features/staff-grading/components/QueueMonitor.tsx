@@ -6,6 +6,7 @@ import {
   QueueListIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
+import { apiClient } from '../../../lib/api';
 
 type QueueStatus = {
   pending: number;
@@ -32,11 +33,7 @@ export function QueueMonitor() {
 
   const fetchQueueStatus = async () => {
     try {
-      const response = await fetch('/api/auto-grade/queue');
-      if (!response.ok) {
-        throw new Error('Failed to fetch queue status');
-      }
-      const data = await response.json();
+      const data = await apiClient<QueueStatus>('/api/auto-grade/queue');
       setStatus(data);
       setError(null);
     } catch (err) {

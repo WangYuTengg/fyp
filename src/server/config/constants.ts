@@ -26,7 +26,7 @@ export const AUTO_SAVE_CONFIG = {
 // Rate limiting
 export const RATE_LIMIT_CONFIG = {
   WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-  MAX_REQUESTS: 100, // requests per window
+  MAX_REQUESTS: 1000, // requests per window (increased for polling endpoints)
   MAX_REQUESTS_STRICT: 10, // for sensitive endpoints (auto-grading, etc.)
 } as const;
 

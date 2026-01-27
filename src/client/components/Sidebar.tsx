@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { UserInfo } from './UserInfo';
 import { useEffect, useState } from 'react';
+import { apiClient } from '../lib/api';
 
 interface NavItem {
   name: string;
@@ -57,15 +58,13 @@ export function Sidebar() {
   useEffect(() => {
     const role = effectiveRole ?? dbUser?.role;
     if (dbUser && (role === 'staff' || role === 'admin')) {
-      fetch('/api/notifications/unread-count')
-        .then(res => res.json())
+      apiClient<{ count: number }>('/api/notifications/unread-count')
         .then(data => setUnreadCount(data.count || 0))
         .catch(console.error);
       
       // Poll every 30 seconds
       const interval = setInterval(() => {
-        fetch('/api/notifications/unread-count')
-          .then(res => res.json())
+        apiClient<{ count: number }>('/api/notifications/unread-count')
           .then(data => setUnreadCount(data.count || 0))
           .catch(console.error);
       }, 30000);

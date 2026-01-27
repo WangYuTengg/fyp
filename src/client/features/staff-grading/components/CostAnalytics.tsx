@@ -5,6 +5,7 @@ import {
   ChartBarIcon,
   ClockIcon 
 } from '@heroicons/react/24/outline';
+import { apiClient } from '../../../lib/api';
 
 type PeriodFilter = 'week' | 'month' | 'all';
 
@@ -40,11 +41,7 @@ export function CostAnalytics({ onEstimate }: CostAnalyticsProps) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/auto-grade/stats?period=${period}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch stats');
-      }
-      const data = await response.json();
+      const data = await apiClient<UsageStats>(`/api/auto-grade/stats?period=${period}`);
       setStats(data);
       
       // Pass cost estimate to parent if needed

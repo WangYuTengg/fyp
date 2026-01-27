@@ -22,7 +22,7 @@ import { RATE_LIMIT_CONFIG } from './config/constants.js';
 
 const app = new Hono<AuthContext>();
 
-// Rate limiting middleware - apply to all API routes
+// Rate limiting middleware - apply to all API routes except monitoring endpoints
 const limiter = rateLimiter({
   windowMs: RATE_LIMIT_CONFIG.WINDOW_MS,
   limit: RATE_LIMIT_CONFIG.MAX_REQUESTS,
@@ -30,6 +30,15 @@ const limiter = rateLimiter({
   keyGenerator: (c) => {
     // Use IP address as key, fallback to a default for local dev
     return c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'default';
+  },
+  skip: (c) => {
+    // Skip rate limiting for monitoring/polling endpoints in development
+    const path = c.req.path;
+    const isDev = process.env.NODE_ENV !== 'production';
+    const isMonitoring = path.includes('/queue') || 
+                         path.includes('/unread-count') || 
+                         path.includes('/health');
+    return isDev && isMonitoring;
   },
 });
 
