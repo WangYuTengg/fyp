@@ -6,6 +6,8 @@ export const userRoleEnum = pgEnum('user_role', ['admin', 'staff', 'student']);
 export const courseRoleEnum = pgEnum('course_role', ['lecturer', 'ta', 'lab_exec', 'student']);
 export const assignmentTypeEnum = pgEnum('assignment_type', ['mcq', 'written', 'coding', 'uml']);
 export const submissionStatusEnum = pgEnum('submission_status', ['draft', 'submitted', 'late', 'grading', 'graded']);
+export const aiJobStatusEnum = pgEnum('ai_job_status', ['pending', 'processing', 'completed', 'failed']);
+export const notificationTypeEnum = pgEnum('notification_type', ['grading_failed', 'grading_completed', 'batch_completed']);
 
 // Users table
 export const users = pgTable('users', {
@@ -143,9 +145,74 @@ export const marks = pgTable('marks', {
   feedback: text('feedback'),
   markedBy: uuid('marked_by').references(() => users.id),
   isAiAssisted: boolean('is_ai_assisted').default(false),
+  aiSuggestionAccepted: boolean('ai_suggestion_accepted').default(false), // Track if AI suggestion was accepted
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// Rubrics for questions
+export const rubrics = pgTable('rubrics', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  questionId: uuid('question_id').notNull().references(() => questions.id, { onDelete: 'cascade' }).unique(),
+  criteria: jsonb('criteria').notNull(), // Array of { id, description, maxPoints }
+  totalPoints: integer('total_points').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// AI Grading Jobs tracking
+export const aiGradingJobs = pgTable('ai_grading_jobs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  jobId: text('job_id'), // Graphile Worker job ID
+  batchId: uuid('batch_id'), // Group jobs from same batch trigger
+  answerId: uuid('answer_id').notNull().references(() => answers.id, { onDelete: 'cascade' }),
+  status: aiJobStatusEnum('status').default('pending').notNull(),
+  tokensUsed: integer('tokens_used'),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  cost: text('cost'), // Store as string to preserve precision (e.g., "0.000123")
+  error: jsonb('error'), // Error details if failed
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  completedAt: timestamp('completed_at'),
+}, (table) => ({
+  answerIdIdx: index('ai_grading_jobs_answer_id_idx').on(table.answerId),
+  batchIdIdx: index('ai_grading_jobs_batch_id_idx').on(table.batchId),
+  statusIdx: index('ai_grading_jobs_status_idx').on(table.status),
+}));
+
+// AI Usage Statistics (daily aggregates)
+export const aiUsageStats = pgTable('ai_usage_stats', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  date: timestamp('date').notNull(),
+  provider: text('provider').notNull(), // openai, anthropic
+  model: text('model').notNull(), // gpt-4o, claude-3-5-sonnet, etc.
+  totalTokens: integer('total_tokens').default(0).notNull(),
+  totalCost: text('total_cost').default('0').notNull(), // Store as string for precision
+  requestCount: integer('request_count').default(0).notNull(),
+  successCount: integer('success_count').default(0).notNull(),
+  failureCount: integer('failure_count').default(0).notNull(),
+  avgProcessingTime: integer('avg_processing_time'), // in milliseconds
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  uniqueDateProviderModel: unique().on(table.date, table.provider, table.model),
+  dateIdx: index('ai_usage_stats_date_idx').on(table.date),
+}));
+
+// Staff Notifications
+export const staffNotifications = pgTable('staff_notifications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: notificationTypeEnum('type').notNull(),
+  title: text('title').notNull(),
+  message: text('message'),
+  data: jsonb('data'), // Additional context (e.g., { jobId, answerId, error })
+  read: boolean('read').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('staff_notifications_user_id_idx').on(table.userId),
+  readIdx: index('staff_notifications_read_idx').on(table.read),
+}));
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -203,4 +270,16 @@ export const marksRelations = relations(marks, ({ one }) => ({
   submission: one(submissions, { fields: [marks.submissionId], references: [submissions.id] }),
   answer: one(answers, { fields: [marks.answerId], references: [answers.id] }),
   marker: one(users, { fields: [marks.markedBy], references: [users.id] }),
+}));
+
+export const rubricsRelations = relations(rubrics, ({ one }) => ({
+  question: one(questions, { fields: [rubrics.questionId], references: [questions.id] }),
+}));
+
+export const aiGradingJobsRelations = relations(aiGradingJobs, ({ one }) => ({
+  answer: one(answers, { fields: [aiGradingJobs.answerId], references: [answers.id] }),
+}));
+
+export const staffNotificationsRelations = relations(staffNotifications, ({ one }) => ({
+  user: one(users, { fields: [staffNotifications.userId], references: [users.id] }),
 }));
