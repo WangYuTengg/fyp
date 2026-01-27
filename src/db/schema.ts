@@ -214,6 +214,15 @@ export const staffNotifications = pgTable('staff_notifications', {
   readIdx: index('staff_notifications_read_idx').on(table.read),
 }));
 
+// System settings (global configuration)
+export const systemSettings = pgTable('system_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  description: text('description'),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  updatedBy: uuid('updated_by').references(() => users.id),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   enrollments: many(enrollments),

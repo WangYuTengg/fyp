@@ -17,21 +17,25 @@ export type ApiSuccessResponse<T = unknown> = {
  * Create a standardized error response
  */
 export function errorResponse(message: string, details?: unknown, code?: string): ApiErrorResponse {
-  return {
-    error: message,
-    ...(details && { details }),
-    ...(code && { code }),
-  };
+  const response: ApiErrorResponse = { error: message };
+  if (details !== undefined) {
+    response.details = details;
+  }
+  if (code !== undefined) {
+    response.code = code;
+  }
+  return response;
 }
 
 /**
  * Create a standardized success response
  */
 export function successResponse<T>(data: T, message?: string): ApiSuccessResponse<T> {
-  return {
-    data,
-    ...(message && { message }),
-  };
+  const response: ApiSuccessResponse<T> = { data };
+  if (message !== undefined) {
+    response.message = message;
+  }
+  return response;
 }
 
 /**

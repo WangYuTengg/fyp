@@ -50,6 +50,13 @@
       "when": 1738000000000,
       "tag": "0006_add_foreign_key_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1769526858283,
+      "tag": "0007_youthful_talisman",
+      "breakpoints": true
     }
   ]
 }

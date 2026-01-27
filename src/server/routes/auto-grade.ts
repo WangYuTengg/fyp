@@ -10,12 +10,13 @@ import {
   aiGradingJobs,
   aiUsageStats,
   enrollments,
+  marks,
 } from '../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../middleware/auth.js';
 import { validateAssignmentHasAnswers } from '../lib/validators.js';
 import { addJob } from '../lib/worker.js';
 import { randomUUID } from 'crypto';
-import { batchAutoGradeSchema } from '../lib/validation-schemas.js';
+import { batchAutoGradeSchema, singleAutoGradeSchema } from '../lib/validation-schemas.js';
 import { errorResponse, ErrorCodes } from '../lib/errors.js';
 
 const app = new Hono<AuthContext>();
@@ -50,7 +51,7 @@ app.post('/batch', authMiddleware, async (c) => {
     );
   }
 
-  const { assignmentId, questionTypes } = validation.data;
+  const { assignmentId, questionTypes, rubricOverride } = validation.data;
 
   try {
     // 1. Validate assignment exists
@@ -187,6 +188,7 @@ app.post('/batch', authMiddleware, async (c) => {
         userId: answer.userId,
         batchId,
         jobId: jobRecord.id,
+        rubricOverride: rubricOverride || undefined, // Pass optional rubric override
       });
 
       queuedCount++;
@@ -352,6 +354,241 @@ app.get('/stats', authMiddleware, async (c) => {
   } catch (error: any) {
     console.error('Stats error:', error);
     return c.json({ error: 'Failed to fetch statistics' }, 500);
+  }
+});
+
+/**
+ * POST /api/auto-grade/single
+ * 
+ * Trigger auto-grading for a single answer.
+ * Useful for re-grading or grading with custom rubric.
+ */
+app.post('/single', authMiddleware, async (c) => {
+  const user = c.get('user');
+  
+  if (!user || (user.role !== 'staff' && user.role !== 'admin')) {
+    return c.json({ error: 'Unauthorized' }, 403);
+  }
+
+  const body = await c.req.json();
+  
+  const validation = singleAutoGradeSchema.safeParse(body);
+  if (!validation.success) {
+    const firstError = validation.error.issues[0];
+    return c.json(
+      errorResponse(
+        'Validation failed',
+        { field: firstError?.path.join('.'), message: firstError?.message },
+        ErrorCodes.VALIDATION_ERROR
+      ),
+      400
+    );
+  }
+
+  const { answerId, rubric, forceRegrade } = validation.data;
+
+  try {
+    // Fetch answer with question info
+    const [answerData] = await db
+      .select({
+        id: answers.id,
+        questionId: answers.questionId,
+        submissionId: answers.submissionId,
+        aiGradingSuggestion: answers.aiGradingSuggestion,
+        questionType: questions.type,
+        userId: submissions.userId,
+      })
+      .from(answers)
+      .innerJoin(questions, eq(answers.questionId, questions.id))
+      .innerJoin(submissions, eq(answers.submissionId, submissions.id))
+      .where(eq(answers.id, answerId))
+      .limit(1);
+
+    if (!answerData) {
+      return c.json({ error: 'Answer not found' }, 404);
+    }
+
+    // Check if already graded
+    if (answerData.aiGradingSuggestion && !forceRegrade) {
+      return c.json({
+        error: 'Answer already has AI grading suggestion. Set forceRegrade=true to re-grade.',
+        existingSuggestion: answerData.aiGradingSuggestion,
+      }, 400);
+    }
+
+    // Clear existing AI suggestion if regrading
+    if (forceRegrade && answerData.aiGradingSuggestion) {
+      await db.update(answers)
+        .set({ aiGradingSuggestion: null })
+        .where(eq(answers.id, answerId));
+    }
+
+    // Determine task name
+    const taskName = answerData.questionType === 'written' ? 'auto-grade-written' : 'auto-grade-uml';
+
+    // Create job record
+    const [jobRecord] = await db
+      .insert(aiGradingJobs)
+      .values({
+        answerId,
+        status: 'pending',
+        tokensUsed: 0,
+        cost: '0',
+      })
+      .returning();
+
+    // Queue job
+    await addJob(taskName, {
+      answerId,
+      questionId: answerData.questionId,
+      submissionId: answerData.submissionId,
+      userId: answerData.userId,
+      jobId: jobRecord.id,
+      rubricOverride: rubric || undefined,
+    });
+
+    return c.json({
+      success: true,
+      jobId: jobRecord.id,
+      message: `Queued auto-grading for answer ${answerId}`,
+    });
+
+  } catch (error: any) {
+    console.error('Single auto-grade error:', error);
+    return c.json({ error: 'Failed to queue auto-grading job', details: error.message }, 500);
+  }
+});
+
+/**
+ * POST /api/auto-grade/:answerId/accept
+ * 
+ * Accept AI grading suggestion and create official mark.
+ */
+app.post('/:answerId/accept', authMiddleware, async (c) => {
+  const user = c.get('user');
+  const answerId = c.req.param('answerId');
+  
+  if (!user || (user.role !== 'staff' && user.role !== 'admin')) {
+    return c.json({ error: 'Unauthorized' }, 403);
+  }
+
+  try {
+    // Fetch answer with AI suggestion
+    const [answerData] = await db
+      .select({
+        id: answers.id,
+        submissionId: answers.submissionId,
+        aiGradingSuggestion: answers.aiGradingSuggestion,
+        maxPoints: questions.points,
+      })
+      .from(answers)
+      .innerJoin(questions, eq(answers.questionId, questions.id))
+      .where(eq(answers.id, answerId))
+      .limit(1);
+
+    if (!answerData) {
+      return c.json({ error: 'Answer not found' }, 404);
+    }
+
+    const suggestion = answerData.aiGradingSuggestion as any;
+    if (!suggestion) {
+      return c.json({ error: 'No AI grading suggestion to accept' }, 400);
+    }
+
+    // Create mark from AI suggestion
+    const [mark] = await db
+      .insert(marks)
+      .values({
+        submissionId: answerData.submissionId,
+        answerId,
+        points: suggestion.points,
+        maxPoints: answerData.maxPoints,
+        feedback: suggestion.reasoning,
+        markedBy: user.id,
+        isAiAssisted: true,
+        aiSuggestionAccepted: true,
+      })
+      .returning();
+
+    return c.json({
+      success: true,
+      markId: mark.id,
+      points: mark.points,
+      maxPoints: mark.maxPoints,
+    });
+
+  } catch (error: any) {
+    console.error('Accept AI suggestion error:', error);
+    return c.json({ error: 'Failed to accept AI suggestion', details: error.message }, 500);
+  }
+});
+
+/**
+ * POST /api/auto-grade/:answerId/reject
+ * 
+ * Reject AI suggestion and provide manual grade.
+ */
+app.post('/:answerId/reject', authMiddleware, async (c) => {
+  const user = c.get('user');
+  const answerId = c.req.param('answerId');
+  
+  if (!user || (user.role !== 'staff' && user.role !== 'admin')) {
+    return c.json({ error: 'Unauthorized' }, 403);
+  }
+
+  const body = await c.req.json();
+  const { points, feedback } = body;
+
+  if (points === undefined || typeof points !== 'number') {
+    return c.json({ error: 'Points are required' }, 400);
+  }
+
+  try {
+    // Fetch answer info
+    const [answerData] = await db
+      .select({
+        id: answers.id,
+        submissionId: answers.submissionId,
+        maxPoints: questions.points,
+      })
+      .from(answers)
+      .innerJoin(questions, eq(answers.questionId, questions.id))
+      .where(eq(answers.id, answerId))
+      .limit(1);
+
+    if (!answerData) {
+      return c.json({ error: 'Answer not found' }, 404);
+    }
+
+    if (points < 0 || points > answerData.maxPoints) {
+      return c.json({ error: `Points must be between 0 and ${answerData.maxPoints}` }, 400);
+    }
+
+    // Create manual mark (AI suggestion rejected)
+    const [mark] = await db
+      .insert(marks)
+      .values({
+        submissionId: answerData.submissionId,
+        answerId,
+        points,
+        maxPoints: answerData.maxPoints,
+        feedback: feedback || null,
+        markedBy: user.id,
+        isAiAssisted: true, // Still AI-assisted (suggestion was shown)
+        aiSuggestionAccepted: false, // But rejected
+      })
+      .returning();
+
+    return c.json({
+      success: true,
+      markId: mark.id,
+      points: mark.points,
+      maxPoints: mark.maxPoints,
+    });
+
+  } catch (error: any) {
+    console.error('Reject AI suggestion error:', error);
+    return c.json({ error: 'Failed to save manual grade', details: error.message }, 500);
   }
 });
 

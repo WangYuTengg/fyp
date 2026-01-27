@@ -5,6 +5,7 @@ import {
   AcademicCapIcon,
   CpuChipIcon,
   BellIcon,
+  Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
 import { UserInfo } from './UserInfo';
 import { useEffect, useState } from 'react';
@@ -41,6 +42,12 @@ const navigation: NavItem[] = [
     href: '/staff/notifications',
     icon: BellIcon,
     roles: ['staff', 'admin']
+  },
+  {
+    name: 'Settings',
+    href: '/staff/settings',
+    icon: Cog6ToothIcon,
+    roles: ['admin']
   }
 ];
 

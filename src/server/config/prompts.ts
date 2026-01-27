@@ -115,7 +115,9 @@ Provide a confidence score (0-100) indicating how certain you are about your gra
         studentUML: string;
         referenceUML: string;
         maxPoints: number;
-      }) => `Grade the following student UML diagram:
+        rubric?: Array<{ id: string; description: string; maxPoints: number }>;
+      }) => {
+        let prompt = `Grade the following student UML diagram:
 
 **Student PlantUML Code:**
 \`\`\`plantuml
@@ -128,8 +130,20 @@ ${params.referenceUML}
 \`\`\`
 
 **Maximum Points:** ${params.maxPoints}
+`;
 
-Compare the diagrams and provide a score (0-${params.maxPoints}) with detailed reasoning.`,
+        if (params.rubric && params.rubric.length > 0) {
+          prompt += `\n**Grading Rubric:**\n`;
+          params.rubric.forEach((criterion, idx) => {
+            prompt += `${idx + 1}. ${criterion.description} (${criterion.maxPoints} points)\n`;
+          });
+          prompt += `\nProvide scores for each criterion and explain your reasoning.\n`;
+        } else {
+          prompt += `\nCompare the diagrams and provide a score (0-${params.maxPoints}) with detailed reasoning.`;
+        }
+
+        return prompt;
+      },
 
       userImage: (params: {
         referenceUML: string;

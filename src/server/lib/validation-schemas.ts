@@ -95,9 +95,22 @@ export const bulkGradeSchema = z.object({
 });
 
 // Auto-grading schemas
+export const rubricCriterionSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  maxPoints: z.number().min(0),
+});
+
 export const batchAutoGradeSchema = z.object({
   assignmentId: z.string().uuid('Invalid assignment ID'),
   questionTypes: z.array(z.enum(['written', 'uml'])).optional(),
+  rubricOverride: z.array(rubricCriterionSchema).optional(), // Optional rubric override for all questions
+});
+
+export const singleAutoGradeSchema = z.object({
+  answerId: z.string().uuid('Invalid answer ID'),
+  rubric: z.array(rubricCriterionSchema).optional(), // Optional custom rubric for this answer
+  forceRegrade: z.boolean().optional().default(false), // Allow re-grading even if already graded
 });
 
 // Tag schemas
