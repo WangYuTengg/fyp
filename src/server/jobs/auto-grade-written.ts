@@ -1,10 +1,11 @@
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db/index.js';
-import { answers, aiGradingJobs, aiUsageStats, staffNotifications, questions } from '../../db/schema.js';
+import { answers, aiGradingJobs, aiUsageStats, questions } from '../../db/schema.js';
 import { generateAIObject } from '../lib/ai.js';
 import { getPrompt } from '../config/prompts.js';
 import { calculateCost } from '../config/pricing.js';
+import { checkBatchCompletion, notifyGradingFailed } from '../lib/notifications.js';
 
 /**
  * Graphile Worker task: auto-grade-written
@@ -13,6 +14,12 @@ import { calculateCost } from '../config/pricing.js';
  * Uses structured output with Zod validation for reliable grading.
  */
 
+interface RubricCriterion {
+  id: string;
+  description: string;
+  maxPoints: number;
+}
+
 interface AutoGradeWrittenPayload {
   answerId: string;
   questionId: string;
@@ -20,6 +27,7 @@ interface AutoGradeWrittenPayload {
   userId: string;
   batchId?: string;
   jobId: string;
+  rubricOverride?: RubricCriterion[]; // Optional rubric override from API call
 }
 
 // Zod schema for LLM grading response
@@ -39,7 +47,7 @@ const GradingResponseSchema = z.object({
 type GradingResponse = z.infer<typeof GradingResponseSchema>;
 
 export default async function autoGradeWritten(payload: AutoGradeWrittenPayload, helpers: any) {
-  const { answerId, questionId, submissionId, userId, batchId, jobId } = payload;
+  const { answerId, questionId, submissionId, userId, batchId, jobId, rubricOverride } = payload;
   const startTime = Date.now();
 
   try {
@@ -91,13 +99,13 @@ export default async function autoGradeWritten(payload: AutoGradeWrittenPayload,
     const systemPrompt = promptTemplate.system;
     const promptVersion = promptTemplate.version;
 
-    // Build user prompt using function
-    const rubric = questionContent.rubric || null;
+    // Use rubric override if provided, otherwise use question rubric
+    const rubric = rubricOverride || questionContent.rubric?.criteria || null;
     const userPrompt = (promptTemplate as any).user({
       studentAnswer,
       modelAnswer,
       maxPoints,
-      rubric: rubric?.criteria || undefined,
+      rubric: rubric || undefined,
     });
 
     // 4. Call LLM with structured output
@@ -198,6 +206,11 @@ export default async function autoGradeWritten(payload: AutoGradeWrittenPayload,
       `Completed auto-grade for answer ${answerId}: ${gradingResult.points}/${maxPoints} points (${gradingResult.confidence}% confidence)`
     );
 
+    // Check if batch is complete and create batch notification
+    if (batchId) {
+      await checkBatchCompletion(batchId, userId);
+    }
+
   } catch (error: any) {
     const processingTime = Date.now() - startTime;
     helpers.logger.error(`Failed to auto-grade answer ${answerId}:`, error);
@@ -246,21 +259,8 @@ export default async function autoGradeWritten(payload: AutoGradeWrittenPayload,
       });
     }
 
-    // Create staff notification
-    await db.insert(staffNotifications).values({
-      userId,
-      type: 'grading_failed',
-      title: 'Auto-grading failed',
-      message: `Failed to auto-grade answer for submission #${submissionId}`,
-      data: {
-        answerId,
-        questionId,
-        submissionId,
-        error: error.message,
-        batchId: batchId || null,
-      },
-      read: false,
-    });
+    // Create staff notification for failure
+    await notifyGradingFailed(userId, answerId, submissionId, questionId, error.message, batchId);
 
     // Re-throw error to mark job as failed in Graphile Worker
     throw error;

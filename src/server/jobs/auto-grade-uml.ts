@@ -1,11 +1,12 @@
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db/index.js';
-import { answers, aiGradingJobs, aiUsageStats, staffNotifications, questions } from '../../db/schema.js';
+import { answers, aiGradingJobs, aiUsageStats, questions } from '../../db/schema.js';
 import { generateAIObject, generateAIVision } from '../lib/ai.js';
 import { getPrompt } from '../config/prompts.js';
 import { calculateCost } from '../config/pricing.js';
 import { getSignedUrl } from '../lib/storage.js';
+import { checkBatchCompletion, notifyGradingFailed } from '../lib/notifications.js';
 
 /**
  * Graphile Worker task: auto-grade-uml
@@ -15,6 +16,12 @@ import { getSignedUrl } from '../lib/storage.js';
  * 2. Image path: Extract PlantUML from image using vision model, then compare
  */
 
+interface RubricCriterion {
+  id: string;
+  description: string;
+  maxPoints: number;
+}
+
 interface AutoGradeUMLPayload {
   answerId: string;
   questionId: string;
@@ -22,6 +29,7 @@ interface AutoGradeUMLPayload {
   userId: string;
   batchId?: string;
   jobId: string;
+  rubricOverride?: RubricCriterion[]; // Optional rubric override from API call
 }
 
 // Zod schema for UML grading response
@@ -42,7 +50,7 @@ const UMLGradingResponseSchema = z.object({
 type UMLGradingResponse = z.infer<typeof UMLGradingResponseSchema>;
 
 export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers: any) {
-  const { answerId, questionId, submissionId, userId, batchId, jobId } = payload;
+  const { answerId, questionId, submissionId, userId, batchId, jobId, rubricOverride } = payload;
   const startTime = Date.now();
 
   try {
@@ -138,11 +146,16 @@ Be precise with:
     const systemPrompt = promptTemplate.system;
     const promptVersion = promptTemplate.version;
 
+    // Use rubric override if provided, otherwise use question rubric
+    const questionContent2 = questionData.content as any;
+    const rubric = rubricOverride || questionContent2.rubric?.criteria || null;
+
     // Build user prompt (function-based)
     const userPrompt = (promptTemplate as any).userText({
       studentUML: studentUml,
       referenceUML: referenceDiagram,
       maxPoints,
+      rubric: rubric || undefined,
     });
 
     // 4. Call LLM with structured output for grading
@@ -246,6 +259,11 @@ Be precise with:
       `Completed auto-grade for UML answer ${answerId}: ${result.points}/${maxPoints} points (${result.confidence}% confidence)`
     );
 
+    // Check if batch is complete and create batch notification
+    if (batchId) {
+      await checkBatchCompletion(batchId, userId);
+    }
+
   } catch (error: any) {
     const processingTime = Date.now() - startTime;
     helpers.logger.error(`Failed to auto-grade UML answer ${answerId}:`, error);
@@ -295,20 +313,14 @@ Be precise with:
     }
 
     // Create staff notification
-    await db.insert(staffNotifications).values({
+    await notifyGradingFailed(
       userId,
-      type: 'grading_failed',
-      title: 'UML auto-grading failed',
-      message: `Failed to auto-grade UML answer for submission #${submissionId}`,
-      data: {
-        answerId,
-        questionId,
-        submissionId,
-        error: error.message,
-        batchId: batchId || null,
-      },
-      read: false,
-    });
+      answerId,
+      submissionId,
+      questionId,
+      error.message,
+      batchId
+    );
 
     throw error;
   }
