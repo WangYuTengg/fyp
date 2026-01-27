@@ -25,6 +25,7 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     questionsById,
     dueDate,
     isPastDue,
+    refreshSubmission,
   } = useAssignmentData(assignmentId);
 
   const {
@@ -98,6 +99,9 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     }
 
     await submissionsApi.uploadFile(submission.id, questionId, file);
+    
+    // Refresh submission data to get updated file URL
+    await refreshSubmission();
   };
 
   if (loading) {

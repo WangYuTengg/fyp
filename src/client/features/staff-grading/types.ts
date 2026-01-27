@@ -14,7 +14,7 @@ export type GradingSubmission = {
   assignmentId: string;
   userId: string;
   attemptNumber: number;
-  status: 'draft' | 'submitted' | 'grading' | 'graded';
+  status: 'draft' | 'submitted' | 'late' | 'grading' | 'graded';
   startedAt: string;
   submittedAt: string | null;
   gradedAt: string | null;

@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { db } from '../../db/index.js';
-import { submissions, assignments, answers, marks, enrollments, fileUploads, questions, users } from '../../db/schema.js';
+import { submissions, assignments, answers, marks, enrollments, fileUploads, questions, users, assignmentQuestions } from '../../db/schema.js';
 import { requireAuth, type AuthContext } from '../middleware/auth.js';
 import { eq, and, desc, count } from 'drizzle-orm';
-import { uploadFile, validateFile } from '../lib/storage.js';
+import { uploadFile, validateFile, getSignedUrl } from '../lib/storage.js';
 
 const app = new Hono<AuthContext>();
 
@@ -93,6 +93,22 @@ app.get('/:submissionId', requireAuth, async (c) => {
     .innerJoin(questions, eq(answers.questionId, questions.id))
     .where(eq(answers.submissionId, submissionId));
 
+  // Generate signed URLs for file paths
+  const answersWithSignedUrls = await Promise.all(
+    submissionAnswers.map(async (answer) => {
+      if (answer.fileUrl) {
+        try {
+          const signedUrl = await getSignedUrl(answer.fileUrl);
+          return { ...answer, fileUrl: signedUrl };
+        } catch (err) {
+          // If signed URL generation fails, keep the path
+          return answer;
+        }
+      }
+      return answer;
+    })
+  );
+
   // Load marks
   const submissionMarks = await db
     .select()
@@ -116,7 +132,7 @@ app.get('/:submissionId', requireAuth, async (c) => {
 
   return c.json({
     ...submission,
-    answers: submissionAnswers,
+    answers: answersWithSignedUrls,
     marks: submissionMarks,
     user: userInfo,
   });
@@ -141,6 +157,11 @@ app.post('/start', requireAuth, async (c) => {
 
   if (!assignment) {
     return c.json({ error: 'Assignment not found' }, 404);
+  }
+
+  // Check if assignment is open
+  if (assignment.openDate && new Date() < assignment.openDate) {
+    return c.json({ error: 'Assignment not yet open' }, 403);
   }
 
   // Check for any existing submission (draft or submitted)
@@ -262,21 +283,33 @@ app.post('/:submissionId/answers', requireAuth, async (c) => {
     return c.json({ error: 'Cannot modify submitted assignment' }, 400);
   }
 
+  // Validate that questionId belongs to this assignment
   const [assignment] = await db
     .select()
     .from(assignments)
     .where(eq(assignments.id, submission.assignmentId))
     .limit(1);
 
-  if (assignment?.dueDate) {
-    const now = new Date();
-    if (now > assignment.dueDate) {
-      return c.json(
-        { error: 'Assignment is past due. You can only submit your last saved answers.' },
-        409
-      );
-    }
+  if (!assignment) {
+    return c.json({ error: 'Assignment not found' }, 404);
   }
+
+  const [assignmentQuestion] = await db
+    .select()
+    .from(assignmentQuestions)
+    .where(
+      and(
+        eq(assignmentQuestions.assignmentId, submission.assignmentId),
+        eq(assignmentQuestions.questionId, questionId)
+      )
+    )
+    .limit(1);
+
+  if (!assignmentQuestion) {
+    return c.json({ error: 'Question does not belong to this assignment' }, 400);
+  }
+
+  // Allow saves after due date (will be marked late on submit)
 
   // Upsert answer
   const [existingAnswer] = await db
@@ -336,32 +369,37 @@ app.post('/:submissionId/submit', requireAuth, async (c) => {
     return c.json({ error: 'Already submitted' }, 400);
   }
 
-  // Validate time limit
+  // Determine if submission is late
   const [assignment] = await db
     .select()
     .from(assignments)
     .where(eq(assignments.id, submission.assignmentId))
     .limit(1);
 
+  const now = new Date();
+  let status: 'submitted' | 'late' = 'submitted';
+
+  // Check time limit
   if (assignment?.timeLimit) {
     const startTime = new Date(submission.startedAt).getTime();
     const endTime = startTime + assignment.timeLimit * 60 * 1000;
-    const now = Date.now();
 
-    if (now > endTime) {
-      return c.json(
-        { error: 'Time limit exceeded. Submission is being accepted but marked as late.' },
-        409
-      );
+    if (now.getTime() > endTime) {
+      status = 'late';
     }
+  }
+
+  // Check due date
+  if (assignment?.dueDate && now > assignment.dueDate) {
+    status = 'late';
   }
 
   const [updated] = await db
     .update(submissions)
     .set({
-      status: 'submitted',
-      submittedAt: new Date(),
-      updatedAt: new Date(),
+      status,
+      submittedAt: now,
+      updatedAt: now,
     })
     .where(eq(submissions.id, submissionId))
     .returning();
@@ -383,6 +421,46 @@ app.post('/:submissionId/grade', requireAuth, async (c) => {
 
   if (points === undefined || maxPoints === undefined) {
     return c.json({ error: 'Points and maxPoints required' }, 400);
+  }
+
+  // Prevent duplicate marks: check if this answer already has a mark
+  if (answerId) {
+    const [existingMark] = await db
+      .select()
+      .from(marks)
+      .where(
+        and(
+          eq(marks.submissionId, submissionId),
+          eq(marks.answerId, answerId)
+        )
+      )
+      .limit(1);
+
+    if (existingMark) {
+      // Update existing mark instead of creating duplicate
+      const [updated] = await db
+        .update(marks)
+        .set({
+          points,
+          maxPoints,
+          feedback,
+          markedBy: user.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(marks.id, existingMark.id))
+        .returning();
+
+      await db
+        .update(submissions)
+        .set({
+          status: 'graded',
+          gradedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(submissions.id, submissionId));
+
+      return c.json(updated);
+    }
   }
 
   const [mark] = await db
@@ -480,12 +558,38 @@ app.post('/:submissionId/upload', requireAuth, async (c) => {
       )
       .limit(1);
 
+    // Validate that questionId belongs to this assignment
+    const [assignment] = await db
+      .select()
+      .from(assignments)
+      .where(eq(assignments.id, submission.assignmentId))
+      .limit(1);
+
+    if (!assignment) {
+      return c.json({ error: 'Assignment not found' }, 404);
+    }
+
+    const [assignmentQuestion] = await db
+      .select()
+      .from(assignmentQuestions)
+      .where(
+        and(
+          eq(assignmentQuestions.assignmentId, submission.assignmentId),
+          eq(assignmentQuestions.questionId, questionId)
+        )
+      )
+      .limit(1);
+
+    if (!assignmentQuestion) {
+      return c.json({ error: 'Question does not belong to this assignment' }, 400);
+    }
+
     if (existingAnswer) {
-      // Update existing answer
+      // Update existing answer with file path
       const [updated] = await db
         .update(answers)
         .set({
-          fileUrl: uploadResult.publicUrl,
+          fileUrl: uploadResult.path,
           updatedAt: new Date(),
         })
         .where(eq(answers.id, existingAnswer.id))
@@ -494,7 +598,7 @@ app.post('/:submissionId/upload', requireAuth, async (c) => {
       // Record in file upload history
       await db.insert(fileUploads).values({
         answerId: updated.id,
-        fileUrl: uploadResult.publicUrl,
+        fileUrl: uploadResult.path,
         filePath: uploadResult.path,
         fileName: file.name,
         fileSize: file.size,
@@ -502,26 +606,26 @@ app.post('/:submissionId/upload', requireAuth, async (c) => {
       });
 
       return c.json({
-        answer: updated,
-        fileUrl: uploadResult.publicUrl,
+        answer: { ...updated, fileUrl: uploadResult.signedUrl },
+        fileUrl: uploadResult.signedUrl,
         filePath: uploadResult.path,
       });
     } else {
-      // Create new answer
+      // Create new answer with file path
       const [newAnswer] = await db
         .insert(answers)
         .values({
           submissionId,
           questionId,
           content: { umlText: '' }, // Placeholder for UML questions
-          fileUrl: uploadResult.publicUrl,
+          fileUrl: uploadResult.path,
         })
         .returning();
 
       // Record in file upload history
       await db.insert(fileUploads).values({
         answerId: newAnswer.id,
-        fileUrl: uploadResult.publicUrl,
+        fileUrl: uploadResult.path,
         filePath: uploadResult.path,
         fileName: file.name,
         fileSize: file.size,
@@ -529,8 +633,8 @@ app.post('/:submissionId/upload', requireAuth, async (c) => {
       });
 
       return c.json({
-        answer: newAnswer,
-        fileUrl: uploadResult.publicUrl,
+        answer: { ...newAnswer, fileUrl: uploadResult.signedUrl },
+        fileUrl: uploadResult.signedUrl,
         filePath: uploadResult.path,
       });
     }
@@ -577,7 +681,20 @@ app.get('/answer/:answerId/file-history', requireAuth, async (c) => {
     .where(eq(fileUploads.answerId, answerId))
     .orderBy(desc(fileUploads.uploadedAt));
 
-  return c.json(history);
+  // Generate signed URLs for file paths
+  const historyWithSignedUrls = await Promise.all(
+    history.map(async (upload) => {
+      try {
+        const signedUrl = await getSignedUrl(upload.filePath);
+        return { ...upload, fileUrl: signedUrl };
+      } catch (err) {
+        // If signed URL generation fails, keep the path
+        return upload;
+      }
+    })
+  );
+
+  return c.json(historyWithSignedUrls);
 });
 
 export default app;

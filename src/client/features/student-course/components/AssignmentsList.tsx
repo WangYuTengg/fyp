@@ -41,6 +41,11 @@ export function AssignmentsList({ assignments }: AssignmentsListProps) {
                         Submitted
                       </span>
                     )}
+                    {assignment.submissionStatus === 'late' && (
+                      <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded">
+                        Late
+                      </span>
+                    )}
                   </div>
                   <p className="text-gray-600 mt-1">{assignment.description}</p>
                   <div className="mt-2 flex gap-4 text-sm text-gray-500">
@@ -57,7 +62,7 @@ export function AssignmentsList({ assignments }: AssignmentsListProps) {
                   onClick={() => startAssignment(assignment.id)}
                   className="ml-4 bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
                 >
-                  {assignment.submissionStatus === 'submitted' ? 'View' : assignment.submissionStatus === 'draft' ? 'Resume' : 'Start'}
+                  {assignment.submissionStatus === 'submitted' || assignment.submissionStatus === 'late' ? 'View' : assignment.submissionStatus === 'draft' ? 'Resume' : 'Start'}
                 </button>
               </div>
             </div>

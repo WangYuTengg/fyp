@@ -12,9 +12,8 @@ const ALLOWED_MIME_TYPES = [
 const ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.puml'];
 
 export type UploadResult = {
-  fileUrl: string;
-  publicUrl: string;
   path: string;
+  signedUrl: string;
 };
 
 /**
@@ -78,15 +77,12 @@ export async function uploadFile(
     throw new Error(`Failed to upload file: ${error.message}`);
   }
 
-  // Get public URL
-  const { data: urlData } = supabase.storage
-    .from(STORAGE_BUCKET)
-    .getPublicUrl(filePath);
+  // Get signed URL (valid for 1 hour)
+  const signedUrl = await getSignedUrl(filePath);
 
   return {
-    fileUrl: filePath,
-    publicUrl: urlData.publicUrl,
     path: filePath,
+    signedUrl,
   };
 }
 

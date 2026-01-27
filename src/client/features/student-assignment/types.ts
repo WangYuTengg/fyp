@@ -26,7 +26,7 @@ export type Submission = {
   id: string;
   assignmentId: string;
   userId: string;
-  status: 'draft' | 'submitted' | 'grading' | 'graded';
+  status: 'draft' | 'submitted' | 'late' | 'grading' | 'graded';
   startedAt: string;
   answers?: Answer[];
 };

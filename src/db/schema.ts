@@ -5,7 +5,7 @@ import { relations } from 'drizzle-orm';
 export const userRoleEnum = pgEnum('user_role', ['admin', 'staff', 'student']);
 export const courseRoleEnum = pgEnum('course_role', ['lecturer', 'ta', 'lab_exec', 'student']);
 export const assignmentTypeEnum = pgEnum('assignment_type', ['mcq', 'written', 'coding', 'uml']);
-export const submissionStatusEnum = pgEnum('submission_status', ['draft', 'submitted', 'grading', 'graded']);
+export const submissionStatusEnum = pgEnum('submission_status', ['draft', 'submitted', 'late', 'grading', 'graded']);
 
 // Users table
 export const users = pgTable('users', {

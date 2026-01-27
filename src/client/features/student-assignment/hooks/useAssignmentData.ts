@@ -45,6 +45,17 @@ export function useAssignmentData(assignmentId: string) {
   const dueDate = assignment?.dueDate ? new Date(assignment.dueDate) : null;
   const isPastDue = dueDate ? Date.now() > dueDate.getTime() : false;
 
+  const refreshSubmission = async () => {
+    if (!user || !assignment) return;
+    
+    try {
+      const submissionData = await submissionsApi.start(assignmentId);
+      setSubmission(submissionData as Submission);
+    } catch (err) {
+      console.error('Failed to refresh submission:', err);
+    }
+  };
+
   return {
     loading,
     error,
@@ -54,5 +65,6 @@ export function useAssignmentData(assignmentId: string) {
     questionsById,
     dueDate,
     isPastDue,
+    refreshSubmission,
   };
 }
