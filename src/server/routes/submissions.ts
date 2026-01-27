@@ -41,8 +41,25 @@ app.get('/assignment/:assignmentId', requireAuth, async (c) => {
   } else {
     // Staff see all submissions
     const allSubmissions = await db
-      .select()
+      .select({
+        id: submissions.id,
+        assignmentId: submissions.assignmentId,
+        userId: submissions.userId,
+        attemptNumber: submissions.attemptNumber,
+        status: submissions.status,
+        startedAt: submissions.startedAt,
+        submittedAt: submissions.submittedAt,
+        gradedAt: submissions.gradedAt,
+        createdAt: submissions.createdAt,
+        updatedAt: submissions.updatedAt,
+        user: {
+          id: users.id,
+          email: users.email,
+          fullName: users.name,
+        },
+      })
       .from(submissions)
+      .innerJoin(users, eq(submissions.userId, users.id))
       .where(eq(submissions.assignmentId, assignmentId))
       .orderBy(desc(submissions.createdAt));
 
@@ -103,6 +120,7 @@ app.get('/:submissionId', requireAuth, async (c) => {
           const signedUrl = await getSignedUrl(answer.fileUrl);
           return { ...answer, fileUrl: signedUrl };
         } catch (err) {
+          console.error('Error generating signed URL:', err);
           // If signed URL generation fails, keep the path
           return answer;
         }
