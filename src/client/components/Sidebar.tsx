@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { 
   BookOpenIcon, 
   AcademicCapIcon,
+  CpuChipIcon,
 } from '@heroicons/react/24/outline';
 import { UserInfo } from './UserInfo';
 
@@ -24,6 +25,12 @@ const navigation: NavItem[] = [
     name: 'Course Management',
     href: '/staff',
     icon: AcademicCapIcon,
+    roles: ['staff', 'admin']
+  },
+  {
+    name: 'Auto-Grading',
+    href: '/staff/auto-grading',
+    icon: CpuChipIcon,
     roles: ['staff', 'admin']
   }
 ];

@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudentIndexRouteImport } from './routes/student/index'
 import { Route as StaffIndexRouteImport } from './routes/staff/index'
 import { Route as StaffGradingRouteImport } from './routes/staff/grading'
+import { Route as StaffAutoGradingRouteImport } from './routes/staff/auto-grading'
 import { Route as StudentCoursesCourseIdRouteImport } from './routes/student/courses/$courseId'
 import { Route as StudentAssignmentsAssignmentIdRouteImport } from './routes/student/assignments/$assignmentId'
 import { Route as StaffCoursesCourseIdRouteImport } from './routes/staff/courses/$courseId'
@@ -55,6 +56,11 @@ const StaffGradingRoute = StaffGradingRouteImport.update({
   path: '/grading',
   getParentRoute: () => StaffRoute,
 } as any)
+const StaffAutoGradingRoute = StaffAutoGradingRouteImport.update({
+  id: '/auto-grading',
+  path: '/auto-grading',
+  getParentRoute: () => StaffRoute,
+} as any)
 const StudentCoursesCourseIdRoute = StudentCoursesCourseIdRouteImport.update({
   id: '/courses/$courseId',
   path: '/courses/$courseId',
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
+  '/staff/auto-grading': typeof StaffAutoGradingRoute
   '/staff/grading': typeof StaffGradingRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/staff/auto-grading': typeof StaffAutoGradingRoute
   '/staff/grading': typeof StaffGradingRoute
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
+  '/staff/auto-grading': typeof StaffAutoGradingRoute
   '/staff/grading': typeof StaffGradingRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/staff'
     | '/student'
+    | '/staff/auto-grading'
     | '/staff/grading'
     | '/staff/'
     | '/student/'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/staff/auto-grading'
     | '/staff/grading'
     | '/staff'
     | '/student'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/staff'
     | '/student'
+    | '/staff/auto-grading'
     | '/staff/grading'
     | '/staff/'
     | '/student/'
@@ -202,6 +214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffGradingRouteImport
       parentRoute: typeof StaffRoute
     }
+    '/staff/auto-grading': {
+      id: '/staff/auto-grading'
+      path: '/auto-grading'
+      fullPath: '/staff/auto-grading'
+      preLoaderRoute: typeof StaffAutoGradingRouteImport
+      parentRoute: typeof StaffRoute
+    }
     '/student/courses/$courseId': {
       id: '/student/courses/$courseId'
       path: '/courses/$courseId'
@@ -227,12 +246,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface StaffRouteChildren {
+  StaffAutoGradingRoute: typeof StaffAutoGradingRoute
   StaffGradingRoute: typeof StaffGradingRoute
   StaffIndexRoute: typeof StaffIndexRoute
   StaffCoursesCourseIdRoute: typeof StaffCoursesCourseIdRoute
 }
 
 const StaffRouteChildren: StaffRouteChildren = {
+  StaffAutoGradingRoute: StaffAutoGradingRoute,
   StaffGradingRoute: StaffGradingRoute,
   StaffIndexRoute: StaffIndexRoute,
   StaffCoursesCourseIdRoute: StaffCoursesCourseIdRoute,

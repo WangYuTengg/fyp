@@ -48,22 +48,39 @@ export function QuestionGradeCard({
   // Extract content based on question type
   const renderAnswer = () => {
     if (question.type === 'written') {
+      const modelAnswer = typeof question.content.modelAnswer === 'string' ? question.content.modelAnswer : null;
+      
       return (
-        <div className="bg-gray-50 rounded p-4 whitespace-pre-wrap">
-          {(answer.content.text as string) || <em className="text-gray-400">No answer provided</em>}
+        <div className="space-y-3">
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Student's Answer:</h4>
+            <div className="bg-gray-50 rounded p-4 whitespace-pre-wrap">
+              {(answer.content.text as string) || <em className="text-gray-400">No answer provided</em>}
+            </div>
+          </div>
+          
+          {modelAnswer && (
+            <div>
+              <h4 className="text-sm font-medium text-green-700 mb-2">Model Answer (Reference):</h4>
+              <div className="bg-green-50 rounded p-4 whitespace-pre-wrap border border-green-200">
+                {modelAnswer}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
 
     if (question.type === 'mcq') {
       const selectedIds = (answer.content.selectedOptionIds as string[]) || [];
-      const options = (question.content.options as Array<{ id: string; text: string }>) || [];
+      const options = (question.content.options as Array<{ id: string; text: string; points?: number; isCorrect?: boolean }>) || [];
 
       return (
         <div className="space-y-2">
           {options.map((option) => {
             const isSelected = selectedIds.includes(option.id);
-            const isCorrect = (question.content.correctOptionIds as string[])?.includes(option.id);
+            const isCorrect = option.isCorrect || false;
+            const optionPoints = option.points ?? 0;
 
             return (
               <div
@@ -87,6 +104,11 @@ export function QuestionGradeCard({
                   />
                   <div className="flex-1">
                     <span className={isSelected ? 'font-medium' : ''}>{option.text}</span>
+                    {optionPoints > 0 && (
+                      <span className="ml-2 text-xs font-semibold text-blue-600">
+                        ({optionPoints} {optionPoints === 1 ? 'pt' : 'pts'})
+                      </span>
+                    )}
                     {isCorrect && !isSelected && (
                       <span className="ml-2 text-xs text-green-600">(Correct answer)</span>
                     )}
