@@ -55,7 +55,7 @@ export function CreateAssignmentForm({
             type="text"
             name="title"
             required
-            className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-input-block"
           />
         </div>
         <div>
@@ -63,7 +63,7 @@ export function CreateAssignmentForm({
           <textarea
             name="description"
             rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-textarea-block"
           />
         </div>
         <div className="grid grid-cols-3 gap-4">
@@ -74,7 +74,7 @@ export function CreateAssignmentForm({
               required
               value={assignmentType}
               onChange={(event) => setAssignmentType(event.target.value as 'mcq' | 'written' | 'uml')}
-              className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="form-select-block"
             >
               <option value="mcq">MCQ</option>
               <option value="written">Written</option>
@@ -88,7 +88,7 @@ export function CreateAssignmentForm({
               name="dueDate"
               defaultValue={getDefaultDueDate()}
               min={getMinDateTime()}
-              className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="form-input-block"
             />
           </div>
           <div>
@@ -98,7 +98,7 @@ export function CreateAssignmentForm({
               name="maxAttempts"
               defaultValue={1}
               min={1}
-              className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="form-input-block"
             />
           </div>
         </div>

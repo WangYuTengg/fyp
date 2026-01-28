@@ -121,7 +121,7 @@ export function EditQuestionForm({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-input-block"
           />
         </div>
 
@@ -131,7 +131,7 @@ export function EditQuestionForm({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-textarea-block"
           />
         </div>
 
@@ -142,7 +142,7 @@ export function EditQuestionForm({
             value={points}
             onChange={(e) => setPoints(Number(e.target.value))}
             min={1}
-            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-input-block"
           />
         </div>
 
@@ -202,7 +202,7 @@ export function EditQuestionForm({
                 }
               }}
               placeholder="Add new tag..."
-              className="flex-1 rounded-md border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="form-input flex-1"
             />
             <button
               type="button"
@@ -259,7 +259,7 @@ export function EditQuestionForm({
                         )
                       );
                     }}
-                    className="block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="form-input w-full"
                     placeholder={`Option ${index + 1}`}
                   />
                 </div>
@@ -275,7 +275,7 @@ export function EditQuestionForm({
                         )
                       );
                     }}
-                    className="block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="form-input w-full"
                     placeholder="Points"
                     min="0"
                     step="0.5"
@@ -340,7 +340,7 @@ export function EditQuestionForm({
               value={modelAnswer}
               onChange={(e) => setModelAnswer(e.target.value)}
               rows={4}
-              className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="form-textarea-block"
               placeholder="Provide a reference answer to guide grading..."
             />
           </div>

@@ -80,7 +80,7 @@ export function QuestionCard({
             const value = e.target.value;
             onUpdateAnswer(question.id, { type: 'written', text: value });
           }}
-          className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="form-textarea-block min-h-[160px]"
           placeholder="Type your answer..."
           disabled={isSubmitted}
         />

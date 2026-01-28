@@ -358,7 +358,7 @@ export function QuestionGradeCard({
               max={maxPoints}
               step={0.5}
               disabled={isReadOnly}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-100"
+              className="form-input-block"
             />
           </div>
 
@@ -382,10 +382,10 @@ export function QuestionGradeCard({
           <textarea
             value={currentFeedback}
             onChange={(e) => handleFeedbackChange(e.target.value)}
-            rows={3}
+            rows={5}
             disabled={isReadOnly}
             placeholder="Provide feedback to the student..."
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-100"
+            className="form-textarea-block min-h-[140px]"
           />
         </div>
       </div>

@@ -11,7 +11,7 @@ export function CreateCourseForm({ onSubmit }: CreateCourseFormProps) {
             type="text"
             name="code"
             required
-            className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-input-block"
             placeholder="e.g., CS2030"
           />
         </div>
@@ -21,7 +21,7 @@ export function CreateCourseForm({ onSubmit }: CreateCourseFormProps) {
             type="text"
             name="name"
             required
-            className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-input-block"
             placeholder="e.g., Software Engineering"
           />
         </div>
@@ -30,7 +30,7 @@ export function CreateCourseForm({ onSubmit }: CreateCourseFormProps) {
           <textarea
             name="description"
             rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-textarea-block"
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -40,7 +40,7 @@ export function CreateCourseForm({ onSubmit }: CreateCourseFormProps) {
               type="text"
               name="academicYear"
               required
-              className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="form-input-block"
               placeholder="2024/2025"
             />
           </div>
@@ -50,7 +50,7 @@ export function CreateCourseForm({ onSubmit }: CreateCourseFormProps) {
               name="semester"
               required
               defaultValue=""
-              className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="form-select-block"
             >
               <option value="" disabled>
                 Select a semester

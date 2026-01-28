@@ -63,7 +63,7 @@ export function CreateQuestionForm({
             type="text"
             name="qTitle"
             required
-            className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-input-block"
           />
         </div>
         <div>
@@ -71,7 +71,7 @@ export function CreateQuestionForm({
           <textarea
             name="qPrompt"
             rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-textarea-block"
           />
         </div>
         <div>
@@ -81,7 +81,7 @@ export function CreateQuestionForm({
             name="qPoints"
             defaultValue={10}
             min={1}
-            className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-input-block"
           />
         </div>
         <div>
@@ -89,7 +89,7 @@ export function CreateQuestionForm({
           <select
             value={questionType}
             onChange={(event) => setQuestionType(event.target.value as "mcq" | "written" | "uml")}
-            className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-select-block"
           >
             <option value="written">Written</option>
             <option value="mcq">MCQ</option>
@@ -102,7 +102,7 @@ export function CreateQuestionForm({
           <select
             value={selectedAssignmentId}
             onChange={(event) => setSelectedAssignmentId(event.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="form-select-block"
           >
             <option value="">-- None (add to question pool only) --</option>
             {assignments
@@ -175,7 +175,7 @@ export function CreateQuestionForm({
                 }
               }}
               placeholder="Add new tag..."
-              className="flex-1 rounded-md border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="form-input flex-1"
             />
             <button
               type="button"
@@ -232,7 +232,7 @@ export function CreateQuestionForm({
                         )
                       );
                     }}
-                    className="block w-full rounded-md border-gray-300 px-3 py-2 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="form-input w-full"
                     placeholder={`Option ${index + 1}`}
                   />
                 </div>
@@ -248,7 +248,7 @@ export function CreateQuestionForm({
                         )
                       );
                     }}
-                    className="block w-full rounded-md border-gray-300 px-3 py-2 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="form-input w-full"
                     placeholder="Points"
                     min="0"
                     step="0.5"
@@ -292,7 +292,7 @@ export function CreateQuestionForm({
             <textarea
               name="modelAnswer"
               rows={4}
-              className="mt-1 block w-full rounded-md border-gray-300 px-4 py-3 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="form-textarea-block"
               placeholder="Provide a reference answer to guide grading..."
             />
           </div>
