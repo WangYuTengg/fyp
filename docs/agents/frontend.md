@@ -239,9 +239,24 @@ function CourseList() {
 ```typescript
 <input
   type="text"
-  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+  className="form-input-block"
 />
 ```
+
+### Form Controls Standard
+
+To keep form sizing/padding consistent across the app, use the shared form control classes defined in `src/client/index.css`.
+
+- `form-input-block`: Standard full-width `<input>` (includes `mt-1 block w-full` + padding/typography/focus styles)
+- `form-select-block`: Standard full-width `<select>`
+- `form-textarea-block`: Standard full-width `<textarea>`
+- `form-input`: Base control style for inline/partial-width controls (pair with layout classes like `w-full`, `flex-1`, `w-24`)
+
+Guidelines:
+
+- Prefer `form-*-block` for normal form fields in stacked layouts.
+- Keep labels simple (no extra spacing); the `form-*-block` classes provide spacing via `mt-1`.
+- Avoid re-typing long Tailwind class strings for every field—use these shared classes instead.
 
 **Card**:
 ```typescript
@@ -370,7 +385,7 @@ function CreateCourse() {
           type="text"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+          className="form-input-block"
           required
         />
       </div>
