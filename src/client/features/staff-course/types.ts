@@ -11,7 +11,7 @@ export type StaffEnrollmentRow = {
   id: string;
   role: string;
   createdAt: string;
-  user: { email: string; name: string | null };
+  user: { id: string; email: string; name: string | null };
 };
 
 export type StaffAssignment = {

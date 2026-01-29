@@ -107,6 +107,18 @@ export const coursesApi = {
     body: JSON.stringify(data || {}),
   }),
   getEnrollments: (courseId: string) => apiClient<unknown[]>(`/api/courses/${courseId}/enrollments`),
+  bulkEnroll: (courseId: string, data: { emails: string[]; role?: 'lecturer' | 'ta' | 'lab_exec' | 'student' }) =>
+    apiClient<{ results: Array<{ email: string; status: string; enrollmentId?: string }>; counts: { enrolled: number; alreadyEnrolled: number; notFound: number; invalid: number } }>(
+      `/api/courses/${courseId}/enrollments/bulk`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    ),
+  removeEnrollment: (courseId: string, enrollmentId: string) =>
+    apiClient<{ success: true }>(`/api/courses/${courseId}/enrollments/${enrollmentId}`, {
+      method: 'DELETE',
+    }),
 };
 
 // Assignments API

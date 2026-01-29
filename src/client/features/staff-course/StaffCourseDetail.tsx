@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { Modal } from '../../components/Modal';
 import { useStaffCourse, type QuestionFilters } from './hooks/useStaffCourse';
@@ -12,12 +13,15 @@ import { AssignmentCard } from './components/AssignmentCard';
 import { QuestionCard } from './components/QuestionCard';
 import { QuestionFilters as QuestionFiltersComponent } from './components/QuestionFilters';
 import { TagManager } from './components/TagManager';
+import { CourseRoster } from './components/CourseRoster';
+import { BulkEnrollModal } from './components/BulkEnrollModal';
+import { coursesApi } from '../../lib/api';
 
 type StaffCourseDetailProps = {
   courseId: string;
 };
 
-type TabType = 'assignments' | 'questions';
+type TabType = 'assignments' | 'questions' | 'roster';
 
 export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
   const { user, dbUser, loading: authLoading, setAdminViewAs } = useAuth();
@@ -25,8 +29,11 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
   const [activeTab, setActiveTab] = useState<TabType>('assignments');
   const [questionFilters, setQuestionFilters] = useState<QuestionFilters>({});
   const [showTagManager, setShowTagManager] = useState(false);
+  const [showBulkEnroll, setShowBulkEnroll] = useState(false);
+  const [removingEnrollmentId, setRemovingEnrollmentId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const { course, assignments, questions, tags, loading } = useStaffCourse(
+  const { course, assignments, questions, tags, enrollments, loading } = useStaffCourse(
     courseId,
     user,
     dbUser,
@@ -34,6 +41,19 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
   );
   const assignmentForm = useAssignmentForm(courseId);
   const questionForm = useQuestionForm(courseId, assignments);
+
+  const removeEnrollmentMutation = useMutation({
+    mutationFn: (enrollmentId: string) => coursesApi.removeEnrollment(courseId, enrollmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course-enrollments', courseId] });
+      setRemovingEnrollmentId(null);
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      alert('Failed to remove enrollment: ' + message);
+      setRemovingEnrollmentId(null);
+    },
+  });
 
   useEffect(() => {
     if (!authLoading) {
@@ -84,6 +104,17 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
               } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm transition-colors`}
             >
               Question Pool
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('roster')}
+              className={`${
+                activeTab === 'roster'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm transition-colors`}
+            >
+              Roster
             </button>
           </nav>
         </div>
@@ -202,8 +233,26 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
               )}
             </div>
           )}
+
+          {activeTab === 'roster' && (
+            <CourseRoster
+              enrollments={enrollments}
+              onBulkEnroll={() => setShowBulkEnroll(true)}
+              onRemove={(enrollmentId) => {
+                setRemovingEnrollmentId(enrollmentId);
+                removeEnrollmentMutation.mutate(enrollmentId);
+              }}
+              removingId={removingEnrollmentId}
+            />
+          )}
         </div>
       </div>
+
+      <BulkEnrollModal
+        courseId={courseId}
+        isOpen={showBulkEnroll}
+        onClose={() => setShowBulkEnroll(false)}
+      />
     </div>
   );
 }

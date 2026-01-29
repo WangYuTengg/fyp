@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { coursesApi, assignmentsApi, questionsApi, tagsApi, type Question } from '../../../lib/api';
-import type { StaffAssignment, StaffCourse } from '../types';
+import type { StaffAssignment, StaffCourse, StaffEnrollmentRow } from '../types';
 
 export type QuestionFilters = {
   search?: string;
@@ -76,18 +76,25 @@ export function useStaffCourse(
     enabled: !!isAuthorized,
   });
 
+  const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery({
+    queryKey: ['course-enrollments', courseId],
+    queryFn: () => coursesApi.getEnrollments(courseId) as Promise<StaffEnrollmentRow[]>,
+    enabled: !!isAuthorized,
+  });
+
   // Client-side filtering
   const questions = useMemo(() => {
     return filterQuestions(allQuestions, filters);
   }, [allQuestions, filters]);
 
-  const loading = courseLoading || assignmentsLoading || questionsLoading || tagsLoading;
+  const loading = courseLoading || assignmentsLoading || questionsLoading || tagsLoading || enrollmentsLoading;
 
   return {
     course: course ?? null,
     assignments,
     questions,
     tags,
+    enrollments,
     loading,
   };
 }
