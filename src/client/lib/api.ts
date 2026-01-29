@@ -92,6 +92,10 @@ export async function apiClient<TResponse = unknown>(endpoint: string, options: 
 // User API
 export const userApi = {
   getCurrentUser: () => apiClient('/api/auth/me'),
+  listStudents: (query?: string) =>
+    apiClient<Array<{ id: string; email: string; name: string | null; role: string }>>(
+      `/api/users${query ? `?q=${encodeURIComponent(query)}` : ''}`
+    ),
 };
 
 // Courses API

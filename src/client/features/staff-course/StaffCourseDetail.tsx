@@ -15,6 +15,7 @@ import { QuestionFilters as QuestionFiltersComponent } from './components/Questi
 import { TagManager } from './components/TagManager';
 import { CourseRoster } from './components/CourseRoster';
 import { BulkEnrollModal } from './components/BulkEnrollModal';
+import { AddStudentsPanel } from './components/AddStudentsPanel';
 import { coursesApi } from '../../lib/api';
 
 type StaffCourseDetailProps = {
@@ -235,15 +236,21 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
           )}
 
           {activeTab === 'roster' && (
-            <CourseRoster
-              enrollments={enrollments}
-              onBulkEnroll={() => setShowBulkEnroll(true)}
-              onRemove={(enrollmentId) => {
-                setRemovingEnrollmentId(enrollmentId);
-                removeEnrollmentMutation.mutate(enrollmentId);
-              }}
-              removingId={removingEnrollmentId}
-            />
+            <div className="space-y-6">
+              <AddStudentsPanel
+                courseId={courseId}
+                enrolledUserIds={enrollments.map((row) => row.user.id)}
+              />
+              <CourseRoster
+                enrollments={enrollments}
+                onBulkEnroll={() => setShowBulkEnroll(true)}
+                onRemove={(enrollmentId) => {
+                  setRemovingEnrollmentId(enrollmentId);
+                  removeEnrollmentMutation.mutate(enrollmentId);
+                }}
+                removingId={removingEnrollmentId}
+              />
+            </div>
           )}
         </div>
       </div>
