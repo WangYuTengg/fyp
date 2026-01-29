@@ -29,6 +29,7 @@
     "@tanstack/react-router": "^1.156.0",
     "@tanstack/router-devtools": "^1.156.0",
     "@tanstack/router-plugin": "^1.156.0",
+    "@xyflow/react": "^12.10.0",
     "ai": "^6.0.50",
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.8",

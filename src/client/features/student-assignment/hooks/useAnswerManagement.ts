@@ -33,6 +33,7 @@ export function useAnswerManagement(
         hydratedAnswers[answer.questionId] = {
           type: 'uml',
           umlText: answer.content.umlText,
+          editorState: answer.content.editorState,
         };
       } else if (question.type === 'written' && answer.content.text !== undefined) {
         hydratedAnswers[answer.questionId] = {
@@ -83,7 +84,10 @@ export function useAnswerManagement(
       if (question.type === 'mcq') {
         content = { selectedOptionIds: draft?.type === 'mcq' ? draft.selectedOptionIds : [] };
       } else if (question.type === 'uml') {
-        content = { umlText: draft?.type === 'uml' ? draft.umlText : '' };
+        content = {
+          umlText: draft?.type === 'uml' ? draft.umlText : '',
+          editorState: draft?.type === 'uml' ? draft.editorState : undefined,
+        };
       } else {
         content = { text: draft?.type === 'written' ? draft.text : '' };
       }

@@ -52,7 +52,9 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
       if (answer.type === 'mcq' && savedAnswer.content.selectedOptionIds) {
         return JSON.stringify(answer.selectedOptionIds) !== JSON.stringify(savedAnswer.content.selectedOptionIds);
       } else if (answer.type === 'uml') {
-        return answer.umlText !== savedAnswer.content.umlText;
+        const umlChanged = answer.umlText !== savedAnswer.content.umlText;
+        const editorChanged = JSON.stringify(answer.editorState ?? null) !== JSON.stringify(savedAnswer.content.editorState ?? null);
+        return umlChanged || editorChanged;
       } else if (answer.type === 'written') {
         return answer.text !== savedAnswer.content.text;
       }

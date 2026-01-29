@@ -22,7 +22,8 @@ function hasReferenceDiagram(content: unknown): content is { referenceDiagram: s
     typeof content === 'object' &&
     content !== null &&
     'referenceDiagram' in content &&
-    typeof (content as { referenceDiagram: unknown }).referenceDiagram === 'string'
+    typeof (content as { referenceDiagram: unknown }).referenceDiagram === 'string' &&
+    (content as { referenceDiagram: string }).referenceDiagram.trim().length > 0
   );
 }
 
@@ -80,7 +81,7 @@ export function QuestionCard({
             const value = e.target.value;
             onUpdateAnswer(question.id, { type: 'written', text: value });
           }}
-          className="form-textarea-block min-h-[160px]"
+          className="form-textarea-block min-h-40"
           placeholder="Type your answer..."
           disabled={isSubmitted}
         />
@@ -145,9 +146,11 @@ export function QuestionCard({
 
           {uploadMode === 'editor' ? (
             <UMLEditor
+              key={question.id}
               initialValue={answer?.type === 'uml' ? answer.umlText : ''}
-              onChange={(value) => {
-                onUpdateAnswer(question.id, { type: 'uml', umlText: value });
+              initialDiagramState={answer?.type === 'uml' ? answer.editorState : undefined}
+              onChange={(value, editorState) => {
+                onUpdateAnswer(question.id, { type: 'uml', umlText: value, editorState });
               }}
               readOnly={isSubmitted}
               height="350px"

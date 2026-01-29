@@ -1,9 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import plantumlEncoder from 'plantuml-encoder';
+import { ClassDiagramEditor } from './uml/ClassDiagramEditor';
+import {
+  DEFAULT_CLASS_DIAGRAM_STATE,
+  generateClassDiagramPlantUml,
+  type ClassDiagramState,
+} from './uml/classDiagram';
 
 type UMLEditorProps = {
   initialValue?: string;
-  onChange?: (value: string) => void;
+  initialDiagramState?: ClassDiagramState;
+  onChange?: (value: string, editorState?: ClassDiagramState) => void;
   readOnly?: boolean;
   height?: string;
 };
@@ -17,16 +24,38 @@ class Example {
 
 export function UMLEditor({ 
   initialValue = DEFAULT_UML, 
+  initialDiagramState,
   onChange, 
   readOnly = false,
   height = '400px'
 }: UMLEditorProps) {
-  const [umlText, setUmlText] = useState(initialValue);
+  const [umlText, setUmlText] = useState(() => {
+    if (initialValue && initialValue.trim().length > 0) {
+      return initialValue;
+    }
+    if (initialDiagramState) {
+      return generateClassDiagramPlantUml(initialDiagramState);
+    }
+    return DEFAULT_UML;
+  });
   const [encodedUml, setEncodedUml] = useState('');
   const [imageError, setImageError] = useState(false);
+  const [activeTab, setActiveTab] = useState<'visual' | 'text'>('visual');
+  const [diagramState, setDiagramState] = useState<ClassDiagramState>(
+    initialDiagramState ?? DEFAULT_CLASS_DIAGRAM_STATE
+  );
+  const [visualSeed] = useState<ClassDiagramState>(
+    () => initialDiagramState ?? DEFAULT_CLASS_DIAGRAM_STATE
+  );
 
   useEffect(() => {
     setUmlText(initialValue);
+  }, [initialValue]);
+
+  useEffect(() => {
+    if (initialValue && initialValue.trim().length > 0) {
+      setUmlText(initialValue);
+    }
   }, [initialValue]);
 
   useEffect(() => {
@@ -45,25 +74,75 @@ export function UMLEditor({
     onChange?.(value);
   };
 
+  const handleDiagramChange = (state: ClassDiagramState, plantUml: string) => {
+    setDiagramState(state);
+    setUmlText(plantUml);
+    onChange?.(plantUml, state);
+  };
+
+  const visualUml = useMemo(() => generateClassDiagramPlantUml(diagramState), [diagramState]);
+
   const imageUrl = `https://www.plantuml.com/plantuml/svg/${encodedUml}`;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Editor */}
       <div className="flex flex-col">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          PlantUML Code
-        </label>
-        <textarea
-          value={umlText}
-          onChange={(e) => handleChange(e.target.value)}
-          readOnly={readOnly}
-          className="flex-1 font-mono text-sm p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          style={{ minHeight: height }}
-          placeholder="Enter PlantUML code..."
-        />
+        <div className="flex items-center justify-between gap-2">
+          <label className="block text-sm font-medium text-gray-700">
+            UML Editor
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('visual')}
+              className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
+                activeTab === 'visual'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-gray-300 text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Visual (Class)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('text')}
+              className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
+                activeTab === 'text'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-gray-300 text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              PlantUML
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-2" style={{ minHeight: height }}>
+          {activeTab === 'visual' ? (
+            <ClassDiagramEditor
+              key={visualSeed.nodes.length ? visualSeed.nodes[0].id : 'uml-visual-seed'}
+              initialState={visualSeed}
+              onChange={handleDiagramChange}
+              readOnly={readOnly}
+              height={height}
+            />
+          ) : (
+            <textarea
+              value={umlText}
+              onChange={(e) => handleChange(e.target.value)}
+              readOnly={readOnly}
+              className="flex-1 font-mono text-sm p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              style={{ minHeight: height }}
+              placeholder="Enter PlantUML code..."
+            />
+          )}
+        </div>
+
         <p className="mt-2 text-xs text-gray-500">
-          Using PlantUML syntax.{' '}
+          {activeTab === 'visual'
+            ? 'Drag and drop classes. Connections export to PlantUML on save.'
+            : 'Using PlantUML syntax.'}{' '}
           <a
             href="https://plantuml.com/class-diagram"
             target="_blank"
@@ -73,6 +152,11 @@ export function UMLEditor({
             View documentation
           </a>
         </p>
+        {activeTab === 'visual' && umlText !== visualUml && (
+          <p className="mt-1 text-xs text-amber-600">
+            The visual editor generates PlantUML. Switch to PlantUML tab to view the latest export.
+          </p>
+        )}
       </div>
 
       {/* Preview */}

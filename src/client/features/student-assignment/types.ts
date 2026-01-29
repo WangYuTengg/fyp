@@ -1,3 +1,5 @@
+import type { ClassDiagramState } from '../../components/uml/classDiagram';
+
 export type AssignmentQuestion = {
   id: string;
   order: number;
@@ -39,6 +41,7 @@ export type Answer = {
     text?: string;
     selectedOptionIds?: string[];
     umlText?: string;
+    editorState?: ClassDiagramState;
   };
   fileUrl?: string | null;
   createdAt: string;
@@ -48,4 +51,4 @@ export type Answer = {
 export type AnswerState =
   | { type: 'written'; text: string }
   | { type: 'mcq'; selectedOptionIds: string[] }
-  | { type: 'uml'; umlText: string };
+  | { type: 'uml'; umlText: string; editorState?: ClassDiagramState };
