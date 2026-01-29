@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useAssignmentData } from './hooks/useAssignmentData';
 import { useAnswerManagement } from './hooks/useAnswerManagement';
@@ -40,6 +40,7 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
   } = useAnswerManagement(submission, questionsById, isPastDue);
 
   const hasDirtyAnswers = useRef(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   // Track if there are unsaved changes
   useEffect(() => {
@@ -124,6 +125,21 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
 
   const hasTimeLimit = assignment.timeLimit && submission;
 
+  const totalQuestions = questions.length;
+  const currentQuestion = questions[currentQuestionIndex];
+
+  const goToNextQuestion = () => {
+    if (currentQuestionIndex < totalQuestions - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    }
+  };
+
+  const goToPreviousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <AssignmentHeader
@@ -147,29 +163,62 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
         </div>
       )}
 
+      {/* Question Progress Indicator */}
+      {totalQuestions > 0 && (
+        <div className="bg-white shadow rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-700">
+              Question {currentQuestionIndex + 1} of {totalQuestions}
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={goToPreviousQuestion}
+                disabled={currentQuestionIndex === 0}
+                className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ← Previous
+              </button>
+              <button
+                type="button"
+                onClick={goToNextQuestion}
+                disabled={currentQuestionIndex === totalQuestions - 1}
+                className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         {questions.length === 0 ? (
           <div className="bg-white shadow rounded-lg p-6">
             <p className="text-gray-500">No questions in this assignment yet.</p>
           </div>
         ) : (
-          questions.map((aq) => {
-            const savedAnswer = submission?.answers?.find((a) => a.questionId === aq.question.id);
-            return (
-              <QuestionCard
-                key={aq.id}
-                assignmentQuestion={aq}
-                answer={answers[aq.question.id]}
-                onUpdateAnswer={updateAnswer}
-                onSave={saveAnswer}
-                onFileUpload={handleFileUpload}
-                isSaving={saving[aq.question.id] ?? false}
-                isSubmitted={submitted}
-                isPastDue={isPastDue}
-                currentFileUrl={savedAnswer?.fileUrl}
-              />
-            );
-          })
+          currentQuestion && (
+            <QuestionCard
+              key={currentQuestion.id}
+              assignmentQuestion={currentQuestion}
+              answer={answers[currentQuestion.question.id]}
+              onUpdateAnswer={updateAnswer}
+              onSave={saveAnswer}
+              onFileUpload={handleFileUpload}
+              isSaving={saving[currentQuestion.question.id] ?? false}
+              isSubmitted={submitted}
+              isPastDue={isPastDue}
+              currentFileUrl={submission?.answers?.find((a) => a.questionId === currentQuestion.question.id)?.fileUrl}
+            />
+          )
         )}
       </div>
 
