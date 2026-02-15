@@ -1,17 +1,13 @@
 import { Hono } from 'hono';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '../../db/index.js';
-import { systemSettings } from '../../db/schema.js';
-import { authMiddleware, type AuthContext } from '../middleware/auth.js';
+import { db } from '../../../db/index.js';
+import { systemSettings } from '../../../db/schema.js';
+import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
 import { HTTPException } from 'hono/http-exception';
-import { pricing } from '../config/pricing.js';
-import { clearLLMSettingsCache } from '../lib/ai.js';
+import { pricing } from '../../config/pricing.js';
+import { clearLLMSettingsCache } from '../../lib/ai.js';
 
-const settingsRouter = new Hono<AuthContext>();
-
-// All routes require auth and staff/admin role
-settingsRouter.use('*', authMiddleware);
+const updateLlmSettingsRoute = new Hono<AuthContext>();
 
 // Setting keys for LLM configuration
 const LLM_PROVIDER_KEY = 'llm_provider';
@@ -46,50 +42,12 @@ const updateLLMSettingsSchema = z.object({
 });
 
 /**
- * GET /api/settings/llm
- * Get current LLM provider/model settings
- */
-settingsRouter.get('/llm', async (c) => {
-  const user = c.get('user');
-  
-  // Only staff/admin can view settings
-  if (!user || (user.role !== 'staff' && user.role !== 'admin')) {
-    throw new HTTPException(403, { message: 'Unauthorized' });
-  }
-
-  // Get settings from database
-  const providerSetting = await db
-    .select()
-    .from(systemSettings)
-    .where(eq(systemSettings.key, LLM_PROVIDER_KEY))
-    .limit(1);
-
-  const modelSetting = await db
-    .select()
-    .from(systemSettings)
-    .where(eq(systemSettings.key, LLM_MODEL_KEY))
-    .limit(1);
-
-  // Fall back to env vars if not set in DB
-  const currentProvider = providerSetting[0]?.value || process.env.LLM_PROVIDER || 'openai';
-  const currentModel = modelSetting[0]?.value || process.env.LLM_MODEL || 'gpt-4o';
-
-  return c.json({
-    current: {
-      provider: currentProvider,
-      model: currentModel,
-    },
-    available: availableProviders,
-  });
-});
-
-/**
  * PUT /api/settings/llm
  * Update LLM provider/model settings
  */
-settingsRouter.put('/llm', async (c) => {
+updateLlmSettingsRoute.put('/llm', authMiddleware, async (c) => {
   const user = c.get('user');
-  
+
   // Only admin can update settings
   if (!user || user.role !== 'admin') {
     throw new HTTPException(403, { message: 'Only administrators can update LLM settings' });
@@ -97,7 +55,7 @@ settingsRouter.put('/llm', async (c) => {
 
   const body = await c.req.json();
   const parsed = updateLLMSettingsSchema.safeParse(body);
-  
+
   if (!parsed.success) {
     throw new HTTPException(400, { message: 'Invalid request', cause: parsed.error });
   }
@@ -155,18 +113,4 @@ settingsRouter.put('/llm', async (c) => {
   });
 });
 
-/**
- * GET /api/settings/llm/providers
- * Get available providers and models
- */
-settingsRouter.get('/llm/providers', async (c) => {
-  const user = c.get('user');
-  
-  if (!user || (user.role !== 'staff' && user.role !== 'admin')) {
-    throw new HTTPException(403, { message: 'Unauthorized' });
-  }
-
-  return c.json(availableProviders);
-});
-
-export default settingsRouter;
+export default updateLlmSettingsRoute;

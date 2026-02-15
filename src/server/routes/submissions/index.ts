@@ -1,0 +1,25 @@
+import { Hono } from 'hono';
+import type { AuthContext } from '../../middleware/auth.js';
+import listByAssignmentRoute from './list-by-assignment.js';
+import getSubmissionRoute from './get-submission.js';
+import startSubmissionRoute from './start-submission.js';
+import saveAnswerRoute from './save-answer.js';
+import submitSubmissionRoute from './submit-submission.js';
+import gradeSubmissionRoute from './grade-submission.js';
+import uploadFileRoute from './upload-file.js';
+import fileHistoryRoute from './file-history.js';
+import resultsRoute from './results.js';
+
+const submissions = new Hono<AuthContext>();
+
+submissions.route('/', listByAssignmentRoute);
+submissions.route('/', getSubmissionRoute);
+submissions.route('/', startSubmissionRoute);
+submissions.route('/', saveAnswerRoute);
+submissions.route('/', submitSubmissionRoute);
+submissions.route('/', gradeSubmissionRoute);
+submissions.route('/', uploadFileRoute);
+submissions.route('/', fileHistoryRoute);
+submissions.route('/', resultsRoute);
+
+export default submissions;

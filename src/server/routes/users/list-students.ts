@@ -1,13 +1,13 @@
 import { Hono } from 'hono';
-import { db } from '../../db/index.js';
-import { users } from '../../db/schema.js';
-import { requireAuth, type AuthContext } from '../middleware/auth.js';
+import { db } from '../../../db/index.js';
+import { users } from '../../../db/schema.js';
+import { requireAuth, type AuthContext } from '../../middleware/auth.js';
 import { and, eq, or, sql } from 'drizzle-orm';
 
-const app = new Hono<AuthContext>();
+const listStudentsRoute = new Hono<AuthContext>();
 
 // List students for enrollment (staff/admin only)
-app.get('/', requireAuth, async (c) => {
+listStudentsRoute.get('/', requireAuth, async (c) => {
   const user = c.get('user')!;
 
   if (user.role !== 'admin' && user.role !== 'staff') {
@@ -41,4 +41,4 @@ app.get('/', requireAuth, async (c) => {
   return c.json(rows);
 });
 
-export default app;
+export default listStudentsRoute;

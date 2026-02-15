@@ -1,17 +1,17 @@
 import { Hono } from 'hono';
-import { db } from '../../db/index.js';
-import { questions } from '../../db/schema.js';
-import { requireAuth, type AuthContext } from '../middleware/auth.js';
+import { db } from '../../../db/index.js';
+import { questions } from '../../../db/schema.js';
+import { requireAuth, type AuthContext } from '../../middleware/auth.js';
 import { eq } from 'drizzle-orm';
 
-const app = new Hono<AuthContext>();
+const listTagsRoute = new Hono<AuthContext>();
 
 function requireStaff(user: { role: string } | null) {
   return user?.role === 'admin' || user?.role === 'staff';
 }
 
 // Get all unique tags for a course
-app.get('/course/:courseId', requireAuth, async (c) => {
+listTagsRoute.get('/course/:courseId', requireAuth, async (c) => {
   const user = c.get('user');
   if (!requireStaff(user)) {
     return c.json({ error: 'Forbidden' }, 403);
@@ -40,4 +40,4 @@ app.get('/course/:courseId', requireAuth, async (c) => {
   return c.json(uniqueTags);
 });
 
-export default app;
+export default listTagsRoute;
