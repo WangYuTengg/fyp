@@ -1,16 +1,39 @@
+/** biome-ignore-all lint/a11y/noAutofocus: simplicity's sake */
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { StaffAssignment } from '../types';
 
 type AssignmentCardProps = {
   assignment: StaffAssignment;
-  onTogglePublish: (assignmentId: string, isPublished: boolean) => void;
+  onTogglePublish: (assignmentId: string, nextIsPublished: boolean) => void;
   onDelete?: (assignmentId: string) => void;
 };
 
 export function AssignmentCard({ assignment, onTogglePublish, onDelete }: AssignmentCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [nextPublishState, setNextPublishState] = useState<boolean | null>(null);
   const [confirmText, setConfirmText] = useState('');
+  const hasAttempts = assignment.attemptCount > 0;
+  const isUnpublishLocked = assignment.isPublished && hasAttempts;
+
+  const handlePublishClick = () => {
+    if (isUnpublishLocked) return;
+    setNextPublishState(!assignment.isPublished);
+    setShowPublishConfirm(true);
+  };
+
+  const handleConfirmPublish = () => {
+    if (nextPublishState === null) return;
+    onTogglePublish(assignment.id, nextPublishState);
+    setShowPublishConfirm(false);
+    setNextPublishState(null);
+  };
+
+  const handleCancelPublish = () => {
+    setShowPublishConfirm(false);
+    setNextPublishState(null);
+  };
 
   const handleDeleteClick = () => {
     setShowDeleteConfirm(true);
@@ -52,6 +75,16 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
               <span>Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
             )}
           </div>
+          {assignment.isPublished && (
+            <p className="mt-2 text-sm text-gray-600">
+              Once at least one student attempts this assignment, unpublishing is locked.
+            </p>
+          )}
+          {isUnpublishLocked && (
+            <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Students have already attempted this assignment ({assignment.attemptCount}). It can no longer be unpublished.
+            </p>
+          )}
         </div>
         <div className="ml-4 flex gap-2">
           {assignment.isPublished && (
@@ -64,17 +97,20 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
             </Link>
           )}
           <button
-            onClick={() => onTogglePublish(assignment.id, assignment.isPublished)}
+            type="button"
+            onClick={handlePublishClick}
+            disabled={isUnpublishLocked}
             className={`font-medium py-2 px-4 rounded ${
               assignment.isPublished
-                ? 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                ? 'bg-gray-200 hover:bg-gray-300 text-gray-800 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400'
                 : 'bg-green-500 hover:bg-green-700 text-white'
             }`}
           >
-            {assignment.isPublished ? 'Unpublish' : 'Publish'}
+            {isUnpublishLocked ? 'Unpublish Locked' : assignment.isPublished ? 'Unpublish' : 'Publish'}
           </button>
           {onDelete && (
             <button
+              type="button"
               onClick={handleDeleteClick}
               className="text-red-600 hover:text-red-800 font-medium py-2 px-4 rounded hover:bg-red-50"
             >
@@ -83,6 +119,45 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
           )}
         </div>
       </div>
+
+      {/* Publish/Unpublish Confirmation Modal */}
+      {showPublishConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">
+              {nextPublishState ? 'Publish Assignment' : 'Unpublish Assignment'}
+            </h3>
+            <p className="mb-4 text-gray-600">
+              {nextPublishState
+                ? `Are you sure you want to publish "${assignment.title}"? Students will be able to start attempting it.`
+                : `Are you sure you want to unpublish "${assignment.title}"? Students will no longer be able to start new attempts.`}
+            </p>
+            {!nextPublishState && (
+              <p className="mb-4 rounded border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                Existing attempts are preserved. Once students have attempted this assignment, unpublishing is no longer allowed.
+              </p>
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleCancelPublish}
+                className="rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPublish}
+                className={`rounded px-4 py-2 text-white ${
+                  nextPublishState ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-800'
+                }`}
+              >
+                {nextPublishState ? 'Publish Assignment' : 'Unpublish Assignment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
@@ -107,12 +182,14 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
             />
             <div className="flex gap-3 justify-end">
               <button
+                type="button"
                 onClick={handleCancelDelete}
                 className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmDelete}
                 disabled={confirmText.toLowerCase() !== 'confirm'}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"

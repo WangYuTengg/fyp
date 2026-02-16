@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { db } from '../../../db/index.js';
-import { assignments } from '../../../db/schema.js';
+import { assignments, submissions } from '../../../db/schema.js';
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
-import { eq } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 
 const publishAssignmentRoute = new Hono<AuthContext>();
 
@@ -16,7 +16,39 @@ publishAssignmentRoute.patch('/:id/publish', requireAuth, async (c) => {
   }
 
   const body = await c.req.json();
-  const { isPublished } = body;
+  const { isPublished } = body as { isPublished?: unknown };
+
+  if (typeof isPublished !== 'boolean') {
+    return c.json({ error: 'isPublished must be a boolean' }, 400);
+  }
+
+  const [existingAssignment] = await db
+    .select()
+    .from(assignments)
+    .where(eq(assignments.id, assignmentId))
+    .limit(1);
+
+  if (!existingAssignment) {
+    return c.json({ error: 'Assignment not found' }, 404);
+  }
+
+  const isUnpublishAttempt = existingAssignment.isPublished && !isPublished;
+
+  if (isUnpublishAttempt) {
+    const [{ value: submissionCount }] = await db
+      .select({ value: count() })
+      .from(submissions)
+      .where(eq(submissions.assignmentId, assignmentId));
+
+    if (submissionCount > 0) {
+      return c.json(
+        {
+          error: 'Cannot unpublish assignment after students have started attempting it.',
+        },
+        409
+      );
+    }
+  }
 
   const [updated] = await db
     .update(assignments)
