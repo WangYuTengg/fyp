@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { assignmentsApi, submissionsApi } from '../../../lib/api';
 import type { GradingAssignment, GradingSubmission, QuestionGrade } from '../types';
 
@@ -10,7 +10,7 @@ export function useGrading(assignmentId: string, initialSubmissionId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load assignment and submissions
+  // Load assignment and submission list.
   useEffect(() => {
     async function loadData() {
       try {
@@ -23,17 +23,7 @@ export function useGrading(assignmentId: string, initialSubmissionId?: string) {
         ]);
 
         setAssignment(assignmentData as GradingAssignment);
-        const typedSubmissions = submissionsData as GradingSubmission[];
-        setSubmissions(typedSubmissions);
-
-        // Auto-select submission if provided in URL
-        if (initialSubmissionId) {
-          const selected = typedSubmissions.find((s) => s.id === initialSubmissionId);
-          if (selected) {
-            const detailed = await submissionsApi.getById(selected.id);
-            setSelectedSubmission(detailed as GradingSubmission);
-          }
-        }
+        setSubmissions(submissionsData as GradingSubmission[]);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
@@ -45,9 +35,9 @@ export function useGrading(assignmentId: string, initialSubmissionId?: string) {
     if (assignmentId) {
       void loadData();
     }
-  }, [assignmentId, initialSubmissionId]);
+  }, [assignmentId]);
 
-  const selectSubmission = async (submissionId: string) => {
+  const selectSubmission = useCallback(async (submissionId: string) => {
     try {
       const detailed = await submissionsApi.getById(submissionId);
       setSelectedSubmission(detailed as GradingSubmission);
@@ -55,14 +45,33 @@ export function useGrading(assignmentId: string, initialSubmissionId?: string) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
     }
-  };
+  }, []);
+
+  // Keep selected submission in sync with URL query param without reloading all data.
+  useEffect(() => {
+    if (!initialSubmissionId) return;
+    if (selectedSubmission?.id === initialSubmissionId) return;
+    if (!submissions.some((submission) => submission.id === initialSubmissionId)) return;
+
+    void selectSubmission(initialSubmissionId);
+  }, [initialSubmissionId, selectSubmission, selectedSubmission?.id, submissions]);
 
   const submitGrade = async (grades: QuestionGrade[]) => {
     if (!selectedSubmission) return;
 
     try {
       setIsSubmitting(true);
-      await submissionsApi.grade(selectedSubmission.id, { grades });
+
+      const payload = {
+        grades: grades.map((grade) => ({
+          answerId: grade.answerId,
+          points: Math.round(grade.points),
+          maxPoints: Math.round(grade.maxPoints),
+          feedback: grade.feedback.trim() ? grade.feedback.trim() : undefined,
+        })),
+      };
+
+      await submissionsApi.grade(selectedSubmission.id, payload);
 
       // Reload submission
       const updated = await submissionsApi.getById(selectedSubmission.id);
@@ -70,7 +79,9 @@ export function useGrading(assignmentId: string, initialSubmissionId?: string) {
 
       // Update submissions list
       setSubmissions((prev) =>
-        prev.map((s) => (s.id === selectedSubmission.id ? { ...s, status: 'graded' as const } : s))
+        prev.map((submission) =>
+          submission.id === selectedSubmission.id ? { ...submission, status: 'graded' as const } : submission
+        )
       );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);

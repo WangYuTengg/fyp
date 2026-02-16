@@ -48,17 +48,20 @@ export type GradingAnswer = {
 export type GradingMark = {
   id: string;
   submissionId: string;
-  questionId: string;
+  answerId: string | null;
   points: number;
   maxPoints: number;
   feedback: string | null;
   isAiAssisted: boolean;
-  gradedBy: string;
+  markedBy: string | null;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type QuestionGrade = {
+  answerId: string;
   questionId: string;
   points: number;
+  maxPoints: number;
   feedback: string;
 };

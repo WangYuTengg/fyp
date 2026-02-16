@@ -1,5 +1,5 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useGrading } from './hooks/useGrading';
 import { SubmissionList } from './components/SubmissionList';
@@ -15,6 +15,7 @@ export function StaffGrading() {
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as SearchParams;
   const { assignmentId, submissionId } = search;
+  const [searchQuery, setSearchQuery] = useState('');
 
   const {
     assignment,
@@ -22,10 +23,40 @@ export function StaffGrading() {
     selectedSubmission,
     loading,
     error,
-    selectSubmission,
     submitGrade,
     isSubmitting,
   } = useGrading(assignmentId, submissionId);
+
+  const submittedSubmissions = useMemo(
+    () => submissions.filter((submissionItem) => submissionItem.status !== 'draft'),
+    [submissions]
+  );
+
+  const filteredSubmissions = useMemo(() => {
+    const trimmedQuery = searchQuery.trim().toLowerCase();
+    if (!trimmedQuery) {
+      return submittedSubmissions;
+    }
+
+    return submittedSubmissions.filter((submissionItem) => {
+      const fullName = submissionItem.user?.fullName?.toLowerCase() ?? '';
+      const email = submissionItem.user?.email?.toLowerCase() ?? '';
+      return fullName.includes(trimmedQuery) || email.includes(trimmedQuery);
+    });
+  }, [submittedSubmissions, searchQuery]);
+
+  const handleSelectSubmission = useCallback(
+    (targetSubmissionId: string) => {
+      navigate({
+        to: '/staff/grading',
+        search: {
+          assignmentId,
+          submissionId: targetSubmissionId,
+        },
+      });
+    },
+    [navigate, assignmentId]
+  );
 
   useEffect(() => {
     if (!authLoading) {
@@ -38,6 +69,43 @@ export function StaffGrading() {
       }
     }
   }, [authLoading, user, dbUser, navigate, setAdminViewAs]);
+
+  // Auto-select first submission to reduce clicks when opening manual grading.
+  useEffect(() => {
+    if (selectedSubmission || filteredSubmissions.length === 0) {
+      return;
+    }
+
+    handleSelectSubmission(filteredSubmissions[0].id);
+  }, [filteredSubmissions, handleSelectSubmission, selectedSubmission]);
+
+  const selectedSubmissionIndex = useMemo(() => {
+    if (!selectedSubmission) return -1;
+
+    return filteredSubmissions.findIndex((submissionItem) => submissionItem.id === selectedSubmission.id);
+  }, [filteredSubmissions, selectedSubmission]);
+
+  const hasPreviousSubmission = selectedSubmissionIndex > 0;
+  const hasNextSubmission =
+    selectedSubmissionIndex >= 0 && selectedSubmissionIndex < filteredSubmissions.length - 1;
+
+  const handleSelectPreviousSubmission = useCallback(() => {
+    if (!hasPreviousSubmission) return;
+
+    const previousSubmission = filteredSubmissions[selectedSubmissionIndex - 1];
+    if (previousSubmission) {
+      handleSelectSubmission(previousSubmission.id);
+    }
+  }, [filteredSubmissions, handleSelectSubmission, hasPreviousSubmission, selectedSubmissionIndex]);
+
+  const handleSelectNextSubmission = useCallback(() => {
+    if (!hasNextSubmission) return;
+
+    const nextSubmission = filteredSubmissions[selectedSubmissionIndex + 1];
+    if (nextSubmission) {
+      handleSelectSubmission(nextSubmission.id);
+    }
+  }, [filteredSubmissions, handleSelectSubmission, hasNextSubmission, selectedSubmissionIndex]);
 
   if (authLoading || loading) {
     return <div className="text-center py-8">Loading...</div>;
@@ -56,46 +124,55 @@ export function StaffGrading() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="bg-white shadow rounded-lg p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{assignment.title}</h1>
-            <p className="mt-1 text-sm text-gray-600">Grading Interface</p>
+            <p className="mt-1 text-sm text-gray-600">
+              Manual Grading Workspace (Question-by-Question)
+            </p>
           </div>
           <button
             type="button"
             onClick={() => navigate({ to: `/staff/courses/${assignment.courseId}` })}
             className="text-blue-600 hover:text-blue-800 font-medium"
           >
-            ← Back to Course
+            Back to Course
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Submissions List */}
-        <div className="lg:col-span-1">
+      <div className="grid grid-cols-1 xl:grid-cols-[350px_minmax(0,1fr)] gap-4">
+        <div className="xl:h-[calc(100vh-220px)]">
           <SubmissionList
-            submissions={submissions}
+            submissions={submittedSubmissions}
+            filteredSubmissions={filteredSubmissions}
             selectedSubmissionId={selectedSubmission?.id}
-            onSelectSubmission={selectSubmission}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onSelectSubmission={handleSelectSubmission}
           />
         </div>
 
-        {/* Grading Panel */}
-        <div className="lg:col-span-2">
+        <div>
           {selectedSubmission ? (
             <GradingPanel
               submission={selectedSubmission}
               assignment={assignment}
               onSubmitGrade={submitGrade}
               isSubmitting={isSubmitting}
+              hasPreviousSubmission={hasPreviousSubmission}
+              hasNextSubmission={hasNextSubmission}
+              currentSubmissionIndex={selectedSubmissionIndex}
+              totalSubmissionCount={filteredSubmissions.length}
+              onSelectPreviousSubmission={handleSelectPreviousSubmission}
+              onSelectNextSubmission={handleSelectNextSubmission}
             />
           ) : (
             <div className="bg-white shadow rounded-lg p-6">
               <p className="text-gray-500 text-center">
-                Select a submission from the list to start grading
+                Select a submission from the list to start grading.
               </p>
             </div>
           )}
