@@ -37,7 +37,7 @@ export function StaffDashboard() {
         title="Create New Course"
         size="lg"
       >
-        <CreateCourseForm onSubmit={courseForm.createCourse} />
+        <CreateCourseForm onSubmit={courseForm.createCourse} isSubmitting={courseForm.isCreating} />
       </Modal>
 
       <CourseGrid courses={courses} />
