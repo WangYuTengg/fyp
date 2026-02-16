@@ -102,7 +102,7 @@ export function UMLEditor({
                   : 'border-gray-300 text-gray-500 hover:text-gray-700'
               }`}
             >
-              Visual (Class)
+              Visual UML
             </button>
             <button
               type="button"
@@ -141,7 +141,7 @@ export function UMLEditor({
 
         <p className="mt-2 text-xs text-gray-500">
           {activeTab === 'visual'
-            ? 'Drag and drop classes. Connections export to PlantUML on save.'
+            ? 'Add classes, interfaces, abstract classes, enums, and relationship arrows. Exports to PlantUML.'
             : 'Using PlantUML syntax.'}{' '}
           <a
             href="https://plantuml.com/class-diagram"

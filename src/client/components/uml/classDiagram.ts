@@ -1,9 +1,18 @@
-export type RelationshipType = 'association' | 'inheritance' | 'aggregation' | 'composition' | 'dependency';
+export type UmlElementType = 'class' | 'interface' | 'abstractClass' | 'enum';
+
+export type RelationshipType =
+  | 'association'
+  | 'inheritance'
+  | 'realization'
+  | 'aggregation'
+  | 'composition'
+  | 'dependency';
 
 export type ClassDiagramNodeData = {
   name: string;
   attributes: string[];
   methods: string[];
+  elementType?: UmlElementType;
 };
 
 export type ClassDiagramEdgeData = {
@@ -38,6 +47,7 @@ export const DEFAULT_CLASS_DIAGRAM_STATE: ClassDiagramState = {
         name: 'Example',
         attributes: ['+ attribute: String'],
         methods: ['+ method()'],
+        elementType: 'class',
       },
     },
   ],
@@ -47,6 +57,7 @@ export const DEFAULT_CLASS_DIAGRAM_STATE: ClassDiagramState = {
 const RELATIONSHIP_MAP: Record<RelationshipType, string> = {
   association: '-->',
   inheritance: '<|--',
+  realization: '<|..',
   aggregation: 'o--',
   composition: '*--',
   dependency: '..>',
@@ -54,16 +65,46 @@ const RELATIONSHIP_MAP: Record<RelationshipType, string> = {
 
 const isValidIdentifier = (value: string) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(value);
 
-const normalizeClassName = (name: string) => name.trim() || 'Class';
+const normalizeElementType = (value?: UmlElementType): UmlElementType => value ?? 'class';
+
+const normalizeElementName = (name: string, elementType: UmlElementType) => {
+  const trimmed = name.trim();
+  if (trimmed.length > 0) return trimmed;
+
+  switch (elementType) {
+    case 'interface':
+      return 'Interface';
+    case 'abstractClass':
+      return 'AbstractClass';
+    case 'enum':
+      return 'Enum';
+    default:
+      return 'Class';
+  }
+};
+
+const getElementKeyword = (elementType: UmlElementType) => {
+  switch (elementType) {
+    case 'interface':
+      return 'interface';
+    case 'abstractClass':
+      return 'abstract class';
+    case 'enum':
+      return 'enum';
+    default:
+      return 'class';
+  }
+};
 
 export function generateClassDiagramPlantUml(state: ClassDiagramState): string {
-  const classAliases = new Map<string, { displayName: string; alias: string }>();
+  const classAliases = new Map<string, { displayName: string; alias: string; elementType: UmlElementType }>();
   let aliasCounter = 1;
 
   for (const node of state.nodes) {
-    const displayName = normalizeClassName(node.data.name);
+    const elementType = normalizeElementType(node.data.elementType);
+    const displayName = normalizeElementName(node.data.name, elementType);
     const alias = isValidIdentifier(displayName) ? displayName : `Class${aliasCounter++}`;
-    classAliases.set(node.id, { displayName, alias });
+    classAliases.set(node.id, { displayName, alias, elementType });
   }
 
   const lines: string[] = ['@startuml'];
@@ -72,10 +113,12 @@ export function generateClassDiagramPlantUml(state: ClassDiagramState): string {
     const meta = classAliases.get(node.id);
     if (!meta) continue;
 
+    const elementKeyword = getElementKeyword(meta.elementType);
+
     if (meta.alias === meta.displayName) {
-      lines.push(`class ${meta.displayName} {`);
+      lines.push(`${elementKeyword} ${meta.displayName} {`);
     } else {
-      lines.push(`class "${meta.displayName}" as ${meta.alias} {`);
+      lines.push(`${elementKeyword} "${meta.displayName}" as ${meta.alias} {`);
     }
 
     const attributes = node.data.attributes ?? [];
@@ -99,7 +142,8 @@ export function generateClassDiagramPlantUml(state: ClassDiagramState): string {
     const target = classAliases.get(edge.target)?.alias;
     if (!source || !target) continue;
 
-    const arrow = RELATIONSHIP_MAP[edge.data.relationship];
+    const relationship = edge.data?.relationship ?? 'association';
+    const arrow = RELATIONSHIP_MAP[relationship] ?? RELATIONSHIP_MAP.association;
     const label = edge.data.label?.trim();
     if (label) {
       lines.push(`${source} ${arrow} ${target} : ${label}`);
