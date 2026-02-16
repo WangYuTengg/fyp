@@ -10,8 +10,11 @@ type QuestionCardProps = {
     prompt?: string;
     points?: number;
     options?: McqOption[];
+    allowMultiple?: boolean;
     tags?: string[];
     referenceDiagram?: string;
+    showCorrectAnswers?: boolean;
+    modelAnswer?: string;
   }) => void;
   availableTags?: string[];
   isEditing?: boolean;

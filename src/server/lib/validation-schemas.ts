@@ -54,7 +54,6 @@ export const addQuestionToAssignmentSchema = z.object({
 export const mcqOptionSchema = z.object({
   id: z.string(),
   text: z.string().min(1, 'Option text is required'),
-  points: z.number().optional(),
   isCorrect: z.boolean().optional(),
 });
 
@@ -85,7 +84,7 @@ export const saveAnswerSchema = z.object({
 
 export const gradeSchema = z.object({
   answerId: z.string().uuid('Invalid answer ID'),
-  points: z.number().min(0),
+  points: z.number(),
   maxPoints: z.number().min(0),
   feedback: z.string().optional(),
 });

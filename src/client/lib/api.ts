@@ -19,7 +19,6 @@ export class ApiRequestError extends Error {
 export type McqOption = {
   id: string;
   text: string;
-  points?: number; // Points awarded if selected (for partial credit)
   isCorrect?: boolean; // Whether this is a correct answer
 };
 
@@ -222,6 +221,7 @@ export const questionsApi = {
     assignmentId?: string;
     tags?: string[];
     referenceDiagram?: string;
+    showCorrectAnswers?: boolean;
     modelAnswer?: string;
   }) =>
     apiClient<Question>('/api/questions', {
@@ -237,6 +237,7 @@ export const questionsApi = {
     allowMultiple?: boolean;
     tags?: string[];
     referenceDiagram?: string;
+    showCorrectAnswers?: boolean;
     modelAnswer?: string;
   }) =>
     apiClient<Question>(`/api/questions/${id}`, {

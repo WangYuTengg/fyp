@@ -3,13 +3,25 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { questionsApi, type McqOption } from '../../../lib/api';
 import type { StaffAssignment } from '../types';
 
+function hasDuplicateMcqOptions(options: McqOption[]): boolean {
+  const seen = new Set<string>();
+  for (const option of options) {
+    const normalizedText = option.text.trim();
+    if (seen.has(normalizedText)) {
+      return true;
+    }
+    seen.add(normalizedText);
+  }
+  return false;
+}
+
 export function useQuestionForm(courseId: string, _assignments: StaffAssignment[]) {
   const [showForm, setShowForm] = useState(false);
   const [questionType, setQuestionType] = useState<'mcq' | 'written' | 'uml'>('written');
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>('');
   const [mcqOptions, setMcqOptions] = useState<McqOption[]>([
-    { id: crypto.randomUUID(), text: '', points: 0, isCorrect: false },
-    { id: crypto.randomUUID(), text: '', points: 0, isCorrect: false },
+    { id: crypto.randomUUID(), text: '', isCorrect: false },
+    { id: crypto.randomUUID(), text: '', isCorrect: false },
   ]);
   const queryClient = useQueryClient();
 
@@ -23,8 +35,8 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
       setQuestionType('written');
       setSelectedAssignmentId('');
       setMcqOptions([
-        { id: crypto.randomUUID(), text: '', points: 0, isCorrect: false },
-        { id: crypto.randomUUID(), text: '', points: 0, isCorrect: false },
+        { id: crypto.randomUUID(), text: '', isCorrect: false },
+        { id: crypto.randomUUID(), text: '', isCorrect: false },
       ]);
     },
     onError: (err: unknown) => {
@@ -85,6 +97,17 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
         return;
       }
 
+      if (hasDuplicateMcqOptions(validOptions)) {
+        alert('MCQ options must be unique.');
+        return;
+      }
+
+      const correctOptionsCount = validOptions.filter((option) => option.isCorrect).length;
+      if (correctOptionsCount === 0) {
+        alert('MCQ requires at least one correct option.');
+        return;
+      }
+
       createMutation.mutate({
         courseId,
         title,
@@ -92,7 +115,7 @@ export function useQuestionForm(courseId: string, _assignments: StaffAssignment[
         prompt,
         points,
         options: validOptions,
-        allowMultiple: false,
+        allowMultiple: correctOptionsCount > 1,
         showCorrectAnswers,
         assignmentId: selectedAssignmentId || undefined,
         tags: tags.length > 0 ? tags : undefined,

@@ -8,7 +8,6 @@ import { eq } from 'drizzle-orm';
 type McqOption = {
   id?: string;
   text?: string;
-  points?: number;
   isCorrect?: boolean;
 };
 
@@ -53,10 +52,6 @@ updateQuestionRoute.put('/:id', requireAuth, async (c) => {
 
   if (body.type && body.type !== existing.type) {
     return c.json({ error: 'Changing question type is not supported' }, 400);
-  }
-
-  if (body.allowMultiple) {
-    return c.json({ error: 'Multiple-correct MCQ is not supported yet' }, 400);
   }
 
   const patch: Record<string, unknown> = { updatedAt: new Date() };
@@ -119,7 +114,6 @@ updateQuestionRoute.put('/:id', requireAuth, async (c) => {
       .map((option) => ({
         id: option.id ?? randomUUID(),
         text: (option.text ?? '').trim(),
-        points: option.points ?? 0,
         isCorrect: option.isCorrect ?? false,
       }))
       .filter((option) => option.text.length > 0);
@@ -132,10 +126,33 @@ updateQuestionRoute.put('/:id', requireAuth, async (c) => {
         return c.json({ error: 'MCQ requires at least two options' }, 400);
       }
 
+      const optionTextSet = new Set<string>();
+      for (const option of options) {
+        if (optionTextSet.has(option.text)) {
+          return c.json({ error: 'MCQ options must be unique' }, 400);
+        }
+        optionTextSet.add(option.text);
+      }
+
+      const correctOptionsCount = options.filter((option) => option.isCorrect).length;
+      if (correctOptionsCount === 0) {
+        return c.json({ error: 'MCQ requires at least one correct option' }, 400);
+      }
+
+      const allowMultiple = body.allowMultiple ?? (correctOptionsCount > 1);
+
+      if (!allowMultiple && correctOptionsCount > 1) {
+        return c.json({ error: 'Single-answer MCQ can only have one correct option' }, 400);
+      }
+
+      if (allowMultiple && correctOptionsCount < 2) {
+        return c.json({ error: 'Multiple-answer MCQ requires at least two correct options' }, 400);
+      }
+
       patch.content = {
         prompt: updatedPrompt,
         options,
-        allowMultiple: false,
+        allowMultiple,
         showCorrectAnswers: body.showCorrectAnswers ?? (existingContent.showCorrectAnswers as boolean | undefined) ?? false,
       };
     }

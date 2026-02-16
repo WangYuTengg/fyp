@@ -15,3 +15,9 @@ export function getMcqOptions(content: unknown): Array<{ id: string; text: strin
     }))
     .filter((option) => option.id && option.text);
 }
+
+export function getMcqAllowMultiple(content: unknown): boolean {
+  if (typeof content !== 'object' || content === null) return false;
+  const record = content as Record<string, unknown>;
+  return record.allowMultiple === true;
+}

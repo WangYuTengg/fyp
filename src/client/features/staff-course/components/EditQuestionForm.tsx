@@ -9,6 +9,7 @@ type EditQuestionFormProps = {
     prompt?: string;
     points?: number;
     options?: McqOption[];
+    allowMultiple?: boolean;
     tags?: string[];
     referenceDiagram?: string;
     showCorrectAnswers?: boolean;
@@ -83,7 +84,6 @@ export function EditQuestionForm({
         .map((option) => ({
           id: option.id || crypto.randomUUID(),
           text: option.text.trim(),
-          points: option.points ?? 0,
           isCorrect: option.isCorrect || false,
         }))
         .filter((option) => option.text.length > 0);
@@ -93,7 +93,23 @@ export function EditQuestionForm({
         return;
       }
 
+      const optionTextSet = new Set<string>();
+      for (const option of options) {
+        if (optionTextSet.has(option.text)) {
+          alert('MCQ options must be unique.');
+          return;
+        }
+        optionTextSet.add(option.text);
+      }
+
+      const correctOptionsCount = options.filter((option) => option.isCorrect).length;
+      if (correctOptionsCount === 0) {
+        alert('MCQ requires at least one correct option.');
+        return;
+      }
+
       updateData.options = options;
+      updateData.allowMultiple = correctOptionsCount > 1;
       updateData.showCorrectAnswers = showCorrectAnswers;
     } else if (question.type === 'written') {
       updateData.modelAnswer = modelAnswer;
@@ -264,25 +280,6 @@ export function EditQuestionForm({
                   />
                 </div>
                 
-                <div className="w-24">
-                  <input
-                    type="number"
-                    value={option.points ?? 0}
-                    onChange={(e) => {
-                      setMcqOptions(
-                        mcqOptions.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, points: Number(e.target.value) } : item
-                        )
-                      );
-                    }}
-                    className="form-input w-full"
-                    placeholder="Points"
-                    min="0"
-                    step="0.5"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Points</p>
-                </div>
-                
                 <button
                   type="button"
                   onClick={() => setMcqOptions(mcqOptions.filter((_, i) => i !== index))}
@@ -298,7 +295,7 @@ export function EditQuestionForm({
             <button
               type="button"
               onClick={() =>
-                setMcqOptions([...mcqOptions, { id: crypto.randomUUID(), text: '', points: 0, isCorrect: false }])
+                setMcqOptions([...mcqOptions, { id: crypto.randomUUID(), text: '', isCorrect: false }])
               }
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >

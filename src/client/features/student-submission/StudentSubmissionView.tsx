@@ -20,7 +20,8 @@ type Mark = {
 
 type QuestionContent = {
   prompt?: string;
-  options?: Array<{ id: string; text: string; points?: number; isCorrect?: boolean }>;
+  options?: Array<{ id: string; text: string; isCorrect?: boolean }>;
+  allowMultiple?: boolean;
   referenceDiagram?: string;
   modelAnswer?: string;
 };
@@ -197,7 +198,7 @@ export function StudentSubmissionView({ submissionId }: { submissionId: string }
                   <>
                     {answer.mark.points === answer.mark.maxPoints ? (
                       <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                    ) : answer.mark.points === 0 ? (
+                    ) : answer.mark.points <= 0 ? (
                       <XCircleIcon className="h-5 w-5 text-red-500" />
                     ) : (
                       <ClockIcon className="h-5 w-5 text-yellow-500" />

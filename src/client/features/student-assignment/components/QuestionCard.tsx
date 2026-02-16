@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { AnswerState, AssignmentQuestion } from '../types';
-import { getPrompt, getMcqOptions } from '../utils/questionHelpers';
+import { getPrompt, getMcqAllowMultiple, getMcqOptions } from '../utils/questionHelpers';
 import { UMLEditor } from '../../../components/UMLEditor';
 import { UMLViewer } from '../../../components/UMLViewer';
 import { FileUpload } from '../../../components/FileUpload';
@@ -42,6 +42,7 @@ export function QuestionCard({
   const [uploadMode, setUploadMode] = useState<'editor' | 'file'>('editor');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const allowMultiple = getMcqAllowMultiple(question.content);
 
   const handleFileSelect = async (file: File) => {
     if (!onFileUpload) return;
@@ -92,11 +93,26 @@ export function QuestionCard({
           {getMcqOptions(question.content).map((option) => (
             <label key={option.id} className="flex items-center gap-2 text-sm text-gray-700">
               <input
-                type="radio"
+                type={allowMultiple ? 'checkbox' : 'radio'}
                 name={`mcq-${question.id}`}
                 checked={answer?.type === 'mcq' && answer.selectedOptionIds.includes(option.id)}
-                onChange={() => {
-                  onUpdateAnswer(question.id, { type: 'mcq', selectedOptionIds: [option.id] });
+                onChange={(event) => {
+                  if (!allowMultiple) {
+                    onUpdateAnswer(question.id, { type: 'mcq', selectedOptionIds: [option.id] });
+                    return;
+                  }
+
+                  const currentSelections =
+                    answer?.type === 'mcq' ? answer.selectedOptionIds : [];
+
+                  const selectedOptionIds = event.target.checked
+                    ? [...currentSelections, option.id]
+                    : currentSelections.filter((id) => id !== option.id);
+
+                  onUpdateAnswer(question.id, {
+                    type: 'mcq',
+                    selectedOptionIds: [...new Set(selectedOptionIds)].sort(),
+                  });
                 }}
                 disabled={isSubmitted}
                 className="text-blue-600 focus:ring-blue-500"
