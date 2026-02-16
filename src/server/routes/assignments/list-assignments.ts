@@ -43,6 +43,10 @@ listAssignmentsRoute.get('/course/:courseId', requireAuth, async (c) => {
 
   // For students, include submission status
   if (user.role === 'student') {
+    if (assignmentsList.length === 0) {
+      return c.json([]);
+    }
+
     const assignmentIds = assignmentsList.map((a) => a.id);
     const userSubmissions = await db
       .select()
@@ -66,7 +70,32 @@ listAssignmentsRoute.get('/course/:courseId', requireAuth, async (c) => {
     return c.json(assignmentsWithStatus);
   }
 
-  return c.json(assignmentsList);
+  if (assignmentsList.length === 0) {
+    return c.json([]);
+  }
+
+  const assignmentIds = assignmentsList.map((assignment) => assignment.id);
+  const submissionRows = await db
+    .select({
+      assignmentId: submissions.assignmentId,
+    })
+    .from(submissions)
+    .where(inArray(submissions.assignmentId, assignmentIds));
+
+  const attemptsByAssignment = new Map<string, number>();
+  for (const row of submissionRows) {
+    attemptsByAssignment.set(
+      row.assignmentId,
+      (attemptsByAssignment.get(row.assignmentId) ?? 0) + 1
+    );
+  }
+
+  const assignmentsWithAttempts = assignmentsList.map((assignment) => ({
+    ...assignment,
+    attemptCount: attemptsByAssignment.get(assignment.id) ?? 0,
+  }));
+
+  return c.json(assignmentsWithAttempts);
 });
 
 export default listAssignmentsRoute;

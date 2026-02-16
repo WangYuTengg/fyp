@@ -22,4 +22,5 @@ export type StaffAssignment = {
   dueDate: string | null;
   maxAttempts: number | null;
   isPublished: boolean;
+  attemptCount: number;
 };

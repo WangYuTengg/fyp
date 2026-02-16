@@ -22,8 +22,8 @@ export function useAssignmentForm(courseId: string) {
   });
 
   const publishMutation = useMutation({
-    mutationFn: ({ assignmentId, isPublished }: { assignmentId: string; isPublished: boolean }) =>
-      assignmentsApi.publish(assignmentId, !isPublished),
+    mutationFn: ({ assignmentId, nextIsPublished }: { assignmentId: string; nextIsPublished: boolean }) =>
+      assignmentsApi.publish(assignmentId, nextIsPublished),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
     },
@@ -64,8 +64,8 @@ export function useAssignmentForm(courseId: string) {
     });
   };
 
-  const togglePublish = (assignmentId: string, isPublished: boolean) => {
-    publishMutation.mutate({ assignmentId, isPublished });
+  const togglePublish = (assignmentId: string, nextIsPublished: boolean) => {
+    publishMutation.mutate({ assignmentId, nextIsPublished });
   };
 
   return {
