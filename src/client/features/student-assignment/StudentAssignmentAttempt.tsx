@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useAssignmentData } from './hooks/useAssignmentData';
 import { useAnswerManagement } from './hooks/useAnswerManagement';
@@ -7,6 +7,8 @@ import { AssignmentHeader } from './components/AssignmentHeader';
 import { QuestionCard } from './components/QuestionCard';
 import { Timer } from './components/Timer';
 import { submissionsApi } from '../../lib/api';
+import { Modal } from '../../components/Modal';
+import type { Answer } from './types';
 
 type StudentAssignmentAttemptProps = {
   assignmentId: string;
@@ -41,27 +43,75 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
 
   const hasDirtyAnswers = useRef(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
+
+  const savedAnswersByQuestionId = useMemo(() => {
+    const map = new Map<string, Answer>();
+    submission?.answers?.forEach((answer) => {
+      map.set(answer.questionId, answer);
+    });
+    return map;
+  }, [submission?.answers]);
+
+  const unsavedQuestionIds = useMemo(() => {
+    return Object.keys(answers).filter((questionId) => {
+      const answer = answers[questionId];
+      const savedAnswer = savedAnswersByQuestionId.get(questionId);
+
+      if (!answer || !savedAnswer) return true;
+
+      if (answer.type === 'mcq') {
+        const selectedOptionIds = savedAnswer.content.selectedOptionIds ?? [];
+        return JSON.stringify(answer.selectedOptionIds) !== JSON.stringify(selectedOptionIds);
+      }
+
+      if (answer.type === 'uml') {
+        const umlChanged = answer.umlText !== (savedAnswer.content.umlText ?? '');
+        const editorChanged = JSON.stringify(answer.editorState ?? null) !== JSON.stringify(savedAnswer.content.editorState ?? null);
+        return umlChanged || editorChanged;
+      }
+
+      return answer.text !== (savedAnswer.content.text ?? '');
+    });
+  }, [answers, savedAnswersByQuestionId]);
+
+  const unansweredCount = useMemo(() => {
+    return questions.filter(({ question }) => {
+      const answer = answers[question.id];
+      const savedAnswer = savedAnswersByQuestionId.get(question.id);
+
+      if (answer?.type === 'written') {
+        return answer.text.trim().length === 0;
+      }
+
+      if (answer?.type === 'mcq') {
+        return answer.selectedOptionIds.length === 0;
+      }
+
+      if (answer?.type === 'uml') {
+        return answer.umlText.trim().length === 0 && !savedAnswer?.fileUrl;
+      }
+
+      if (savedAnswer?.content.text !== undefined) {
+        return savedAnswer.content.text.trim().length === 0;
+      }
+
+      if (savedAnswer?.content.selectedOptionIds) {
+        return savedAnswer.content.selectedOptionIds.length === 0;
+      }
+
+      if (savedAnswer?.content.umlText !== undefined || savedAnswer?.fileUrl) {
+        return (savedAnswer.content.umlText ?? '').trim().length === 0 && !savedAnswer.fileUrl;
+      }
+
+      return true;
+    }).length;
+  }, [answers, questions, savedAnswersByQuestionId]);
 
   // Track if there are unsaved changes
   useEffect(() => {
-    hasDirtyAnswers.current = Object.keys(answers).some((questionId) => {
-      const answer = answers[questionId];
-      const savedAnswer = submission?.answers?.find((a) => a.questionId === questionId);
-      
-      if (!answer || !savedAnswer) return true; // New answer not yet saved
-      
-      if (answer.type === 'mcq' && savedAnswer.content.selectedOptionIds) {
-        return JSON.stringify(answer.selectedOptionIds) !== JSON.stringify(savedAnswer.content.selectedOptionIds);
-      } else if (answer.type === 'uml') {
-        const umlChanged = answer.umlText !== savedAnswer.content.umlText;
-        const editorChanged = JSON.stringify(answer.editorState ?? null) !== JSON.stringify(savedAnswer.content.editorState ?? null);
-        return umlChanged || editorChanged;
-      } else if (answer.type === 'written') {
-        return answer.text !== savedAnswer.content.text;
-      }
-      return false;
-    });
-  }, [answers, submission]);
+    hasDirtyAnswers.current = unsavedQuestionIds.length > 0;
+  }, [unsavedQuestionIds]);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {
@@ -138,6 +188,20 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
     }
+  };
+
+  const openSubmitConfirm = () => {
+    if (submitted || !submission) return;
+    setIsSubmitConfirmOpen(true);
+  };
+
+  const closeSubmitConfirm = () => {
+    setIsSubmitConfirmOpen(false);
+  };
+
+  const confirmSubmit = async () => {
+    await submit();
+    setIsSubmitConfirmOpen(false);
   };
 
   return (
@@ -225,13 +289,59 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
       <div className="flex justify-end">
         <button
           type="button"
-          onClick={submit}
+          onClick={openSubmitConfirm}
           disabled={submitted || !submission}
           className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
         >
           Submit assignment
         </button>
       </div>
+
+      <Modal
+        isOpen={isSubmitConfirmOpen}
+        onClose={closeSubmitConfirm}
+        title="Confirm submission"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            Submitting now will lock your answers. You won&apos;t be able to edit this assignment afterward.
+          </p>
+
+          {(unansweredCount > 0 || unsavedQuestionIds.length > 0) && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 space-y-1">
+              <p className="font-medium">You still have unfinished work:</p>
+              {unansweredCount > 0 && (
+                <p>{unansweredCount} question{unansweredCount === 1 ? '' : 's'} unanswered.</p>
+              )}
+              {unsavedQuestionIds.length > 0 && (
+                <p>{unsavedQuestionIds.length} question{unsavedQuestionIds.length === 1 ? '' : 's'} with unsaved changes.</p>
+              )}
+            </div>
+          )}
+
+          <p className="text-sm text-gray-600">
+            Review your answers before continuing.
+          </p>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={closeSubmitConfirm}
+              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmSubmit}
+              className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+            >
+              Submit anyway
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
