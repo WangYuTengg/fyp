@@ -3,9 +3,11 @@ import type { McqOption } from '../../../lib/api';
 import type { StaffAssignment } from '../types';
 import { UMLEditor } from '../../../components/UMLEditor';
 
+type QuestionType = 'mcq' | 'written' | 'uml';
+
 type CreateQuestionFormProps = {
-  questionType: 'mcq' | 'written' | 'uml';
-  setQuestionType: (type: 'mcq' | 'written' | 'uml') => void;
+  questionType: QuestionType;
+  setQuestionType: (type: QuestionType) => void;
   mcqOptions: McqOption[];
   setMcqOptions: (options: McqOption[]) => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
@@ -16,7 +18,36 @@ type CreateQuestionFormProps = {
   tags: string[];
 };
 
-const STEP_TITLES = ['Question Type', 'Core Details', 'Answer Setup', 'Assignment & Tags', 'Review'] as const;
+const STEP_TITLES_BY_TYPE: Record<QuestionType, readonly string[]> = {
+  mcq: ['Question Type', 'Core Details', 'Options & Answer Key', 'Assignment & Tags', 'Review'],
+  written: ['Question Type', 'Core Details', 'Model Answer', 'Assignment & Tags', 'Review'],
+  uml: ['Question Type', 'Core Details', 'Answer Diagram', 'Reference Diagram', 'Assignment & Tags', 'Review'],
+};
+
+const STEP_DESCRIPTIONS_BY_TYPE: Record<QuestionType, readonly string[]> = {
+  mcq: [
+    'Choose the question format.',
+    'Define the prompt students will answer.',
+    'Add options and mark correct answer(s).',
+    'Optionally attach this question to an assignment and add tags.',
+    'Check details before creating the question.',
+  ],
+  written: [
+    'Choose the question format.',
+    'Define the prompt students will answer.',
+    'Optionally provide a grader-facing model answer.',
+    'Optionally attach this question to an assignment and add tags.',
+    'Check details before creating the question.',
+  ],
+  uml: [
+    'Choose the question format.',
+    'Define the prompt students will answer.',
+    'Provide the expected solution diagram used for grading (hidden from students).',
+    'Optionally provide a starter/reference diagram shown to students.',
+    'Optionally attach this question to an assignment and add tags.',
+    'Check details before creating the question.',
+  ],
+};
 
 export function CreateQuestionForm({
   questionType,
@@ -65,7 +96,11 @@ export function CreateQuestionForm({
     () => validMcqOptions.filter((option) => option.isCorrect).length,
     [validMcqOptions]
   );
-  const isLastStep = step === STEP_TITLES.length - 1;
+  const stepTitles = STEP_TITLES_BY_TYPE[questionType];
+  const stepDescriptions = STEP_DESCRIPTIONS_BY_TYPE[questionType];
+  const assignmentStep = questionType === 'uml' ? 4 : 3;
+  const reviewStep = stepTitles.length - 1;
+  const isLastStep = step === reviewStep;
 
   const canProceed = useMemo(() => {
     if (step === 1) return title.trim().length > 0 && Number.isFinite(points) && points >= 1;
@@ -90,7 +125,7 @@ export function CreateQuestionForm({
     setSelectedTags(selectedTags.filter((t) => t !== tag));
   };
 
-  const handleTypeChange = (type: 'mcq' | 'written' | 'uml') => {
+  const handleTypeChange = (type: QuestionType) => {
     setQuestionType(type);
     setSelectedAssignmentId('');
   };
@@ -137,7 +172,10 @@ export function CreateQuestionForm({
       <input type="hidden" name="mcqOptions" value={JSON.stringify(mcqOptions)} />
 
       <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-        <span className="font-medium">Step {step + 1} of {STEP_TITLES.length}:</span> {STEP_TITLES[step]}
+        <p>
+          <span className="font-medium">Step {step + 1} of {stepTitles.length}:</span> {stepTitles[step]}
+        </p>
+        <p className="text-xs text-gray-600 mt-1">{stepDescriptions[step]}</p>
       </div>
 
       {step === 0 && (
@@ -361,20 +399,6 @@ export function CreateQuestionForm({
                 height="300px"
               />
 
-              <div className="mt-4">
-                <p className="block text-sm font-medium text-gray-700 mb-2">
-                  Template / Reference Diagram (optional)
-                </p>
-                <p className="text-sm text-gray-600 mb-3">
-                  Optional starter diagram shown to students (e.g., a partial diagram or scaffold).
-                </p>
-                <UMLEditor
-                  initialValue={umlTemplateDiagram}
-                  onChange={setUmlTemplateDiagram}
-                  height="250px"
-                />
-              </div>
-
               {!umlModelAnswer.trim() && (
                 <p className="mt-2 text-sm text-amber-600">
                   Add the expected answer diagram before continuing.
@@ -385,7 +409,23 @@ export function CreateQuestionForm({
         </div>
       )}
 
-      {step === 3 && (
+      {questionType === 'uml' && step === 3 && (
+        <div>
+          <p className="block text-sm font-medium text-gray-700 mb-2">
+            Template / Reference Diagram (optional)
+          </p>
+          <p className="text-sm text-gray-600 mb-3">
+            This is the starter diagram students can see when they begin (for example, a partial scaffold).
+          </p>
+          <UMLEditor
+            initialValue={umlTemplateDiagram}
+            onChange={setUmlTemplateDiagram}
+            height="300px"
+          />
+        </div>
+      )}
+
+      {step === assignmentStep && (
         <div className="space-y-4">
           <div>
             <label htmlFor="create-question-assignment" className="block text-sm font-medium text-gray-700">Add to Assignment (optional)</label>
@@ -478,7 +518,7 @@ export function CreateQuestionForm({
         </div>
       )}
 
-      {step === 4 && (
+      {step === reviewStep && (
         <div className="space-y-3 rounded-md border border-gray-200 p-4 text-sm text-gray-700">
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-500">Type</p>
