@@ -17,12 +17,14 @@ import { CourseRoster } from './components/CourseRoster';
 import { BulkEnrollModal } from './components/BulkEnrollModal';
 import { AddStudentsPanel } from './components/AddStudentsPanel';
 import { coursesApi } from '../../lib/api';
+import { AutoGradingDashboard } from '../staff-grading/AutoGradingDashboard';
+import { SettingsTab } from '../staff-grading/components/SettingsTab';
 
 type StaffCourseDetailProps = {
   courseId: string;
 };
 
-type TabType = 'assignments' | 'questions' | 'roster';
+type TabType = 'assignments' | 'questions' | 'roster' | 'auto-grading' | 'settings';
 
 export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
   const { user, dbUser, loading: authLoading, setAdminViewAs } = useAuth();
@@ -116,6 +118,28 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
               } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm transition-colors`}
             >
               Roster
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('auto-grading')}
+              className={`${
+                activeTab === 'auto-grading'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm transition-colors`}
+            >
+              Auto-Grading
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('settings')}
+              className={`${
+                activeTab === 'settings'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm transition-colors`}
+            >
+              Settings
             </button>
           </nav>
         </div>
@@ -250,6 +274,22 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                 }}
                 removingId={removingEnrollmentId}
               />
+            </div>
+          )}
+
+          {activeTab === 'auto-grading' && (
+            <AutoGradingDashboard courseId={courseId} courseCode={course.code} />
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-6">
+              <div className="bg-white shadow rounded-lg p-6">
+                <h2 className="text-2xl font-bold text-gray-900">Course Settings</h2>
+                <p className="text-sm text-gray-600 mt-2">
+                  Configure course-level automatic grading behavior.
+                </p>
+              </div>
+              <SettingsTab />
             </div>
           )}
         </div>

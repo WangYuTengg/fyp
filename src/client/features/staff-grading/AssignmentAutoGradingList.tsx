@@ -58,7 +58,12 @@ type BatchResponse = {
   jobsQueued: number;
 };
 
-export function AssignmentAutoGradingList() {
+type AssignmentAutoGradingListProps = {
+  courseId?: string;
+};
+
+export function AssignmentAutoGradingList({ courseId }: AssignmentAutoGradingListProps) {
+  const isCourseScoped = Boolean(courseId);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +81,7 @@ export function AssignmentAutoGradingList() {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [courseId]);
 
   // Poll for batch job completion when active
   useEffect(() => {
@@ -109,9 +114,13 @@ export function AssignmentAutoGradingList() {
     setError(null);
 
     try {
-      // Fetch courses for filter
-      const coursesData = await apiClient<CourseOption[]>('/api/courses');
-      setCourses(coursesData || []);
+      if (!isCourseScoped) {
+        // Fetch courses for filter in global dashboard mode
+        const coursesData = await apiClient<CourseOption[]>('/api/courses');
+        setCourses(coursesData || []);
+      } else {
+        setCourses([]);
+      }
 
       // Fetch assignments
       await refetchAssignments();
@@ -125,17 +134,16 @@ export function AssignmentAutoGradingList() {
   const refetchAssignments = async () => {
     try {
       const params = new URLSearchParams();
-      
-      // Apply course filter (if any courses selected)
-      if (selectedCourses.length > 0) {
-        // For multiple courses, fetch each and combine
-        // For simplicity, if multiple selected, we'll fetch without filter
-        // In production, backend should support multiple courseIds
+
+      if (courseId) {
+        params.set('courseId', courseId);
+      } else if (selectedCourses.length > 0) {
+        // For multiple courses, fetch unfiltered data and apply client-side filtering below
         if (selectedCourses.length === 1) {
           params.set('courseId', selectedCourses[0].id);
         }
       }
-      
+
       // Apply status filter
       if (selectedStatus.value !== 'all') {
         params.set('status', selectedStatus.value);
@@ -164,7 +172,7 @@ export function AssignmentAutoGradingList() {
       refetchAssignments();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCourses, selectedStatus]);
+  }, [selectedCourses, selectedStatus, courseId]);
 
   const handleRunAutoGrader = (assignment: Assignment) => {
     setSelectedAssignment(assignment);
@@ -244,62 +252,64 @@ export function AssignmentAutoGradingList() {
     <div className="space-y-4">
       {/* Filters */}
       <div className="bg-white shadow rounded-lg p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Course Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Course
-            </label>
-            <Listbox value={selectedCourses} onChange={setSelectedCourses} multiple>
-              <div className="relative">
-                <Listbox.Button className="relative w-full cursor-pointer rounded-lg bg-white py-2 pl-3 pr-10 text-left border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <span className="block truncate">
-                    {selectedCourses.length === 0
-                      ? 'All Courses'
-                      : selectedCourses.length === 1
-                      ? `${selectedCourses[0].code} - ${selectedCourses[0].name}`
-                      : `${selectedCourses.length} courses selected`}
-                  </span>
-                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                    <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
-                  </span>
-                </Listbox.Button>
-                <Transition
-                  as={Fragment}
-                  leave="transition ease-in duration-100"
-                  leaveFrom="opacity-100"
-                  leaveTo="opacity-0"
-                >
-                  <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                    {courses.map((course) => (
-                      <Listbox.Option
-                        key={course.id}
-                        value={course}
-                        className={({ active }: { active: boolean }) =>
-                          `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
-                            active ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
-                          }`
-                        }
-                      >
-                        {({ selected }: { selected: boolean }) => (
-                          <>
-                            <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                              {course.code} - {course.name}
-                            </span>
-                            {selected && (
-                              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
-                                <CheckIcon className="h-5 w-5" />
+        <div className={`grid grid-cols-1 ${isCourseScoped ? '' : 'md:grid-cols-2'} gap-4`}>
+          {/* Course Filter (global dashboard only) */}
+          {!isCourseScoped && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by Course
+              </label>
+              <Listbox value={selectedCourses} onChange={setSelectedCourses} multiple>
+                <div className="relative">
+                  <Listbox.Button className="relative w-full cursor-pointer rounded-lg bg-white py-2 pl-3 pr-10 text-left border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <span className="block truncate">
+                      {selectedCourses.length === 0
+                        ? 'All Courses'
+                        : selectedCourses.length === 1
+                        ? `${selectedCourses[0].code} - ${selectedCourses[0].name}`
+                        : `${selectedCourses.length} courses selected`}
+                    </span>
+                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                      <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                    </span>
+                  </Listbox.Button>
+                  <Transition
+                    as={Fragment}
+                    leave="transition ease-in duration-100"
+                    leaveFrom="opacity-100"
+                    leaveTo="opacity-0"
+                  >
+                    <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                      {courses.map((course) => (
+                        <Listbox.Option
+                          key={course.id}
+                          value={course}
+                          className={({ active }: { active: boolean }) =>
+                            `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
+                              active ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
+                            }`
+                          }
+                        >
+                          {({ selected }: { selected: boolean }) => (
+                            <>
+                              <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                {course.code} - {course.name}
                               </span>
-                            )}
-                          </>
-                        )}
-                      </Listbox.Option>
-                    ))}
-                  </Listbox.Options>
-                </Transition>
-              </div>
-            </Listbox>
-          </div>
+                              {selected && (
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+                                  <CheckIcon className="h-5 w-5" />
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </Listbox.Option>
+                      ))}
+                    </Listbox.Options>
+                  </Transition>
+                </div>
+              </Listbox>
+            </div>
+          )}
 
           {/* Status Filter */}
           <div>
@@ -372,9 +382,11 @@ export function AssignmentAutoGradingList() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Course
-                  </th>
+                  {!isCourseScoped && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Course
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Assignment
                   </th>
@@ -398,12 +410,14 @@ export function AssignmentAutoGradingList() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {assignments.map((assignment) => (
                   <tr key={assignment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{assignment.courseCode}</div>
-                      <div className="text-sm text-gray-500 truncate" style={{ maxWidth: '150px' }}>
-                        {assignment.courseName}
-                      </div>
-                    </td>
+                    {!isCourseScoped && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{assignment.courseCode}</div>
+                        <div className="text-sm text-gray-500 truncate" style={{ maxWidth: '150px' }}>
+                          {assignment.courseName}
+                        </div>
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-900">{assignment.title}</div>
                     </td>

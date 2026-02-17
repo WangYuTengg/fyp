@@ -3,11 +3,9 @@ import { useAuth } from '../hooks/useAuth';
 import { 
   BookOpenIcon, 
   AcademicCapIcon,
-  CpuChipIcon,
   BellIcon,
   Cog6ToothIcon,
   ChartBarIcon,
-  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { UserInfo } from './UserInfo';
 import { useEffect, useState } from 'react';
@@ -34,21 +32,9 @@ const navigation: NavItem[] = [
     roles: ['staff', 'admin']
   },
   {
-    name: 'Auto-Grading',
-    href: '/staff/auto-grading',
-    icon: CpuChipIcon,
-    roles: ['staff', 'admin']
-  },
-  {
     name: 'Analytics',
     href: '/staff/analytics',
     icon: ChartBarIcon,
-    roles: ['staff', 'admin']
-  },
-  {
-    name: 'Auto-Grade Settings',
-    href: '/staff/auto-grading-settings',
-    icon: WrenchScrewdriverIcon,
     roles: ['staff', 'admin']
   },
   {
