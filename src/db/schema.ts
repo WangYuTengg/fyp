@@ -72,6 +72,7 @@ export const assignments = pgTable('assignments', {
   dueDate: timestamp('due_date'),
   openDate: timestamp('open_date').defaultNow(),
   maxAttempts: integer('max_attempts').default(1),
+  mcqPenaltyPerWrongSelection: integer('mcq_penalty_per_wrong_selection').default(1).notNull(),
   timeLimit: integer('time_limit'), // in minutes
   isPublished: boolean('is_published').default(false).notNull(),
   createdBy: uuid('created_by').references(() => users.id),

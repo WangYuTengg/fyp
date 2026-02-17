@@ -38,6 +38,7 @@ export const createAssignmentSchema = z.object({
   dueDate: z.string().datetime().optional(),
   openDate: z.string().datetime().optional(),
   maxAttempts: z.number().int().min(1).optional().default(1),
+  mcqPenaltyPerWrongSelection: z.number().int().min(0).optional().default(1),
   timeLimit: z.number().int().min(1).optional(),
   isPublished: z.boolean().optional().default(false),
 });

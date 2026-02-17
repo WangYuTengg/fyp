@@ -23,6 +23,7 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     dueDate,
     openDate,
     maxAttempts,
+    mcqPenaltyPerWrongSelection,
     timeLimit,
     questionIds,
   } = body as {
@@ -33,6 +34,7 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     dueDate?: string | null;
     openDate?: string | null;
     maxAttempts?: number | null;
+    mcqPenaltyPerWrongSelection?: number | null;
     timeLimit?: number | null;
     questionIds?: string[];
   };
@@ -49,6 +51,14 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
 
   const assignmentType = type as AssignmentType;
   const maxAttemptsValue = typeof maxAttempts === 'number' && maxAttempts > 0 ? maxAttempts : 1;
+  let mcqPenaltyValue = 1;
+
+  if (assignmentType === 'mcq' && mcqPenaltyPerWrongSelection !== undefined && mcqPenaltyPerWrongSelection !== null) {
+    if (!Number.isInteger(mcqPenaltyPerWrongSelection) || mcqPenaltyPerWrongSelection < 0) {
+      return c.json({ error: 'mcqPenaltyPerWrongSelection must be an integer >= 0' }, 400);
+    }
+    mcqPenaltyValue = mcqPenaltyPerWrongSelection;
+  }
 
   // Validate due date is in the future
   if (dueDate) {
@@ -69,6 +79,7 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
       dueDate: dueDate ? new Date(dueDate) : null,
       openDate: openDate ? new Date(openDate) : new Date(),
       maxAttempts: maxAttemptsValue,
+      mcqPenaltyPerWrongSelection: mcqPenaltyValue,
       timeLimit,
       isPublished: false,
       createdBy: user.id,

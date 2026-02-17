@@ -52,6 +52,8 @@ export function useAssignmentForm(courseId: string) {
   const createAssignment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const mcqPenaltyRaw = Number(formData.get('mcqPenaltyPerWrongSelection'));
+    const mcqPenaltyPerWrongSelection = Number.isFinite(mcqPenaltyRaw) ? mcqPenaltyRaw : 1;
 
     createMutation.mutate({
       courseId,
@@ -60,6 +62,7 @@ export function useAssignmentForm(courseId: string) {
       type: assignmentType,
       dueDate: formData.get('dueDate') || null,
       maxAttempts: Number(formData.get('maxAttempts')) || 1,
+      mcqPenaltyPerWrongSelection: assignmentType === 'mcq' ? mcqPenaltyPerWrongSelection : undefined,
       questionIds: selectedQuestionIds,
     });
   };

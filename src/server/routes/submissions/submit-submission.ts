@@ -12,7 +12,8 @@ type McqOption = {
 function gradeMcqAnswer(
   questionContent: unknown,
   answerContent: unknown,
-  maxPoints: number
+  maxPoints: number,
+  penaltyPerWrongSelection: number
 ): { points: number; feedback: string } {
   const content = (questionContent ?? {}) as Record<string, unknown>;
   const options = Array.isArray(content.options) ? (content.options as McqOption[]) : [];
@@ -53,10 +54,18 @@ function gradeMcqAnswer(
   }
 
   if (wrongSelections.length > 0) {
-    const penaltyPoints = wrongSelections.length;
+    const penaltyUnit = Number.isFinite(penaltyPerWrongSelection) && penaltyPerWrongSelection >= 0
+      ? penaltyPerWrongSelection
+      : 1;
+    const penaltyPoints = wrongSelections.length * penaltyUnit;
+
+    if (penaltyPoints <= 0) {
+      return { points: 0, feedback: 'Incorrect answer.' };
+    }
+
     return {
       points: -penaltyPoints,
-      feedback: `Incorrect answer. ${penaltyPoints} penalty point${penaltyPoints === 1 ? '' : 's'} for wrong selection${penaltyPoints === 1 ? '' : 's'}.`,
+      feedback: `Incorrect answer. ${penaltyPoints} penalty point${penaltyPoints === 1 ? '' : 's'} for wrong selection${wrongSelections.length === 1 ? '' : 's'}.`,
     };
   }
 
@@ -139,7 +148,16 @@ submitSubmissionRoute.post('/:submissionId/submit', requireAuth, async (c) => {
     }
 
     const maxPoints = answer.assignmentQuestionPoints ?? answer.questionPoints;
-    const grade = gradeMcqAnswer(answer.questionContent, answer.answerContent, maxPoints);
+    const penaltyPerWrongSelection =
+      typeof assignment?.mcqPenaltyPerWrongSelection === 'number'
+        ? assignment.mcqPenaltyPerWrongSelection
+        : 1;
+    const grade = gradeMcqAnswer(
+      answer.questionContent,
+      answer.answerContent,
+      maxPoints,
+      penaltyPerWrongSelection
+    );
 
     const [existingMark] = await db
       .select()

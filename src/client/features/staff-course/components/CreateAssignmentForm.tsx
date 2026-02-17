@@ -54,6 +54,7 @@ export function CreateAssignmentForm({
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState(getDefaultDueDate);
   const [maxAttempts, setMaxAttempts] = useState(1);
+  const [mcqPenaltyPerWrongSelection, setMcqPenaltyPerWrongSelection] = useState(1);
 
   const questionsForType = useMemo(
     () => questions.filter((q) => q.type === assignmentType),
@@ -63,9 +64,15 @@ export function CreateAssignmentForm({
   const isLastStep = step === STEP_TITLES.length - 1;
   const canProceed = useMemo(() => {
     if (step === 0) return title.trim().length > 0;
-    if (step === 1) return Number.isFinite(maxAttempts) && maxAttempts >= 1;
+    if (step === 1) {
+      const hasValidMaxAttempts = Number.isFinite(maxAttempts) && maxAttempts >= 1;
+      const hasValidPenalty =
+        assignmentType !== 'mcq' ||
+        (Number.isFinite(mcqPenaltyPerWrongSelection) && mcqPenaltyPerWrongSelection >= 0);
+      return hasValidMaxAttempts && hasValidPenalty;
+    }
     return true;
-  }, [maxAttempts, step, title]);
+  }, [assignmentType, maxAttempts, mcqPenaltyPerWrongSelection, step, title]);
 
   const handleNext = () => {
     if (isLastStep || !canProceed) return;
@@ -102,6 +109,11 @@ export function CreateAssignmentForm({
       <input type="hidden" name="description" value={description} />
       <input type="hidden" name="dueDate" value={dueDate} />
       <input type="hidden" name="maxAttempts" value={String(maxAttempts)} />
+      <input
+        type="hidden"
+        name="mcqPenaltyPerWrongSelection"
+        value={String(mcqPenaltyPerWrongSelection)}
+      />
 
       <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
         <span className="font-medium">Step {step + 1} of {STEP_TITLES.length}:</span> {STEP_TITLES[step]}
@@ -171,6 +183,28 @@ export function CreateAssignmentForm({
               className="form-input-block"
             />
           </div>
+          {assignmentType === 'mcq' && (
+            <div>
+              <label htmlFor="create-assignment-mcq-penalty" className="block text-sm font-medium text-gray-700">
+                Multi-answer penalty
+              </label>
+              <input
+                id="create-assignment-mcq-penalty"
+                type="number"
+                value={mcqPenaltyPerWrongSelection}
+                onChange={(e) => {
+                  const nextValue = Number(e.target.value);
+                  setMcqPenaltyPerWrongSelection(Number.isFinite(nextValue) ? nextValue : 0);
+                }}
+                min={0}
+                step={1}
+                className="form-input-block"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Points deducted per wrong selected option (multi-answer MCQ only).
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -227,6 +261,12 @@ export function CreateAssignmentForm({
             <p className="text-xs uppercase tracking-wide text-gray-500">Max Attempts</p>
             <p className="text-gray-900">{maxAttempts}</p>
           </div>
+          {assignmentType === 'mcq' && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Multi-answer Penalty</p>
+              <p className="text-gray-900">{mcqPenaltyPerWrongSelection} per wrong selection</p>
+            </div>
+          )}
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-500">Selected Questions</p>
             <p className="text-gray-900">{selectedQuestionIds.length}</p>

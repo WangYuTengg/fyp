@@ -1,0 +1,1 @@
+ALTER TABLE "assignments" ADD COLUMN "mcq_penalty_per_wrong_selection" integer DEFAULT 1 NOT NULL;

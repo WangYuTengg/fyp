@@ -74,6 +74,9 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
             {assignment.dueDate && (
               <span>Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
             )}
+            {assignment.type === 'mcq' && (
+              <span>Penalty: -{assignment.mcqPenaltyPerWrongSelection} per wrong multi-answer option</span>
+            )}
           </div>
           {assignment.isPublished && (
             <p className="mt-2 text-sm text-gray-600">

@@ -21,6 +21,7 @@ export type StaffAssignment = {
   type: string;
   dueDate: string | null;
   maxAttempts: number | null;
+  mcqPenaltyPerWrongSelection: number;
   isPublished: boolean;
   attemptCount: number;
 };

@@ -21,6 +21,7 @@ export type AssignmentDetails = {
   courseId: string;
   dueDate: string | null;
   timeLimit: number | null;
+  mcqPenaltyPerWrongSelection: number;
   questions: AssignmentQuestion[];
 };
 
