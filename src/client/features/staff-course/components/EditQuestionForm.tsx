@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { McqOption, Question } from '../../../lib/api';
 import { UMLEditor } from '../../../components/UMLEditor';
+import type { ClassDiagramState } from '../../../components/uml/classDiagram';
 
 type EditQuestionFormProps = {
   question: Question;
@@ -19,6 +20,13 @@ type EditQuestionFormProps = {
   isSubmitting?: boolean;
   availableTags: string[];
 };
+
+const hasMeaningfulUmlContent = (value: string) =>
+  value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .some((line) => line !== '@startuml' && line !== '@enduml');
 
 function getContent(content: unknown): { 
   prompt: string; 
@@ -54,6 +62,8 @@ export function EditQuestionForm({
   const [referenceDiagram, setReferenceDiagram] = useState(content.referenceDiagram || '');
   const [showCorrectAnswers, setShowCorrectAnswers] = useState(content.showCorrectAnswers || false);
   const [modelAnswer, setModelAnswer] = useState(content.modelAnswer || '');
+  const [referenceDiagramState, setReferenceDiagramState] = useState<ClassDiagramState | undefined>(undefined);
+  const [modelAnswerDiagramState, setModelAnswerDiagramState] = useState<ClassDiagramState | undefined>(undefined);
   const [selectedTags, setSelectedTags] = useState<string[]>(question.tags || []);
   const [newTagInput, setNewTagInput] = useState('');
 
@@ -114,7 +124,7 @@ export function EditQuestionForm({
     } else if (question.type === 'written') {
       updateData.modelAnswer = modelAnswer;
     } else if (question.type === 'uml') {
-      if (!modelAnswer.trim() && !referenceDiagram.trim()) {
+      if (!hasMeaningfulUmlContent(modelAnswer)) {
         alert('UML question requires an answer diagram (PlantUML code).');
         return;
       }
@@ -310,8 +320,12 @@ export function EditQuestionForm({
               <label className="block text-sm font-medium text-gray-700 mb-2">Answer UML Diagram (for grading)</label>
               <UMLEditor
                 initialValue={modelAnswer}
-                onChange={setModelAnswer}
-                height="300px"
+                initialDiagramState={modelAnswerDiagramState}
+                onChange={(value, editorState) => {
+                  setModelAnswer(value);
+                  setModelAnswerDiagramState(editorState);
+                }}
+                height="min(68vh, 620px)"
               />
             </div>
 
@@ -319,8 +333,12 @@ export function EditQuestionForm({
               <label className="block text-sm font-medium text-gray-700 mb-2">Template / Reference Diagram (optional)</label>
               <UMLEditor
                 initialValue={referenceDiagram}
-                onChange={setReferenceDiagram}
-                height="250px"
+                initialDiagramState={referenceDiagramState}
+                onChange={(value, editorState) => {
+                  setReferenceDiagram(value);
+                  setReferenceDiagramState(editorState);
+                }}
+                height="min(60vh, 560px)"
               />
             </div>
           </div>

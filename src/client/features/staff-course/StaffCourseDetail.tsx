@@ -210,7 +210,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                 isOpen={questionForm.showForm}
                 onClose={() => questionForm.setShowForm(false)}
                 title="Create Question"
-                size="2xl"
+                size="screen"
               >
                 <CreateQuestionForm
                   questionType={questionForm.questionType}

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { McqOption } from '../../../lib/api';
 import type { StaffAssignment } from '../types';
 import { UMLEditor } from '../../../components/UMLEditor';
+import type { ClassDiagramState } from '../../../components/uml/classDiagram';
 
 type QuestionType = 'mcq' | 'written' | 'uml';
 
@@ -49,6 +50,13 @@ const STEP_DESCRIPTIONS_BY_TYPE: Record<QuestionType, readonly string[]> = {
   ],
 };
 
+const hasMeaningfulUmlContent = (value: string) =>
+  value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .some((line) => line !== '@startuml' && line !== '@enduml');
+
 export function CreateQuestionForm({
   questionType,
   setQuestionType,
@@ -70,6 +78,8 @@ export function CreateQuestionForm({
   const [newTagInput, setNewTagInput] = useState('');
   const [umlTemplateDiagram, setUmlTemplateDiagram] = useState('');
   const [umlModelAnswer, setUmlModelAnswer] = useState('');
+  const [umlTemplateDiagramState, setUmlTemplateDiagramState] = useState<ClassDiagramState | undefined>(undefined);
+  const [umlModelDiagramState, setUmlModelDiagramState] = useState<ClassDiagramState | undefined>(undefined);
   const [modelAnswer, setModelAnswer] = useState('');
   const [showCorrectAnswers, setShowCorrectAnswers] = useState(false);
 
@@ -108,7 +118,7 @@ export function CreateQuestionForm({
       if (questionType === 'mcq') {
         return validMcqOptions.length >= 2 && !hasDuplicateMcqOptions && correctMcqOptionsCount > 0;
       }
-      if (questionType === 'uml') return umlModelAnswer.trim().length > 0;
+      if (questionType === 'uml') return hasMeaningfulUmlContent(umlModelAnswer);
     }
     return true;
   }, [correctMcqOptionsCount, hasDuplicateMcqOptions, points, questionType, step, title, umlModelAnswer, validMcqOptions.length]);
@@ -386,23 +396,56 @@ export function CreateQuestionForm({
           )}
 
           {questionType === 'uml' && (
-            <div>
-              <p className="block text-sm font-medium text-gray-700 mb-2">
-                Answer UML Diagram (for grading)
-              </p>
-              <p className="text-sm text-gray-600 mb-3">
-                This is the expected solution used by staff/auto-grading. Students will not see this.
-              </p>
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-semibold text-slate-900">Build the answer key diagram</p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      This hidden diagram is the grading reference for staff and auto-marking.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+                    Hidden from students
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-slate-900">Model the full solution</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Include every class, interface, attribute, method, and relationship you expect in a correct answer.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-slate-900">Stay visual first</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Use the canvas to shape the diagram, then open PlantUML only when you want to inspect or refine the export.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-slate-900">Scaffold later</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      The next step is optional and only for student-facing starter diagrams. Keep the grading answer complete here.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <UMLEditor
                 initialValue={umlModelAnswer}
-                onChange={setUmlModelAnswer}
-                height="300px"
+                initialDiagramState={umlModelDiagramState}
+                onChange={(value, editorState) => {
+                  setUmlModelAnswer(value);
+                  setUmlModelDiagramState(editorState);
+                }}
+                height="min(68vh, 620px)"
               />
 
-              {!umlModelAnswer.trim() && (
-                <p className="mt-2 text-sm text-amber-600">
-                  Add the expected answer diagram before continuing.
-                </p>
+              {!hasMeaningfulUmlContent(umlModelAnswer) && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                  Add at least one meaningful UML element before continuing.
+                </div>
               )}
             </div>
           )}
@@ -410,17 +453,50 @@ export function CreateQuestionForm({
       )}
 
       {questionType === 'uml' && step === 3 && (
-        <div>
-          <p className="block text-sm font-medium text-gray-700 mb-2">
-            Template / Reference Diagram (optional)
-          </p>
-          <p className="text-sm text-gray-600 mb-3">
-            This is the starter diagram students can see when they begin (for example, a partial scaffold).
-          </p>
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-base font-semibold text-slate-900">Optional student starter diagram</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Use this only when students should begin from a partial scaffold instead of a blank canvas.
+                </p>
+              </div>
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                Visible to students
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-sm font-semibold text-slate-900">Use partial structure</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Good starter diagrams usually include the key boxes or one anchor relationship, not the full answer.
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-sm font-semibold text-slate-900">Keep it optional</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Leave this empty if students should construct the diagram entirely from the prompt.
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-sm font-semibold text-slate-900">Match the assessment goal</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Scaffold only the parts that are not being assessed, so the template guides without giving away the mark scheme.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <UMLEditor
             initialValue={umlTemplateDiagram}
-            onChange={setUmlTemplateDiagram}
-            height="300px"
+            initialDiagramState={umlTemplateDiagramState}
+            onChange={(value, editorState) => {
+              setUmlTemplateDiagram(value);
+              setUmlTemplateDiagramState(editorState);
+            }}
+            height="min(60vh, 560px)"
           />
         </div>
       )}

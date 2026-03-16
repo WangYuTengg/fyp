@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   addEdge,
   useEdgesState,
   useNodesState,
@@ -278,6 +277,7 @@ export function ClassDiagramEditor({
   const [edges, setEdges, onEdgesChange] = useEdgesState(mapStateToEdges(initialDiagram));
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const hasMountedRef = useRef(false);
 
   const propagateChange = useCallback(
     (nextNodes: Node<ClassDiagramNodeData>[], nextEdges: Edge<ClassDiagramEdgeData>[]) => {
@@ -292,6 +292,10 @@ export function ClassDiagramEditor({
   );
 
   useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
     propagateChange(nodes, edges);
   }, [edges, nodes, propagateChange]);
 
@@ -430,42 +434,36 @@ export function ClassDiagramEditor({
 
   const primaryListLabel = selectedElementType === 'enum' ? 'Values' : 'Attributes';
   const primaryAddTemplate = selectedElementType === 'enum' ? 'VALUE' : '+ attribute: Type';
+  const selectedItemLabel = selectedNode
+    ? `${selectedNode.data.name || 'Unnamed element'} selected`
+    : selectedEdge
+      ? 'Relationship selected'
+      : 'Nothing selected';
+  const deleteButtonLabel = selectedNode
+    ? 'Delete selected element'
+    : selectedEdge
+      ? 'Delete selected relationship'
+      : 'Delete selected';
 
   return (
-    <div className="space-y-4" style={{ minHeight: height }}>
-      <div className="h-full rounded-md border border-gray-200" style={{ height }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={handleConnect}
-          onSelectionChange={handleSelectionChange}
-          nodeTypes={nodeTypes}
-          nodesConnectable={!readOnly}
-          nodesDraggable={!readOnly}
-          elementsSelectable={!readOnly}
-          fitView
-          attributionPosition="bottom-right"
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background gap={16} color="#f3f4f6" />
-          <MiniMap nodeStrokeWidth={2} style={{ height: 90, width: 130 }} />
-          <Controls showInteractive={!readOnly} />
-        </ReactFlow>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-        <div className="rounded-md border border-gray-200 bg-white p-3 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900">Diagram Controls</h3>
-          <p className="text-xs text-gray-500 mt-1">
-            Add UML elements, drag to arrange, then draw arrows by connecting from a node handle.
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Canvas</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            {readOnly
+              ? 'Preview the diagram structure and inspect the selected element details.'
+              : 'Add elements from the toolbar, drag them into place, then connect node handles to define relationships.'}
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+        </div>
+
+        {!readOnly && (
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => addElement('class')}
               disabled={readOnly}
-              className="rounded bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-full border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-50"
             >
               + Class
             </button>
@@ -473,7 +471,7 @@ export function ClassDiagramEditor({
               type="button"
               onClick={() => addElement('interface')}
               disabled={readOnly}
-              className="rounded bg-violet-600 px-3 py-2 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+              className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-700 transition-colors hover:bg-cyan-100 disabled:opacity-50"
             >
               + Interface
             </button>
@@ -481,7 +479,7 @@ export function ClassDiagramEditor({
               type="button"
               onClick={() => addElement('abstractClass')}
               disabled={readOnly}
-              className="rounded bg-amber-600 px-3 py-2 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+              className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50"
             >
               + Abstract
             </button>
@@ -489,34 +487,77 @@ export function ClassDiagramEditor({
               type="button"
               onClick={() => addElement('enum')}
               disabled={readOnly}
-              className="rounded bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
             >
               + Enum
             </button>
+            <button
+              type="button"
+              onClick={deleteSelected}
+              disabled={readOnly || (!selectedNodeId && !selectedEdgeId)}
+              className="rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:opacity-50"
+            >
+              {deleteButtonLabel}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={deleteSelected}
-            disabled={readOnly || (!selectedNodeId && !selectedEdgeId)}
-            className="mt-2 w-full rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div
+          className="border-b border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.14),_transparent_45%),linear-gradient(180deg,_rgba(248,250,252,0.95),_rgba(255,255,255,1))] lg:border-b-0 lg:border-r"
+          style={{ minHeight: height, height }}
+        >
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={handleConnect}
+            onSelectionChange={handleSelectionChange}
+            nodeTypes={nodeTypes}
+            nodesConnectable={!readOnly}
+            nodesDraggable={!readOnly}
+            elementsSelectable={!readOnly}
+            fitView
+            attributionPosition="bottom-right"
+            proOptions={{ hideAttribution: true }}
           >
-            Delete selected
-          </button>
+            <Background gap={18} color="#dbe4f0" />
+            <Controls showInteractive={!readOnly} />
+          </ReactFlow>
         </div>
 
-        <div className="space-y-4">
-          {selectedNode && (
-            <div className="rounded-md border border-gray-200 bg-white p-3 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-900">Element Details</h3>
+        <aside className="space-y-4 bg-slate-50/70 p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Diagram summary
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">Elements</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900">{nodes.length}</p>
+              </div>
+              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">Relationships</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900">{edges.length}</p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">{selectedItemLabel}</p>
+          </div>
 
-              <label className="mt-3 block text-xs font-medium text-gray-500">Element type</label>
+          {selectedNode && (
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-900">Element details</h3>
+
+              <label className="mt-4 block text-xs font-medium text-slate-500">Element type</label>
               <select
                 value={selectedElementType}
                 onChange={(event) =>
                   updateSelectedNode({ elementType: event.target.value as UmlElementType })
                 }
                 disabled={readOnly}
-                className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
               >
                 {ELEMENT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -525,17 +566,17 @@ export function ClassDiagramEditor({
                 ))}
               </select>
 
-              <label className="mt-3 block text-xs font-medium text-gray-500">Name</label>
+              <label className="mt-4 block text-xs font-medium text-slate-500">Name</label>
               <input
                 type="text"
                 value={selectedNode.data.name}
                 onChange={(event) => updateSelectedNode({ name: event.target.value })}
                 disabled={readOnly}
-                className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
               />
 
-              <div className="mt-3">
-                <label className="block text-xs font-medium text-gray-500">{primaryListLabel}</label>
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-slate-500">{primaryListLabel}</label>
                 <div className="mt-2 space-y-2">
                   {(selectedNode.data.attributes ?? []).map((attr, index) => (
                     <div key={`${attr}-${index}`} className="flex items-center gap-2">
@@ -544,13 +585,13 @@ export function ClassDiagramEditor({
                         value={attr}
                         onChange={(event) => updateListItem('attributes', index, event.target.value)}
                         disabled={readOnly}
-                        className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                        className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
                       />
                       <button
                         type="button"
                         onClick={() => removeListItem('attributes', index)}
                         disabled={readOnly}
-                        className="text-xs text-red-500 hover:text-red-600 disabled:opacity-50"
+                        className="text-xs font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
                       >
                         Remove
                       </button>
@@ -560,7 +601,7 @@ export function ClassDiagramEditor({
                     type="button"
                     onClick={() => addAttribute(primaryAddTemplate)}
                     disabled={readOnly}
-                    className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50"
                   >
                     + Add {selectedElementType === 'enum' ? 'value' : 'attribute'}
                   </button>
@@ -569,7 +610,7 @@ export function ClassDiagramEditor({
 
               {selectedElementType !== 'enum' && (
                 <div className="mt-4">
-                  <label className="block text-xs font-medium text-gray-500">Methods</label>
+                  <label className="block text-xs font-medium text-slate-500">Methods</label>
                   <div className="mt-2 space-y-2">
                     {(selectedNode.data.methods ?? []).map((method, index) => (
                       <div key={`${method}-${index}`} className="flex items-center gap-2">
@@ -578,13 +619,13 @@ export function ClassDiagramEditor({
                           value={method}
                           onChange={(event) => updateListItem('methods', index, event.target.value)}
                           disabled={readOnly}
-                          className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
                         />
                         <button
                           type="button"
                           onClick={() => removeListItem('methods', index)}
                           disabled={readOnly}
-                          className="text-xs text-red-500 hover:text-red-600 disabled:opacity-50"
+                          className="text-xs font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
                         >
                           Remove
                         </button>
@@ -594,7 +635,7 @@ export function ClassDiagramEditor({
                       type="button"
                       onClick={() => addMethod('+ method()')}
                       disabled={readOnly}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50"
                     >
                       + Add method
                     </button>
@@ -605,16 +646,16 @@ export function ClassDiagramEditor({
           )}
 
           {selectedEdge && (
-            <div className="rounded-md border border-gray-200 bg-white p-3 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-900">Relationship</h3>
-              <label className="mt-3 block text-xs font-medium text-gray-500">Type</label>
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-900">Relationship</h3>
+              <label className="mt-4 block text-xs font-medium text-slate-500">Type</label>
               <select
                 value={selectedEdge.data?.relationship ?? 'association'}
                 onChange={(event) =>
                   updateSelectedEdge({ relationship: event.target.value as RelationshipType })
                 }
                 disabled={readOnly}
-                className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
               >
                 {RELATIONSHIP_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -623,17 +664,44 @@ export function ClassDiagramEditor({
                 ))}
               </select>
 
-              <label className="mt-3 block text-xs font-medium text-gray-500">Label (optional)</label>
+              <label className="mt-4 block text-xs font-medium text-slate-500">Label (optional)</label>
               <input
                 type="text"
                 value={selectedEdge.data?.label ?? ''}
                 onChange={(event) => updateSelectedEdge({ label: event.target.value })}
                 disabled={readOnly}
-                className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
               />
             </div>
           )}
-        </div>
+
+          {!selectedNode && !selectedEdge && (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white/80 p-4">
+              <h3 className="text-sm font-semibold text-slate-900">
+                {readOnly ? 'No item selected' : 'Select or add an element'}
+              </h3>
+              <p className="mt-2 text-sm text-slate-600">
+                {readOnly
+                  ? 'Click a class or relationship in the canvas to inspect its details.'
+                  : 'Use the toolbar to add a class, interface, abstract class, or enum. Drag from a node handle to create a relationship.'}
+              </p>
+              <div className="mt-4 space-y-3 text-xs text-slate-600">
+                <div>
+                  <p className="font-semibold text-slate-700">Quick guide</p>
+                  <p className="mt-1">
+                    Add elements first, arrange them on the canvas, then connect the side handles to define how they relate.
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-700">Common arrows</p>
+                  <p className="mt-1">
+                    Association uses A --&gt; B, inheritance uses Parent &lt;|-- Child, and dependency uses A ..&gt; B.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );

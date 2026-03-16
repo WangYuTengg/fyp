@@ -6,7 +6,7 @@ type ModalProps = {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'screen';
 };
 
 export function Modal({ isOpen, onClose, title, children, size = 'lg' }: ModalProps) {
@@ -45,6 +45,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'lg' }: ModalPr
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
     '2xl': 'max-w-6xl',
+    screen: 'max-w-[min(96vw,1400px)]',
   };
 
   return (
