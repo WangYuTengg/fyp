@@ -14,7 +14,7 @@ type UMLEditorProps = {
   height?: string;
 };
 
-type EditorMode = 'visual' | 'text';
+type EditorMode = 'visual' | 'text' | 'preview';
 
 const EMPTY_CLASS_DIAGRAM_STATE: ClassDiagramState = {
   nodes: [],
@@ -44,9 +44,8 @@ export function UMLEditor({
   const [encodedUml, setEncodedUml] = useState('');
   const [imageError, setImageError] = useState(false);
   const [activeTab, setActiveTab] = useState<EditorMode>(() =>
-    initialDiagramState || !hasInitialText ? 'visual' : 'text'
+    initialDiagramState || !hasInitialText ? 'visual' : 'preview'
   );
-  const [showPreview, setShowPreview] = useState(() => !initialDiagramState && hasInitialText);
   const [diagramState, setDiagramState] = useState<ClassDiagramState>(
     () => initialDiagramState ?? EMPTY_CLASS_DIAGRAM_STATE
   );
@@ -107,16 +106,11 @@ export function UMLEditor({
 
   const previewPanel = (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">Preview</h3>
-          <p className="mt-1 text-xs text-slate-500">Render the current PlantUML output before saving.</p>
-        </div>
+      <div className="border-b border-slate-200 px-4 py-3">
+        <h3 className="text-sm font-semibold text-slate-900">Preview</h3>
+        <p className="mt-1 text-xs text-slate-500">Render the current PlantUML output before saving.</p>
       </div>
-      <div
-        className="overflow-auto p-4"
-        style={{ minHeight: activeTab === 'visual' ? '240px' : height }}
-      >
+      <div className="overflow-auto p-4" style={{ minHeight: height }}>
         {!umlText.trim() ? (
           <div className="flex h-full min-h-[180px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-6 text-center text-sm text-slate-500">
             Add a class, interface, or PlantUML block to generate a preview.
@@ -129,7 +123,7 @@ export function UMLEditor({
           <img
             src={imageUrl}
             alt="UML Diagram Preview"
-            className="mx-auto max-w-full h-auto"
+            className="mx-auto h-auto max-w-full"
             onError={() => setImageError(true)}
           />
         )}
@@ -147,83 +141,78 @@ export function UMLEditor({
             </h2>
             <p className="mt-1 text-xs text-slate-500">
               {activeTab === 'visual'
-                ? 'Use the canvas for structure, then open the preview only when you want to verify the exported diagram.'
-                : 'Paste or refine PlantUML directly, with preview available beside the editor.'}
+                ? 'Use the canvas for structure and relationships.'
+                : activeTab === 'text'
+                  ? 'Paste or refine PlantUML directly when you need precise syntax control.'
+                  : 'Review the rendered diagram without compressing the editor layout.'}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-full border border-slate-200 bg-white p-1">
-              <button
-                type="button"
-                onClick={() => setActiveTab('visual')}
-                className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-                  activeTab === 'visual'
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                Visual builder
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('text')}
-                className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-                  activeTab === 'text'
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                PlantUML
-              </button>
-            </div>
-
+          <div className="inline-flex rounded-full border border-slate-200 bg-white p-1">
             <button
               type="button"
-              onClick={() => setShowPreview((current) => !current)}
-              className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
-                showPreview
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
+              onClick={() => setActiveTab('visual')}
+              className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                activeTab === 'visual'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
-              {showPreview ? 'Hide preview' : 'Show preview'}
+              Visual builder
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('text')}
+              className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                activeTab === 'text'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              PlantUML
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('preview')}
+              className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                activeTab === 'preview'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Preview
             </button>
           </div>
         </div>
 
         <div className="p-4">
           {activeTab === 'visual' ? (
-            <div className="space-y-4">
-              <ClassDiagramEditor
-                key={diagramSeedKey}
-                initialState={diagramState}
-                onChange={handleDiagramChange}
+            <ClassDiagramEditor
+              key={diagramSeedKey}
+              initialState={diagramState}
+              onChange={handleDiagramChange}
+              readOnly={readOnly}
+              height={height}
+            />
+          ) : activeTab === 'text' ? (
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-200 px-4 py-3">
+                <h3 className="text-sm font-semibold text-slate-900">PlantUML source</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Use class-diagram syntax directly when you need finer control than the visual builder provides.
+                </p>
+              </div>
+              <textarea
+                value={umlText}
+                onChange={(e) => handleChange(e.target.value)}
                 readOnly={readOnly}
-                height={height}
+                className="min-h-[240px] w-full resize-y rounded-b-xl border-0 p-4 font-mono text-sm text-slate-800 focus:ring-2 focus:ring-blue-500"
+                style={{ minHeight: height }}
+                placeholder={PLANTUML_EXAMPLE}
               />
-              {showPreview && previewPanel}
             </div>
           ) : (
-            <div className={`grid gap-4 ${showPreview ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
-              <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-200 px-4 py-3">
-                  <h3 className="text-sm font-semibold text-slate-900">PlantUML source</h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Use class-diagram syntax directly when you need finer control than the visual builder provides.
-                  </p>
-                </div>
-                <textarea
-                  value={umlText}
-                  onChange={(e) => handleChange(e.target.value)}
-                  readOnly={readOnly}
-                  className="min-h-[240px] w-full resize-y rounded-b-xl border-0 p-4 font-mono text-sm text-slate-800 focus:ring-2 focus:ring-blue-500"
-                  style={{ minHeight: height }}
-                  placeholder={PLANTUML_EXAMPLE}
-                />
-              </div>
-              {showPreview && previewPanel}
-            </div>
+            previewPanel
           )}
         </div>
       </div>
@@ -232,7 +221,9 @@ export function UMLEditor({
         <p>
           {activeTab === 'visual'
             ? 'Visual mode keeps the canvas primary and exports PlantUML in the background.'
-            : 'PlantUML changes update the preview, so syntax issues are visible immediately.'}
+            : activeTab === 'text'
+              ? 'PlantUML changes update the preview tab, so syntax issues are visible immediately.'
+              : 'Preview mode lets you inspect the rendered diagram without compressing the editor layout.'}
         </p>
         <a
           href="https://plantuml.com/class-diagram"
