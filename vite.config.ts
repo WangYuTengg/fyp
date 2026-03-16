@@ -16,6 +16,20 @@ export default defineConfig({
   build: {
     outDir: 'dist/client',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          tanstack: [
+            '@tanstack/react-query',
+            '@tanstack/react-router',
+            '@tanstack/router-devtools',
+          ],
+          supabase: ['@supabase/supabase-js'],
+          uml: ['@xyflow/react', 'plantuml-encoder'],
+          ui: ['@headlessui/react', '@heroicons/react', 'react-markdown'],
+        },
+      },
+    },
   },
   server: {
     proxy: {
