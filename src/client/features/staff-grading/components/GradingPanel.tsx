@@ -22,6 +22,34 @@ function isTypingTarget(target: EventTarget | null) {
   );
 }
 
+function buildInitialGrades(
+  answers: GradingAnswer[],
+  submission: GradingSubmission
+): Record<string, QuestionGrade> {
+  const initialGrades: Record<string, QuestionGrade> = {};
+
+  const marksByAnswerId = new Map(
+    (submission.marks ?? [])
+      .filter((mark) => Boolean(mark.answerId))
+      .map((mark) => [mark.answerId as string, mark])
+  );
+
+  answers.forEach((answer) => {
+    const maxPoints = answer.question?.points ?? 0;
+    const existingMark = marksByAnswerId.get(answer.id);
+
+    initialGrades[answer.id] = {
+      answerId: answer.id,
+      questionId: answer.questionId,
+      points: existingMark?.points ?? 0,
+      maxPoints,
+      feedback: existingMark?.feedback ?? '',
+    };
+  });
+
+  return initialGrades;
+}
+
 export function GradingPanel({
   submission,
   assignment,
@@ -34,65 +62,32 @@ export function GradingPanel({
   onSelectPreviousSubmission,
   onSelectNextSubmission,
 }: GradingPanelProps) {
-  const [grades, setGrades] = useState<Record<string, QuestionGrade>>({});
-  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
+  const answers = useMemo(() => submission.answers ?? [], [submission.answers]);
+  const [grades, setGrades] = useState<Record<string, QuestionGrade>>(() =>
+    buildInitialGrades(answers, submission)
+  );
+  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(
+    () => answers[0]?.questionId ?? null
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const pointsInputRef = useRef<HTMLInputElement | null>(null);
-
-  const answers = useMemo(() => submission.answers ?? [], [submission.answers]);
-
-  const initializeGrades = useCallback(() => {
-    const initialGrades: Record<string, QuestionGrade> = {};
-
-    const marksByAnswerId = new Map(
-      (submission.marks ?? [])
-        .filter((mark) => Boolean(mark.answerId))
-        .map((mark) => [mark.answerId as string, mark])
-    );
-
-    answers.forEach((answer) => {
-      const maxPoints = answer.question?.points ?? 0;
-      const existingMark = marksByAnswerId.get(answer.id);
-
-      initialGrades[answer.id] = {
-        answerId: answer.id,
-        questionId: answer.questionId,
-        points: existingMark?.points ?? 0,
-        maxPoints,
-        feedback: existingMark?.feedback ?? '',
-      };
-    });
-
-    return initialGrades;
-  }, [answers, submission.marks]);
-
-  useEffect(() => {
-    setGrades(initializeGrades());
-  }, [initializeGrades, submission.id]);
-
-  useEffect(() => {
-    if (answers.length === 0) {
-      setActiveQuestionId(null);
-      return;
-    }
-
-    if (activeQuestionId && answers.some((answer) => answer.questionId === activeQuestionId)) {
-      return;
-    }
-
-    setActiveQuestionId(answers[0].questionId);
-  }, [answers, activeQuestionId]);
+  const resolvedActiveQuestionId =
+    answers.length === 0
+      ? null
+      : activeQuestionId && answers.some((answer) => answer.questionId === activeQuestionId)
+        ? activeQuestionId
+        : answers[0].questionId;
 
   const activeAnswer = useMemo(() => {
     if (answers.length === 0) return null;
 
-    if (!activeQuestionId) {
+    if (!resolvedActiveQuestionId) {
       return answers[0];
     }
 
-    return answers.find((answer) => answer.questionId === activeQuestionId) ?? answers[0];
-  }, [answers, activeQuestionId]);
+    return answers.find((answer) => answer.questionId === resolvedActiveQuestionId) ?? answers[0];
+  }, [answers, resolvedActiveQuestionId]);
 
   const activeQuestionIndex = useMemo(() => {
     if (!activeAnswer) return -1;

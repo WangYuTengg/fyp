@@ -1,6 +1,7 @@
 /** biome-ignore-all lint/a11y/noAutofocus: simple */
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Question } from '../../../lib/api';
+import { useClampedPage } from '../../../hooks/useClampedPage';
 import { getPromptFromContent } from '../utils/question-utils';
 
 type CreateAssignmentFormProps = {
@@ -56,7 +57,6 @@ export function CreateAssignmentForm({
   const [questionSearch, setQuestionSearch] = useState('');
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [questionPageSize, setQuestionPageSize] = useState<number>(20);
-  const [questionPage, setQuestionPage] = useState<number>(1);
 
   const availableQuestions = useMemo(
     () => [...questions].sort((a, b) => a.title.localeCompare(b.title)),
@@ -89,14 +89,8 @@ export function CreateAssignmentForm({
   );
 
   const totalQuestionPages = Math.max(1, Math.ceil(filteredQuestions.length / questionPageSize));
-
-  useEffect(() => {
-    setQuestionPage(1);
-  }, [questionSearch, questionPageSize, showSelectedOnly]);
-
-  useEffect(() => {
-    setQuestionPage((currentPage) => Math.min(currentPage, totalQuestionPages));
-  }, [totalQuestionPages]);
+  const { page: questionPage, setPage: setQuestionPage, resetPage: resetQuestionPage } =
+    useClampedPage(totalQuestionPages);
 
   const pagedQuestions = useMemo(() => {
     const start = (questionPage - 1) * questionPageSize;
@@ -294,7 +288,10 @@ export function CreateAssignmentForm({
                     id="assignment-question-search"
                     type="text"
                     value={questionSearch}
-                    onChange={(event) => setQuestionSearch(event.target.value)}
+                    onChange={(event) => {
+                      setQuestionSearch(event.target.value);
+                      resetQuestionPage();
+                    }}
                     placeholder="Title, prompt, or tag"
                     className="form-input-block"
                   />
@@ -306,7 +303,10 @@ export function CreateAssignmentForm({
                   <select
                     id="assignment-question-page-size"
                     value={String(questionPageSize)}
-                    onChange={(event) => setQuestionPageSize(Number(event.target.value))}
+                    onChange={(event) => {
+                      setQuestionPageSize(Number(event.target.value));
+                      resetQuestionPage();
+                    }}
                     className="form-select-block"
                   >
                     {QUESTION_PAGE_SIZE_OPTIONS.map((size) => (
@@ -323,7 +323,10 @@ export function CreateAssignmentForm({
                   <input
                     type="checkbox"
                     checked={showSelectedOnly}
-                    onChange={(event) => setShowSelectedOnly(event.target.checked)}
+                    onChange={(event) => {
+                      setShowSelectedOnly(event.target.checked);
+                      resetQuestionPage();
+                    }}
                   />
                   Show selected only
                 </label>

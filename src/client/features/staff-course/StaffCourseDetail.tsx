@@ -36,7 +36,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
 
   const { course, assignments, questions, tags, enrollments, loading } = useStaffCourse(courseId, user, dbUser);
   const assignmentForm = useAssignmentForm(courseId);
-  const questionForm = useQuestionForm(courseId, assignments);
+  const questionForm = useQuestionForm(courseId);
 
   const removeEnrollmentMutation = useMutation({
     mutationFn: (enrollmentId: string) => coursesApi.removeEnrollment(courseId, enrollmentId),

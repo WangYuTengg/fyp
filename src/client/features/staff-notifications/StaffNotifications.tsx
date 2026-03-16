@@ -1,40 +1,96 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ArrowPathIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import type { NotificationType, StaffNotificationData } from '../../../lib/assessment';
+import { apiClient } from '../../lib/api';
 
 interface Notification {
   id: string;
-  type: 'grading_failed' | 'grading_completed' | 'batch_completed';
+  type: NotificationType;
   title: string;
   message: string | null;
-  data: any;
+  data: StaffNotificationData | null;
   read: boolean;
   createdAt: string;
+}
+
+type NotificationsResponse = {
+  notifications: Notification[];
+};
+
+function renderNotificationDetails(notification: Notification) {
+  const data = notification.data;
+
+  if (!data) {
+    return null;
+  }
+
+  if (notification.type === 'grading_failed' && 'error' in data && typeof data.error === 'string') {
+    return <div className="text-red-600">Error: {data.error}</div>;
+  }
+
+  if (notification.type === 'batch_completed') {
+    const processedCount =
+      'completed' in data && typeof data.completed === 'number'
+        ? data.completed
+        : 'count' in data && typeof data.count === 'number'
+          ? data.count
+          : undefined;
+    const totalCount =
+      'total' in data && typeof data.total === 'number'
+        ? data.total
+        : 'count' in data && typeof data.count === 'number'
+          ? data.count
+          : undefined;
+    const failedCount =
+      'failed' in data && typeof data.failed === 'number' ? data.failed : 0;
+
+    if (typeof processedCount === 'number' || typeof totalCount === 'number') {
+      return (
+        <div>
+          Processed: {processedCount ?? totalCount ?? 0}
+          {typeof totalCount === 'number' ? ` / ${totalCount}` : ''}
+          {failedCount > 0 ? ` (${failedCount} failed)` : ''}
+        </div>
+      );
+    }
+  }
+
+  if ('answerId' in data && typeof data.answerId === 'string' && data.answerId.length > 0) {
+    return <div>Answer ID: {data.answerId.slice(0, 8)}...</div>;
+  }
+
+  return null;
 }
 
 export function StaffNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async (): Promise<void> => {
     setLoading(true);
     try {
-      const response = await fetch('/api/notifications');
-      const data = await response.json();
-      setNotifications(data.notifications || []);
+      const data = await apiClient<NotificationsResponse>('/api/notifications');
+      setNotifications(data.notifications ?? []);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchNotifications();
+  }, [fetchNotifications]);
 
   const markAsRead = async (id: string) => {
     try {
-      await fetch(`/api/notifications/${id}/read`, {
+      await apiClient<{ success: true }>(`/api/notifications/${id}/read`, {
         method: 'PATCH',
       });
-      setNotifications(prev =>
-        prev.map(n => (n.id === id ? { ...n, read: true } : n))
+      setNotifications((previousNotifications) =>
+        previousNotifications.map((notification) =>
+          notification.id === id ? { ...notification, read: true } : notification
+        )
       );
     } catch (error) {
       console.error('Failed to mark as read:', error);
@@ -43,10 +99,12 @@ export function StaffNotifications() {
 
   const markAllAsRead = async () => {
     try {
-      await fetch('/api/notifications/mark-all-read', {
+      await apiClient<{ success: true }>('/api/notifications/mark-all-read', {
         method: 'PATCH',
       });
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications((previousNotifications) =>
+        previousNotifications.map((notification) => ({ ...notification, read: true }))
+      );
     } catch (error) {
       console.error('Failed to mark all as read:', error);
     }
@@ -89,7 +147,7 @@ export function StaffNotifications() {
             <ArrowPathIcon className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-          {notifications.some(n => !n.read) && (
+          {notifications.some((notification) => !notification.read) && (
             <button
               onClick={markAllAsRead}
               className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
@@ -128,11 +186,11 @@ export function StaffNotifications() {
             {notifications.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                  No notifications. Click "Refresh" to load notifications.
+                  No notifications yet.
                 </td>
               </tr>
             ) : (
-              notifications.map(notification => {
+              notifications.map((notification) => {
                 const typeDisplay = getTypeDisplay(notification.type);
                 return (
                   <tr
@@ -162,15 +220,7 @@ export function StaffNotifications() {
                       </div>
                       {notification.data && (
                         <div className="mt-1 text-xs text-gray-500">
-                          {notification.type === 'grading_failed' && notification.data.error && (
-                            <div className="text-red-600">Error: {notification.data.error}</div>
-                          )}
-                          {notification.type === 'batch_completed' && notification.data.count && (
-                            <div>Graded: {notification.data.count} submissions</div>
-                          )}
-                          {notification.data.answerId && (
-                            <div>Answer ID: {notification.data.answerId.slice(0, 8)}...</div>
-                          )}
+                          {renderNotificationDetails(notification)}
                         </div>
                       )}
                     </td>
@@ -199,7 +249,7 @@ export function StaffNotifications() {
         <div className="mt-4 text-sm text-gray-500 text-center">
           Showing {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
           {' • '}
-          {notifications.filter(n => !n.read).length} unread
+          {notifications.filter((notification) => !notification.read).length} unread
         </div>
       )}
     </div>

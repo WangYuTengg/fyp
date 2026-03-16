@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { McqOption, Question } from '../../../lib/api';
+import { useClampedPage } from '../../../hooks/useClampedPage';
 import { filterQuestions, type QuestionFilters } from '../utils/question-utils';
 import { EditQuestionForm } from './EditQuestionForm';
 import { QuestionCard } from './QuestionCard';
@@ -83,33 +84,16 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
   const [filters, setFilters] = useState<QuestionFilters>({});
   const [sort, setSort] = useState<QuestionSort>('newest');
   const [pageSize, setPageSize] = useState<number>(25);
-  const [page, setPage] = useState<number>(1);
-  const [viewMode, setViewMode] = useState<QuestionViewMode>('cards');
+  const [viewMode, setViewMode] = useState<QuestionViewMode>(() =>
+    questions.length > 80 ? 'table' : 'cards'
+  );
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
-  const autoViewInitialized = useRef(false);
-
-  useEffect(() => {
-    if (autoViewInitialized.current) {
-      return;
-    }
-    if (questions.length > 80) {
-      setViewMode('table');
-    }
-    autoViewInitialized.current = true;
-  }, [questions.length]);
 
   const filteredQuestions = useMemo(() => filterQuestions(questions, filters), [questions, filters]);
   const sortedQuestions = useMemo(() => sortQuestions(filteredQuestions, sort), [filteredQuestions, sort]);
   const totalQuestions = sortedQuestions.length;
   const totalPages = Math.max(1, Math.ceil(totalQuestions / pageSize));
-
-  useEffect(() => {
-    setPage(1);
-  }, [filters, sort, pageSize]);
-
-  useEffect(() => {
-    setPage((currentPage) => Math.min(currentPage, totalPages));
-  }, [totalPages]);
+  const { page, setPage, resetPage } = useClampedPage(totalPages);
 
   const pagedQuestions = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -141,12 +125,6 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
     [editingQuestionId, sortedQuestions]
   );
 
-  useEffect(() => {
-    if (editingQuestionId && !editingQuestion) {
-      setEditingQuestionId(null);
-    }
-  }, [editingQuestion, editingQuestionId]);
-
   const handleDelete = (question: Question) => {
     if (!onDelete) {
       return;
@@ -176,7 +154,10 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
               <select
                 id="question-pool-sort"
                 value={sort}
-                onChange={(event) => setSort(event.target.value as QuestionSort)}
+                onChange={(event) => {
+                  setSort(event.target.value as QuestionSort);
+                  resetPage();
+                }}
                 className="form-select-block"
               >
                 {SORT_OPTIONS.map((option) => (
@@ -193,7 +174,10 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
               <select
                 id="question-pool-page-size"
                 value={String(pageSize)}
-                onChange={(event) => setPageSize(Number(event.target.value))}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
+                  resetPage();
+                }}
                 className="form-select-block"
               >
                 {PAGE_SIZE_OPTIONS.map((option) => (
@@ -232,7 +216,10 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
 
       <QuestionFiltersComponent
         filters={filters}
-        setFilters={setFilters}
+        setFilters={(nextFilters) => {
+          setFilters(nextFilters);
+          resetPage();
+        }}
         availableTags={availableTags}
       />
 
@@ -249,7 +236,10 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
         {hasActiveFilters && (
           <button
             type="button"
-            onClick={() => setFilters({})}
+            onClick={() => {
+              setFilters({});
+              resetPage();
+            }}
             className="text-sm text-blue-600 hover:text-blue-800"
           >
             Reset filters

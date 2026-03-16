@@ -158,6 +158,7 @@ export function StaffGrading() {
         <div>
           {selectedSubmission ? (
             <GradingPanel
+              key={selectedSubmission.id}
               submission={selectedSubmission}
               assignment={assignment}
               onSubmitGrade={submitGrade}

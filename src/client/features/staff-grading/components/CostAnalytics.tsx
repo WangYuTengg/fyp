@@ -34,26 +34,25 @@ export function CostAnalytics({ onEstimate }: CostAnalyticsProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchStats();
-  }, [period]);
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await apiClient<UsageStats>(`/api/auto-grade/stats?period=${period}`);
+        setStats(data);
 
-  const fetchStats = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiClient<UsageStats>(`/api/auto-grade/stats?period=${period}`);
-      setStats(data);
-      
-      // Pass cost estimate to parent if needed
-      if (onEstimate && data.totalCost) {
-        onEstimate(data.totalCost);
+        if (onEstimate && data.totalCost) {
+          onEstimate(data.totalCost);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    void run();
+  }, [onEstimate, period]);
 
   if (loading) {
     return (

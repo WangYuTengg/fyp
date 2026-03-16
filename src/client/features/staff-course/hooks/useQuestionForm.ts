@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { questionsApi, type McqOption } from '../../../lib/api';
-import type { StaffAssignment } from '../types';
 
 function hasDuplicateMcqOptions(options: McqOption[]): boolean {
   const seen = new Set<string>();
@@ -15,7 +14,7 @@ function hasDuplicateMcqOptions(options: McqOption[]): boolean {
   return false;
 }
 
-export function useQuestionForm(courseId: string, _assignments: StaffAssignment[]) {
+export function useQuestionForm(courseId: string) {
   const [showForm, setShowForm] = useState(false);
   const [questionType, setQuestionType] = useState<'mcq' | 'written' | 'uml'>('written');
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>('');

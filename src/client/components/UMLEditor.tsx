@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import plantumlEncoder from 'plantuml-encoder';
 import { ClassDiagramEditor } from './uml/ClassDiagramEditor';
 import {
@@ -12,6 +12,14 @@ type UMLEditorProps = {
   onChange?: (value: string, editorState?: ClassDiagramState) => void;
   readOnly?: boolean;
   height?: string;
+};
+
+type UMLEditorInnerProps = {
+  initialValue: string;
+  initialDiagramState?: ClassDiagramState;
+  onChange?: (value: string, editorState?: ClassDiagramState) => void;
+  readOnly: boolean;
+  height: string;
 };
 
 type EditorMode = 'visual' | 'text' | 'preview';
@@ -32,57 +40,43 @@ Student --> "1" Assignment : completes
 
 const isNonEmptyText = (value?: string) => Boolean(value?.trim().length);
 
-export function UMLEditor({
-  initialValue = '',
+function UMLEditorInner({
+  initialValue,
   initialDiagramState,
   onChange,
-  readOnly = false,
-  height = '400px',
-}: UMLEditorProps) {
+  readOnly,
+  height,
+}: UMLEditorInnerProps) {
   const hasInitialText = isNonEmptyText(initialValue);
-  const [umlText, setUmlText] = useState(() => (hasInitialText ? initialValue : ''));
-  const [encodedUml, setEncodedUml] = useState('');
-  const [imageError, setImageError] = useState(false);
+  const [umlText, setUmlText] = useState(initialValue);
   const [activeTab, setActiveTab] = useState<EditorMode>(() =>
     initialDiagramState || !hasInitialText ? 'visual' : 'preview'
   );
-  const [diagramState, setDiagramState] = useState<ClassDiagramState>(
-    () => initialDiagramState ?? EMPTY_CLASS_DIAGRAM_STATE
-  );
-  const [diagramSeedKey, setDiagramSeedKey] = useState(() =>
-    initialDiagramState ? JSON.stringify(initialDiagramState) : 'empty-diagram'
-  );
+  const [diagram, setDiagram] = useState(() => ({
+    state: initialDiagramState ?? EMPTY_CLASS_DIAGRAM_STATE,
+    seedKey: initialDiagramState ? JSON.stringify(initialDiagramState) : 'empty-diagram',
+  }));
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    setUmlText(isNonEmptyText(initialValue) ? initialValue : '');
-  }, [initialValue]);
-
-  useEffect(() => {
-    if (!initialDiagramState) {
-      return;
-    }
-    if (initialDiagramState === diagramState) {
-      return;
-    }
-
-    setDiagramState(initialDiagramState);
-    setDiagramSeedKey(JSON.stringify(initialDiagramState));
-  }, [diagramState, initialDiagramState]);
-
-  useEffect(() => {
+  const previewState = useMemo(() => {
     if (!umlText.trim()) {
-      setEncodedUml('');
-      setImageError(false);
-      return;
+      return {
+        encodedUml: '',
+        hasEncodingError: false,
+      };
     }
 
     try {
-      const encoded = plantumlEncoder.encode(umlText);
-      setEncodedUml(encoded);
-      setImageError(false);
+      return {
+        encodedUml: plantumlEncoder.encode(umlText),
+        hasEncodingError: false,
+      };
     } catch (error) {
       console.error('Failed to encode UML:', error);
-      setImageError(true);
+      return {
+        encodedUml: '',
+        hasEncodingError: true,
+      };
     }
   }, [umlText]);
 
@@ -92,17 +86,23 @@ export function UMLEditor({
   };
 
   const handleDiagramChange = (state: ClassDiagramState, plantUml: string) => {
-    setDiagramState(state);
+    setDiagram({
+      state,
+      seedKey: JSON.stringify(state),
+    });
     setUmlText(plantUml);
     onChange?.(plantUml, state);
   };
 
   const visualUml = useMemo(
-    () => (diagramState ? generateClassDiagramPlantUml(diagramState) : ''),
-    [diagramState]
+    () => (diagram.state ? generateClassDiagramPlantUml(diagram.state) : ''),
+    [diagram.state]
   );
 
-  const imageUrl = encodedUml ? `https://www.plantuml.com/plantuml/svg/${encodedUml}` : '';
+  const imageUrl = previewState.encodedUml
+    ? `https://www.plantuml.com/plantuml/svg/${previewState.encodedUml}`
+    : '';
+  const imageError = previewState.hasEncodingError || failedImageUrl === imageUrl;
 
   const previewPanel = (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -124,7 +124,7 @@ export function UMLEditor({
             src={imageUrl}
             alt="UML Diagram Preview"
             className="mx-auto h-auto max-w-full"
-            onError={() => setImageError(true)}
+            onError={() => setFailedImageUrl(imageUrl)}
           />
         )}
       </div>
@@ -188,8 +188,8 @@ export function UMLEditor({
         <div className="p-4">
           {activeTab === 'visual' ? (
             <ClassDiagramEditor
-              key={diagramSeedKey}
-              initialState={diagramState}
+              key={diagram.seedKey}
+              initialState={diagram.state}
               onChange={handleDiagramChange}
               readOnly={readOnly}
               height={height}
@@ -241,5 +241,28 @@ export function UMLEditor({
         </div>
       )}
     </div>
+  );
+}
+
+export function UMLEditor({
+  initialValue = '',
+  initialDiagramState,
+  onChange,
+  readOnly = false,
+  height = '400px',
+}: UMLEditorProps) {
+  const normalizedInitialValue = isNonEmptyText(initialValue) ? initialValue : '';
+  const diagramSeedKey = initialDiagramState ? JSON.stringify(initialDiagramState) : 'empty-diagram';
+  const editorKey = `${normalizedInitialValue}::${diagramSeedKey}`;
+
+  return (
+    <UMLEditorInner
+      key={editorKey}
+      initialValue={normalizedInitialValue}
+      initialDiagramState={initialDiagramState}
+      onChange={onChange}
+      readOnly={readOnly}
+      height={height}
+    />
   );
 }

@@ -55,7 +55,7 @@ type AssignmentsResponse = {
 
 type BatchResponse = {
   batchId: string;
-  jobsQueued: number;
+  queuedCount: number;
 };
 
 type AssignmentAutoGradingListProps = {
@@ -197,7 +197,7 @@ export function AssignmentAutoGradingList({ courseId }: AssignmentAutoGradingLis
 
       // Show success message
       showNotification(
-        `Auto-grading started! ${result.jobsQueued} jobs queued.`,
+        `Auto-grading started! ${result.queuedCount} jobs queued.`,
         'success'
       );
       

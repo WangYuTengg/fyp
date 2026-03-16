@@ -20,10 +20,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [dbUser, setDbUser] = useState<DbUser>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [adminViewAs, setAdminViewAsState] = useState<'student' | 'staff' | null>(null);
+  const [adminViewAsPreference, setAdminViewAsState] = useState<'student' | 'staff' | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const stored = window.localStorage.getItem(ADMIN_VIEW_AS_KEY);
+    return stored === 'student' || stored === 'staff' ? stored : null;
+  });
 
   // Fetch user role from database
-  const fetchDbUser = async (accessToken: string) => {
+  const fetchDbUser = async (accessToken: string): Promise<void> => {
     try {
       const response = await fetch(`${API_BASE}/api/auth/me`, {
         headers: {
@@ -75,25 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    // Initialize admin view-as from localStorage once we know the DB role.
-    if (!dbUser) {
-      setAdminViewAsState(null);
-      return;
-    }
-
-    if (dbUser.role !== 'admin') {
-      setAdminViewAsState(null);
-      return;
-    }
-
-    const stored = typeof window !== 'undefined' ? window.localStorage.getItem(ADMIN_VIEW_AS_KEY) : null;
-    if (stored === 'student' || stored === 'staff') {
-      setAdminViewAsState(stored);
-    } else {
-      setAdminViewAsState('staff');
-    }
-  }, [dbUser?.id, dbUser?.role]);
+  const adminViewAs = dbUser?.role === 'admin' ? adminViewAsPreference ?? 'staff' : null;
 
   const setAdminViewAs = (role: 'student' | 'staff') => {
     // Only admins can change impersonation mode.
