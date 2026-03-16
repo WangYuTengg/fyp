@@ -1,6 +1,7 @@
 /** biome-ignore-all lint/a11y/noAutofocus: simple */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Question } from '../../../lib/api';
+import { getPromptFromContent } from '../utils/question-utils';
 
 type CreateAssignmentFormProps = {
   questions: Question[];
@@ -11,6 +12,7 @@ type CreateAssignmentFormProps = {
 };
 
 const STEP_TITLES = ['Basics', 'Settings', 'Questions', 'Review'] as const;
+const QUESTION_PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
 const getDefaultDueDate = () => {
   const tomorrow = new Date();
@@ -51,10 +53,59 @@ export function CreateAssignmentForm({
   const [dueDate, setDueDate] = useState(getDefaultDueDate);
   const [maxAttempts, setMaxAttempts] = useState(1);
   const [mcqPenaltyPerWrongSelection, setMcqPenaltyPerWrongSelection] = useState(1);
+  const [questionSearch, setQuestionSearch] = useState('');
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
+  const [questionPageSize, setQuestionPageSize] = useState<number>(20);
+  const [questionPage, setQuestionPage] = useState<number>(1);
 
   const availableQuestions = useMemo(
     () => [...questions].sort((a, b) => a.title.localeCompare(b.title)),
     [questions]
+  );
+
+  const filteredQuestions = useMemo(() => {
+    const search = questionSearch.trim().toLowerCase();
+
+    return availableQuestions
+      .filter((question) => {
+        if (showSelectedOnly && !selectedQuestionIds.includes(question.id)) {
+          return false;
+        }
+
+        if (!search) {
+          return true;
+        }
+
+        const titleMatch = question.title.toLowerCase().includes(search);
+        const promptMatch = getPromptFromContent(question.content).toLowerCase().includes(search);
+        const tagMatch = (question.tags || []).some((tag) => tag.toLowerCase().includes(search));
+        return titleMatch || promptMatch || tagMatch;
+      });
+  }, [availableQuestions, questionSearch, selectedQuestionIds, showSelectedOnly]);
+
+  const filteredQuestionIds = useMemo(
+    () => filteredQuestions.map((question) => question.id),
+    [filteredQuestions]
+  );
+
+  const totalQuestionPages = Math.max(1, Math.ceil(filteredQuestions.length / questionPageSize));
+
+  useEffect(() => {
+    setQuestionPage(1);
+  }, [questionSearch, questionPageSize, showSelectedOnly]);
+
+  useEffect(() => {
+    setQuestionPage((currentPage) => Math.min(currentPage, totalQuestionPages));
+  }, [totalQuestionPages]);
+
+  const pagedQuestions = useMemo(() => {
+    const start = (questionPage - 1) * questionPageSize;
+    return filteredQuestions.slice(start, start + questionPageSize);
+  }, [filteredQuestions, questionPage, questionPageSize]);
+
+  const visibleQuestionIds = useMemo(
+    () => pagedQuestions.map((question) => question.id),
+    [pagedQuestions]
   );
 
   const isLastStep = step === STEP_TITLES.length - 1;
@@ -108,6 +159,28 @@ export function CreateAssignmentForm({
     }
     updateSelectedQuestionIds(selectedQuestionIds.filter((id) => id !== questionId));
   };
+
+  const selectAllFiltered = () => {
+    updateSelectedQuestionIds([...selectedQuestionIds, ...filteredQuestionIds]);
+  };
+
+  const clearFiltered = () => {
+    const filteredSet = new Set(filteredQuestionIds);
+    updateSelectedQuestionIds(selectedQuestionIds.filter((id) => !filteredSet.has(id)));
+  };
+
+  const selectVisible = () => {
+    updateSelectedQuestionIds([...selectedQuestionIds, ...visibleQuestionIds]);
+  };
+
+  const clearVisible = () => {
+    const visibleSet = new Set(visibleQuestionIds);
+    updateSelectedQuestionIds(selectedQuestionIds.filter((id) => !visibleSet.has(id)));
+  };
+
+  const pageStart = filteredQuestions.length === 0 ? 0 : (questionPage - 1) * questionPageSize + 1;
+  const pageEnd = Math.min(questionPage * questionPageSize, filteredQuestions.length);
+  const pageRangeLabel = filteredQuestions.length === 0 ? '0' : `${pageStart}-${pageEnd}`;
 
   return (
     <form onSubmit={handleFormSubmit} className="space-y-4">
@@ -211,22 +284,131 @@ export function CreateAssignmentForm({
               No questions yet. Create some below.
             </p>
           ) : (
-            <div className="mt-2 space-y-2 max-h-48 overflow-auto border border-gray-200 rounded p-3">
-              {availableQuestions.map((q) => (
-                <div key={q.id} className="flex items-start gap-3 text-sm">
-                  <input
-                    id={`create-assignment-question-${q.id}`}
-                    type="checkbox"
-                    checked={selectedQuestionIds.includes(q.id)}
-                    onChange={(evt) => toggleQuestionSelection(q.id, evt.target.checked)}
-                    className="mt-1"
-                  />
-                  <label htmlFor={`create-assignment-question-${q.id}`}>
-                    <span className="font-medium text-gray-900">{q.title}</span>
-                    <span className="block text-xs text-gray-500">{q.points} pts</span>
+            <div className="mt-2 space-y-3 rounded border border-gray-200 p-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div className="sm:col-span-2">
+                  <label htmlFor="assignment-question-search" className="block text-xs font-medium text-gray-600">
+                    Search questions
                   </label>
+                  <input
+                    id="assignment-question-search"
+                    type="text"
+                    value={questionSearch}
+                    onChange={(event) => setQuestionSearch(event.target.value)}
+                    placeholder="Title, prompt, or tag"
+                    className="form-input-block"
+                  />
                 </div>
-              ))}
+                <div>
+                  <label htmlFor="assignment-question-page-size" className="block text-xs font-medium text-gray-600">
+                    Per page
+                  </label>
+                  <select
+                    id="assignment-question-page-size"
+                    value={String(questionPageSize)}
+                    onChange={(event) => setQuestionPageSize(Number(event.target.value))}
+                    className="form-select-block"
+                  >
+                    {QUESTION_PAGE_SIZE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={showSelectedOnly}
+                    onChange={(event) => setShowSelectedOnly(event.target.checked)}
+                  />
+                  Show selected only
+                </label>
+                <button
+                  type="button"
+                  onClick={selectVisible}
+                  className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  Select page
+                </button>
+                <button
+                  type="button"
+                  onClick={clearVisible}
+                  className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  Clear page
+                </button>
+                <button
+                  type="button"
+                  onClick={selectAllFiltered}
+                  className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  Select all filtered
+                </button>
+                <button
+                  type="button"
+                  onClick={clearFiltered}
+                  className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  Clear filtered
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Showing {pageRangeLabel} of {filteredQuestions.length} filtered questions
+              </p>
+
+              {filteredQuestions.length === 0 ? (
+                <p className="text-sm text-gray-500">No questions match your current filters.</p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-auto">
+                  {pagedQuestions.map((q) => (
+                    <div key={q.id} className="flex items-start gap-3 rounded border border-gray-100 px-2 py-2 text-sm hover:bg-gray-50">
+                      <input
+                        id={`create-assignment-question-${q.id}`}
+                        type="checkbox"
+                        checked={selectedQuestionIds.includes(q.id)}
+                        onChange={(evt) => toggleQuestionSelection(q.id, evt.target.checked)}
+                        className="mt-1"
+                      />
+                      <label htmlFor={`create-assignment-question-${q.id}`} className="min-w-0">
+                        <span className="font-medium text-gray-900">{q.title}</span>
+                        <span className="block text-xs text-gray-500 mt-1">{q.points} pts</span>
+                        <span className="block text-xs text-gray-500 truncate">{getPromptFromContent(q.content)}</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {totalQuestionPages > 1 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500">
+                    Page {questionPage} of {totalQuestionPages}
+                  </p>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setQuestionPage((currentPage) => Math.max(1, currentPage - 1))}
+                      disabled={questionPage === 1}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuestionPage((currentPage) => Math.min(totalQuestionPages, currentPage + 1))}
+                      disabled={questionPage === totalQuestionPages}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

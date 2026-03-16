@@ -3,15 +3,14 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { Modal } from '../../components/Modal';
-import { useStaffCourse, type QuestionFilters } from './hooks/useStaffCourse';
+import { useStaffCourse } from './hooks/useStaffCourse';
 import { useAssignmentForm } from './hooks/useAssignmentForm';
 import { useQuestionForm } from './hooks/useQuestionForm';
 import { CourseHeader } from './components/CourseHeader';
 import { CreateAssignmentForm } from './components/CreateAssignmentForm';
 import { CreateQuestionForm } from './components/CreateQuestionForm';
 import { AssignmentCard } from './components/AssignmentCard';
-import { QuestionCard } from './components/QuestionCard';
-import { QuestionFilters as QuestionFiltersComponent } from './components/QuestionFilters';
+import { QuestionPoolPanel } from './components/QuestionPoolPanel';
 import { TagManager } from './components/TagManager';
 import { CourseRoster } from './components/CourseRoster';
 import { BulkEnrollModal } from './components/BulkEnrollModal';
@@ -30,18 +29,12 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
   const { user, dbUser, loading: authLoading, setAdminViewAs } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('assignments');
-  const [questionFilters, setQuestionFilters] = useState<QuestionFilters>({});
   const [showTagManager, setShowTagManager] = useState(false);
   const [showBulkEnroll, setShowBulkEnroll] = useState(false);
   const [removingEnrollmentId, setRemovingEnrollmentId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { course, assignments, questions, tags, enrollments, loading } = useStaffCourse(
-    courseId,
-    user,
-    dbUser,
-    questionFilters
-  );
+  const { course, assignments, questions, tags, enrollments, loading } = useStaffCourse(courseId, user, dbUser);
   const assignmentForm = useAssignmentForm(courseId);
   const questionForm = useQuestionForm(courseId, assignments);
 
@@ -232,27 +225,12 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                   tags={tags}
                 />
               </Modal>
-              <QuestionFiltersComponent
-                filters={questionFilters}
-                setFilters={setQuestionFilters}
+              <QuestionPoolPanel
+                questions={questions}
                 availableTags={tags}
+                onDelete={questionForm.deleteQuestion}
+                onEdit={questionForm.editQuestion}
               />
-
-              {questions.length === 0 ? (
-                <p className="text-gray-500">No questions found.</p>
-              ) : (
-                <div className="space-y-4">
-                  {questions.map((question) => (
-                    <QuestionCard
-                      key={question.id}
-                      question={question}
-                      onDelete={questionForm.deleteQuestion}
-                      onEdit={questionForm.editQuestion}
-                      availableTags={tags}
-                    />
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
