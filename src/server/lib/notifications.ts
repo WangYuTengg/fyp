@@ -1,8 +1,7 @@
 import { db } from '../../db/index.js';
 import { staffNotifications, aiGradingJobs } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
-
-type NotificationType = 'grading_failed' | 'grading_completed' | 'batch_completed';
+import type { NotificationType, StaffNotificationData } from '../../lib/assessment.js';
 
 /**
  * Create a staff notification
@@ -12,7 +11,7 @@ export async function createNotification(
   type: NotificationType,
   title: string,
   message: string,
-  data?: Record<string, unknown>
+  data?: StaffNotificationData
 ) {
   await db.insert(staffNotifications).values({
     userId,

@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { rateLimiter } from 'hono-rate-limiter';
+import type { TaskList } from 'graphile-worker';
 import authRoutes from './routes/auth/index.js';
 import coursesRoutes from './routes/courses/index.js';
 import assignmentsRoutes from './routes/assignments/index.js';
@@ -18,8 +19,8 @@ import settingsRoutes from './routes/settings/index.js';
 import usersRoutes from './routes/users/index.js';
 import { authMiddleware, type AuthContext } from './middleware/auth.js';
 import { initializeWorker, shutdownWorker } from './lib/worker.js';
-import autoGradeWritten from './jobs/auto-grade-written.js';
-import autoGradeUML from './jobs/auto-grade-uml.js';
+import autoGradeWritten, { type AutoGradeWrittenPayload } from './jobs/auto-grade-written.js';
+import autoGradeUML, { type AutoGradeUMLPayload } from './jobs/auto-grade-uml.js';
 import { RATE_LIMIT_CONFIG } from './config/constants.js';
 
 const app = new Hono<AuthContext>();
@@ -85,9 +86,10 @@ if (process.env.NODE_ENV === 'production') {
 const port = Number(process.env.PORT) || 3000;
 
 // Initialize Graphile Worker for background job processing
-const taskList = {
-  'auto-grade-written': autoGradeWritten as any,
-  'auto-grade-uml': autoGradeUML as any,
+const taskList: TaskList = {
+  'auto-grade-written': (payload, helpers) =>
+    autoGradeWritten(payload as AutoGradeWrittenPayload, helpers),
+  'auto-grade-uml': (payload, helpers) => autoGradeUML(payload as AutoGradeUMLPayload, helpers),
 };
 
 initializeWorker(taskList)

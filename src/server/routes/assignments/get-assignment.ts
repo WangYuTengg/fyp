@@ -3,6 +3,7 @@ import { db } from '../../../db/index.js';
 import { assignments, assignmentQuestions, questions, enrollments } from '../../../db/schema.js';
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
 import { eq, and } from 'drizzle-orm';
+import { omitTeacherOnlyFields, toStudentSafeMcqContent } from '../../lib/content-utils.js';
 
 const getAssignmentRoute = new Hono<AuthContext>();
 
@@ -60,31 +61,17 @@ getAssignmentRoute.get('/:id', requireAuth, async (c) => {
   const sanitizedQuestions = user.role === 'student'
     ? assignmentQs.map((row) => {
         const q = row.question;
-        const content = (q.content ?? {}) as any;
 
         if (q.type === 'written' || q.type === 'uml') {
-          const rest = { ...content };
-          delete rest.modelAnswer;
-          return { ...row, question: { ...q, content: rest } };
+          return { ...row, question: { ...q, content: omitTeacherOnlyFields(q.content) } };
         }
 
         if (q.type === 'mcq') {
-          const options = Array.isArray(content.options) ? content.options : [];
-          const safeOptions = options.map((opt: any) => ({
-            id: opt.id,
-            text: opt.text,
-          }));
-
           return {
             ...row,
             question: {
               ...q,
-              content: {
-                ...content,
-                options: safeOptions,
-                // Never disclose answer keys to students.
-                showCorrectAnswers: false,
-              },
+              content: toStudentSafeMcqContent(q.content),
             },
           };
         }

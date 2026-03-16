@@ -1,11 +1,15 @@
 import { eq } from 'drizzle-orm';
+import type { JobHelpers } from 'graphile-worker';
 import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { answers, aiGradingJobs, aiUsageStats, questions } from '../../db/schema.js';
+import type { RubricCriterion } from '../../lib/assessment.js';
 import { generateAIObject, generateAIVision } from '../lib/ai.js';
 import { getPrompt } from '../config/prompts.js';
 import { calculateCost } from '../config/pricing.js';
 import { getSignedUrl } from '../lib/storage.js';
+import { getAnswerContent, getQuestionContent, getRubricCriteria } from '../lib/content-utils.js';
+import { getErrorMessage, getErrorStack } from '../lib/error-utils.js';
 import { checkBatchCompletion, notifyGradingFailed } from '../lib/notifications.js';
 
 /**
@@ -16,13 +20,7 @@ import { checkBatchCompletion, notifyGradingFailed } from '../lib/notifications.
  * 2. Image path: Extract PlantUML from image using vision model, then compare
  */
 
-interface RubricCriterion {
-  id: string;
-  description: string;
-  maxPoints: number;
-}
-
-interface AutoGradeUMLPayload {
+export interface AutoGradeUMLPayload {
   answerId: string;
   questionId: string;
   submissionId: string;
@@ -49,7 +47,7 @@ const UMLGradingResponseSchema = z.object({
 
 type UMLGradingResponse = z.infer<typeof UMLGradingResponseSchema>;
 
-export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers: any) {
+export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers: JobHelpers) {
   const { answerId, questionId, submissionId, userId, batchId, jobId, rubricOverride } = payload;
   const startTime = Date.now();
 
@@ -83,20 +81,22 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
       throw new Error(`Question ${questionId} not found`);
     }
 
-    const questionContent = questionData.content as any;
+    const questionContent = getQuestionContent(questionData.content);
     const maxPoints = questionData.points;
 
     // Prefer modelAnswer (hidden reference used for grading). Fall back to legacy referenceDiagram.
     const referenceDiagram =
       (typeof questionContent.modelAnswer === 'string' && questionContent.modelAnswer.trim().length > 0)
         ? questionContent.modelAnswer
-        : questionContent.referenceDiagram;
+        : typeof questionContent.referenceDiagram === 'string'
+          ? questionContent.referenceDiagram
+          : undefined;
 
     if (!referenceDiagram || String(referenceDiagram).trim().length === 0) {
       throw new Error(`Question ${questionId} has no UML answer diagram`);
     }
 
-    const answerContent = answerData.content as any;
+    const answerContent = getAnswerContent(answerData.content);
     const studentUmlText = answerContent.umlText;
     const fileUrl = answerData.fileUrl;
 
@@ -152,15 +152,14 @@ Be precise with:
     const promptVersion = promptTemplate.version;
 
     // Use rubric override if provided, otherwise use question rubric
-    const questionContent2 = questionData.content as any;
-    const rubric = rubricOverride || questionContent2.rubric?.criteria || null;
+    const rubric = rubricOverride || getRubricCriteria(questionData.rubric);
 
     // Build user prompt (function-based)
-    const userPrompt = (promptTemplate as any).userText({
+    const userPrompt = promptTemplate.userText({
       studentUML: studentUml,
       referenceUML: referenceDiagram,
       maxPoints,
-      rubric: rubric || undefined,
+      rubric: rubric ?? undefined,
     });
 
     // 4. Call LLM with structured output for grading
@@ -269,17 +268,18 @@ Be precise with:
       await checkBatchCompletion(batchId, userId);
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     const processingTime = Date.now() - startTime;
-    helpers.logger.error(`Failed to auto-grade UML answer ${answerId}:`, error);
+    const errorMessage = getErrorMessage(error);
+    helpers.logger.error(`Failed to auto-grade UML answer ${answerId}: ${errorMessage}`);
 
     // Update job as failed
     await db.update(aiGradingJobs)
       .set({
         status: 'failed',
         error: {
-          message: error.message,
-          stack: error.stack,
+          message: errorMessage,
+          stack: getErrorStack(error),
           timestamp: new Date().toISOString(),
         },
         completedAt: new Date(),
@@ -323,7 +323,7 @@ Be precise with:
       answerId,
       submissionId,
       questionId,
-      error.message,
+      errorMessage,
       batchId
     );
 

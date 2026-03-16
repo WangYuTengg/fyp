@@ -10,6 +10,8 @@ import {
   courses,
 } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
+import { getQuestionContent } from '../../lib/content-utils.js';
+import { getErrorMessage } from '../../lib/error-utils.js';
 import { errorResponse, ErrorCodes } from '../../lib/errors.js';
 
 const assignmentsRoute = new Hono<AuthContext>();
@@ -82,10 +84,7 @@ assignmentsRoute.get('/assignments', authMiddleware, async (c) => {
 
         // Find questions missing model answers (stored in content.modelAnswer)
         const missingModelAnswers = gradableQuestions
-          .filter(q => {
-            const content = q.content as any;
-            return !content?.modelAnswer;
-          })
+          .filter((q) => !getQuestionContent(q.content).modelAnswer)
           .map(q => q.questionId);
 
         // Get submitted/late submissions for this assignment
@@ -144,9 +143,9 @@ assignmentsRoute.get('/assignments', authMiddleware, async (c) => {
     }
 
     return c.json({ assignments: result });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get assignments error:', error);
-    return c.json({ error: 'Failed to fetch assignments', details: error.message }, 500);
+    return c.json({ error: 'Failed to fetch assignments', details: getErrorMessage(error) }, 500);
   }
 });
 

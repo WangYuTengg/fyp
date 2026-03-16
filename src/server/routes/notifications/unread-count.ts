@@ -3,6 +3,7 @@ import { db } from '../../../db/index.js';
 import { staffNotifications } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
 import { eq, and } from 'drizzle-orm';
+import { getErrorMessage } from '../../lib/error-utils.js';
 
 const unreadCountRoute = new Hono<AuthContext>();
 
@@ -30,9 +31,9 @@ unreadCountRoute.get('/unread-count', authMiddleware, async (c) => {
       );
 
     return c.json({ count: unreadNotifications.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch unread count:', error);
-    return c.json({ error: 'Failed to fetch unread count' }, 500);
+    return c.json({ error: 'Failed to fetch unread count', details: getErrorMessage(error) }, 500);
   }
 });
 

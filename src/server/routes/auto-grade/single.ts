@@ -4,6 +4,7 @@ import { answers, aiGradingJobs, questions, submissions } from '../../../db/sche
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
 import { eq } from 'drizzle-orm';
 import { singleAutoGradeSchema } from '../../lib/validation-schemas.js';
+import { getErrorMessage } from '../../lib/error-utils.js';
 import { errorResponse, ErrorCodes } from '../../lib/errors.js';
 import { addJob } from '../../lib/worker.js';
 
@@ -104,9 +105,9 @@ singleRoute.post('/single', authMiddleware, async (c) => {
       jobId: jobRecord.id,
       message: `Queued auto-grading for answer ${answerId}`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Single auto-grade error:', error);
-    return c.json({ error: 'Failed to queue auto-grading job', details: error.message }, 500);
+    return c.json({ error: 'Failed to queue auto-grading job', details: getErrorMessage(error) }, 500);
   }
 });
 

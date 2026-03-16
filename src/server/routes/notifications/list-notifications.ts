@@ -3,6 +3,7 @@ import { db } from '../../../db/index.js';
 import { staffNotifications } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
 import { eq, desc } from 'drizzle-orm';
+import { getErrorMessage } from '../../lib/error-utils.js';
 
 const listNotificationsRoute = new Hono<AuthContext>();
 
@@ -26,9 +27,9 @@ listNotificationsRoute.get('/', authMiddleware, async (c) => {
       .orderBy(desc(staffNotifications.createdAt));
 
     return c.json({ notifications });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch notifications:', error);
-    return c.json({ error: 'Failed to fetch notifications' }, 500);
+    return c.json({ error: 'Failed to fetch notifications', details: getErrorMessage(error) }, 500);
   }
 });
 

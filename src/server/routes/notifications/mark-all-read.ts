@@ -3,6 +3,7 @@ import { db } from '../../../db/index.js';
 import { staffNotifications } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
 import { eq, and } from 'drizzle-orm';
+import { getErrorMessage } from '../../lib/error-utils.js';
 
 const markAllReadRoute = new Hono<AuthContext>();
 
@@ -30,9 +31,9 @@ markAllReadRoute.patch('/mark-all-read', authMiddleware, async (c) => {
       );
 
     return c.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to mark all as read:', error);
-    return c.json({ error: 'Failed to update notifications' }, 500);
+    return c.json({ error: 'Failed to update notifications', details: getErrorMessage(error) }, 500);
   }
 });
 

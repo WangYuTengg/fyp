@@ -1,4 +1,12 @@
 import { supabase } from '../../lib/supabase';
+import type { McqOption, QuestionContent } from '../../lib/assessment';
+export type {
+  McqContent,
+  McqOption,
+  QuestionContent,
+  UMLContent,
+  WrittenContent,
+} from '../../lib/assessment';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -16,37 +24,13 @@ export class ApiRequestError extends Error {
   }
 }
 
-export type McqOption = {
-  id: string;
-  text: string;
-  isCorrect?: boolean; // Whether this is a correct answer
-};
-
-export type McqContent = {
-  prompt: string;
-  options: McqOption[];
-  allowMultiple?: boolean;
-  showCorrectAnswers?: boolean; // Whether to show correct answers to students
-};
-
-export type WrittenContent = {
-  prompt: string;
-  modelAnswer?: string; // Reference answer for graders
-};
-
-export type UMLContent = {
-  prompt: string;
-  referenceDiagram?: string;
-  modelAnswer?: string; // Reference answer for graders / auto-grading (should be omitted for students)
-};
-
 export type Question = {
   id: string;
   courseId: string | null;
   type: 'mcq' | 'written' | 'coding' | 'uml';
   title: string;
   description: string | null;
-  content: McqContent | WrittenContent | UMLContent | unknown;
+  content: QuestionContent;
   rubric: unknown;
   points: number;
   tags: string[] | null;

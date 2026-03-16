@@ -1,10 +1,14 @@
 import { eq } from 'drizzle-orm';
+import type { JobHelpers } from 'graphile-worker';
 import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { answers, aiGradingJobs, aiUsageStats, questions } from '../../db/schema.js';
+import type { RubricCriterion } from '../../lib/assessment.js';
 import { generateAIObject } from '../lib/ai.js';
 import { getPrompt } from '../config/prompts.js';
 import { calculateCost } from '../config/pricing.js';
+import { getAnswerContent, getQuestionContent, getRubricCriteria } from '../lib/content-utils.js';
+import { getErrorMessage, getErrorStack } from '../lib/error-utils.js';
 import { checkBatchCompletion, notifyGradingFailed } from '../lib/notifications.js';
 
 /**
@@ -14,13 +18,7 @@ import { checkBatchCompletion, notifyGradingFailed } from '../lib/notifications.
  * Uses structured output with Zod validation for reliable grading.
  */
 
-interface RubricCriterion {
-  id: string;
-  description: string;
-  maxPoints: number;
-}
-
-interface AutoGradeWrittenPayload {
+export interface AutoGradeWrittenPayload {
   answerId: string;
   questionId: string;
   submissionId: string;
@@ -46,7 +44,10 @@ const GradingResponseSchema = z.object({
 
 type GradingResponse = z.infer<typeof GradingResponseSchema>;
 
-export default async function autoGradeWritten(payload: AutoGradeWrittenPayload, helpers: any) {
+export default async function autoGradeWritten(
+  payload: AutoGradeWrittenPayload,
+  helpers: JobHelpers
+) {
   const { answerId, questionId, submissionId, userId, batchId, jobId, rubricOverride } = payload;
   const startTime = Date.now();
 
@@ -80,17 +81,19 @@ export default async function autoGradeWritten(payload: AutoGradeWrittenPayload,
       throw new Error(`Question ${questionId} not found`);
     }
 
-    const questionContent = questionData.content as any;
-    const maxPoints = questionData.points; // Use 'points' not 'maxPoints'
-    const modelAnswer = questionContent.modelAnswer;
+    const questionContent = getQuestionContent(questionData.content);
+    const maxPoints = questionData.points;
+    const modelAnswer =
+      typeof questionContent.modelAnswer === 'string' ? questionContent.modelAnswer : undefined;
 
-    if (!modelAnswer) {
+    if (!modelAnswer || modelAnswer.trim().length === 0) {
       throw new Error(`Question ${questionId} has no model answer`);
     }
 
-    const studentAnswer = (answerData.content as any).text || '';
+    const answerContent = getAnswerContent(answerData.content);
+    const studentAnswer = answerContent.text?.trim() ?? '';
 
-    if (!studentAnswer || studentAnswer.trim().length === 0) {
+    if (!studentAnswer) {
       throw new Error('Student answer is empty');
     }
 
@@ -100,12 +103,12 @@ export default async function autoGradeWritten(payload: AutoGradeWrittenPayload,
     const promptVersion = promptTemplate.version;
 
     // Use rubric override if provided, otherwise use question rubric
-    const rubric = rubricOverride || questionContent.rubric?.criteria || null;
-    const userPrompt = (promptTemplate as any).user({
+    const rubric = rubricOverride || getRubricCriteria(questionData.rubric);
+    const userPrompt = promptTemplate.user({
       studentAnswer,
       modelAnswer,
       maxPoints,
-      rubric: rubric || undefined,
+      rubric: rubric ?? undefined,
     });
 
     // 4. Call LLM with structured output
@@ -211,17 +214,18 @@ export default async function autoGradeWritten(payload: AutoGradeWrittenPayload,
       await checkBatchCompletion(batchId, userId);
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     const processingTime = Date.now() - startTime;
-    helpers.logger.error(`Failed to auto-grade answer ${answerId}:`, error);
+    const errorMessage = getErrorMessage(error);
+    helpers.logger.error(`Failed to auto-grade answer ${answerId}: ${errorMessage}`);
 
     // Update job as failed
     await db.update(aiGradingJobs)
       .set({
         status: 'failed',
         error: {
-          message: error.message,
-          stack: error.stack,
+          message: errorMessage,
+          stack: getErrorStack(error),
           timestamp: new Date().toISOString(),
         },
         completedAt: new Date(),
@@ -260,7 +264,7 @@ export default async function autoGradeWritten(payload: AutoGradeWrittenPayload,
     }
 
     // Create staff notification for failure
-    await notifyGradingFailed(userId, answerId, submissionId, questionId, error.message, batchId);
+    await notifyGradingFailed(userId, answerId, submissionId, questionId, errorMessage, batchId);
 
     // Re-throw error to mark job as failed in Graphile Worker
     throw error;

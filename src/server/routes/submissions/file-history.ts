@@ -50,7 +50,7 @@ fileHistoryRoute.get('/answer/:answerId/file-history', requireAuth, async (c) =>
       try {
         const signedUrl = await getSignedUrl(upload.filePath);
         return { ...upload, fileUrl: signedUrl };
-      } catch (err) {
+      } catch {
         // If signed URL generation fails, keep the path
         return upload;
       }

@@ -4,7 +4,39 @@
  * Store version in aiGradingSuggestion for audit trail
  */
 
+import type { RubricCriterion } from '../../lib/assessment.js';
+
 export const PROMPT_VERSION = process.env.PROMPT_VERSION || 'v1';
+
+type WrittenPromptParams = {
+  studentAnswer: string;
+  modelAnswer: string;
+  maxPoints: number;
+  rubric?: RubricCriterion[];
+};
+
+type UMLTextPromptParams = {
+  studentUML: string;
+  referenceUML: string;
+  maxPoints: number;
+  rubric?: RubricCriterion[];
+};
+
+type UMLImagePromptParams = {
+  referenceUML: string;
+  maxPoints: number;
+};
+
+type WrittenPromptDefinition = {
+  system: string;
+  user: (params: WrittenPromptParams) => string;
+};
+
+type UMLPromptDefinition = {
+  system: string;
+  userText: (params: UMLTextPromptParams) => string;
+  userImage: (params: UMLImagePromptParams) => string;
+};
 
 export const prompts = {
   written: {
@@ -19,12 +51,7 @@ Be fair and objective. Award partial credit for partially correct answers. Consi
 
 Provide a confidence score (0-100) indicating how certain you are about your grading.`,
 
-      user: (params: {
-        studentAnswer: string;
-        modelAnswer: string;
-        maxPoints: number;
-        rubric?: Array<{ id: string; description: string; maxPoints: number }>;
-      }) => {
+      user: (params: WrittenPromptParams) => {
         let prompt = `Grade the following student answer:
 
 **Student Answer:**
@@ -48,7 +75,7 @@ ${params.modelAnswer}
 
         return prompt;
       },
-    },
+    } satisfies WrittenPromptDefinition,
 
     // v2: Stricter grading with more emphasis on technical precision
     v2: {
@@ -64,12 +91,7 @@ Minor errors or missing details should result in point deductions. Require compr
 
 Provide a confidence score (0-100) for your assessment.`,
 
-      user: (params: {
-        studentAnswer: string;
-        modelAnswer: string;
-        maxPoints: number;
-        rubric?: Array<{ id: string; description: string; maxPoints: number }>;
-      }) => {
+      user: (params: WrittenPromptParams) => {
         let prompt = `Strictly evaluate this student answer:
 
 **Student Answer:**
@@ -93,7 +115,7 @@ ${params.modelAnswer}
 
         return prompt;
       },
-    },
+    } satisfies WrittenPromptDefinition,
   },
 
   uml: {
@@ -111,12 +133,7 @@ For image-based diagrams, first extract the UML structure, then compare to the r
 
 Provide a confidence score (0-100) indicating how certain you are about your grading.`,
 
-      userText: (params: {
-        studentUML: string;
-        referenceUML: string;
-        maxPoints: number;
-        rubric?: Array<{ id: string; description: string; maxPoints: number }>;
-      }) => {
+      userText: (params: UMLTextPromptParams) => {
         let prompt = `Grade the following student UML diagram:
 
 **Student PlantUML Code:**
@@ -145,10 +162,7 @@ ${params.referenceUML}
         return prompt;
       },
 
-      userImage: (params: {
-        referenceUML: string;
-        maxPoints: number;
-      }) => `Analyze the UML diagram in the provided image.
+      userImage: (params: UMLImagePromptParams) => `Analyze the UML diagram in the provided image.
 
 First, extract the diagram structure and convert it to PlantUML syntax.
 
@@ -165,7 +179,7 @@ Provide:
 1. Extracted PlantUML code from the image
 2. Comparison analysis
 3. Grade (0-${params.maxPoints}) with reasoning`,
-    },
+    } satisfies UMLPromptDefinition,
 
     // v2: More detailed UML analysis with pattern recognition
     v2: {
@@ -183,11 +197,8 @@ Be thorough in identifying both strengths and weaknesses. Award bonus points for
 
 Provide confidence score (0-100) based on diagram clarity and your certainty.`,
 
-      userText: (params: {
-        studentUML: string;
-        referenceUML: string;
-        maxPoints: number;
-      }) => `Comprehensively evaluate this UML diagram:
+      userText: (params: UMLTextPromptParams) => {
+        let prompt = `Comprehensively evaluate this UML diagram:
 
 **Student Submission (PlantUML):**
 \`\`\`plantuml
@@ -208,12 +219,19 @@ Analyze:
 - Design patterns and architectural quality
 - UML standard compliance
 
-Provide detailed score (0-${params.maxPoints}) with element-by-element comparison.`,
+Provide detailed score (0-${params.maxPoints}) with element-by-element comparison.`;
 
-      userImage: (params: {
-        referenceUML: string;
-        maxPoints: number;
-      }) => `Perform detailed analysis of the UML diagram image.
+        if (params.rubric && params.rubric.length > 0) {
+          prompt += `\n\n**Rubric:**\n`;
+          params.rubric.forEach((criterion, index) => {
+            prompt += `${index + 1}. ${criterion.description} (${criterion.maxPoints} points)\n`;
+          });
+        }
+
+        return prompt;
+      },
+
+      userImage: (params: UMLImagePromptParams) => `Perform detailed analysis of the UML diagram image.
 
 **Step 1:** Extract complete diagram structure including:
 - All classes with attributes (visibility, types)
@@ -234,13 +252,15 @@ Deliverables:
 1. Extracted PlantUML code
 2. Detailed comparison analysis
 3. Grade (0-${params.maxPoints}) with comprehensive reasoning`,
-    },
+    } satisfies UMLPromptDefinition,
   },
 } as const;
 
 /**
  * Get active prompt for question type
  */
+export function getPrompt(type: 'written'): WrittenPromptDefinition & { version: 'v1' | 'v2' };
+export function getPrompt(type: 'uml'): UMLPromptDefinition & { version: 'v1' | 'v2' };
 export function getPrompt(type: 'written' | 'uml') {
   const version = (PROMPT_VERSION === 'v2' ? 'v2' : 'v1') as 'v1' | 'v2';
   return {

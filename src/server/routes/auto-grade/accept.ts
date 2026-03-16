@@ -3,6 +3,8 @@ import { db } from '../../../db/index.js';
 import { answers, marks, questions } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
 import { eq } from 'drizzle-orm';
+import { getAiGradingSuggestion } from '../../lib/content-utils.js';
+import { getErrorMessage } from '../../lib/error-utils.js';
 
 const acceptRoute = new Hono<AuthContext>();
 
@@ -37,7 +39,7 @@ acceptRoute.post('/:answerId/accept', authMiddleware, async (c) => {
       return c.json({ error: 'Answer not found' }, 404);
     }
 
-    const suggestion = answerData.aiGradingSuggestion as any;
+    const suggestion = getAiGradingSuggestion(answerData.aiGradingSuggestion);
     if (!suggestion) {
       return c.json({ error: 'No AI grading suggestion to accept' }, 400);
     }
@@ -63,9 +65,9 @@ acceptRoute.post('/:answerId/accept', authMiddleware, async (c) => {
       points: mark.points,
       maxPoints: mark.maxPoints,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Accept AI suggestion error:', error);
-    return c.json({ error: 'Failed to accept AI suggestion', details: error.message }, 500);
+    return c.json({ error: 'Failed to accept AI suggestion', details: getErrorMessage(error) }, 500);
   }
 });
 

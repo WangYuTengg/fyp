@@ -4,6 +4,7 @@ import { submissions, answers, marks, questions, users } from '../../../db/schem
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
 import { eq } from 'drizzle-orm';
 import { getSignedUrl } from '../../lib/storage.js';
+import { omitTeacherOnlyFields, toStudentSafeMcqContent } from '../../lib/content-utils.js';
 
 const getSubmissionRoute = new Hono<AuthContext>();
 
@@ -73,32 +74,19 @@ getSubmissionRoute.get('/:submissionId', requireAuth, async (c) => {
   const sanitizedAnswers = !isStaff
     ? answersWithSignedUrls.map((answer) => {
         const q = answer.question;
-        const content = (q?.content ?? {}) as any;
 
         if (!q) return answer;
 
         if (q.type === 'written' || q.type === 'uml') {
-          const rest = { ...content };
-          delete rest.modelAnswer;
-          return { ...answer, question: { ...q, content: rest } };
+          return { ...answer, question: { ...q, content: omitTeacherOnlyFields(q.content) } };
         }
 
         if (q.type === 'mcq') {
-          const options = Array.isArray(content.options) ? content.options : [];
-          const safeOptions = options.map((opt: any) => ({
-            id: opt.id,
-            text: opt.text,
-          }));
-
           return {
             ...answer,
             question: {
               ...q,
-              content: {
-                ...content,
-                options: safeOptions,
-                showCorrectAnswers: false,
-              },
+              content: toStudentSafeMcqContent(q.content),
             },
           };
         }

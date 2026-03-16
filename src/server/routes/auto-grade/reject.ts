@@ -3,6 +3,7 @@ import { db } from '../../../db/index.js';
 import { answers, marks, questions } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
 import { eq } from 'drizzle-orm';
+import { getErrorMessage } from '../../lib/error-utils.js';
 
 const rejectRoute = new Hono<AuthContext>();
 
@@ -68,9 +69,9 @@ rejectRoute.post('/:answerId/reject', authMiddleware, async (c) => {
       points: mark.points,
       maxPoints: mark.maxPoints,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Reject AI suggestion error:', error);
-    return c.json({ error: 'Failed to save manual grade', details: error.message }, 500);
+    return c.json({ error: 'Failed to save manual grade', details: getErrorMessage(error) }, 500);
   }
 });
 

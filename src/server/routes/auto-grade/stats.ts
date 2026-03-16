@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../../../db/index.js';
 import { aiUsageStats } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
+import { getErrorMessage } from '../../lib/error-utils.js';
 
 const statsRoute = new Hono<AuthContext>();
 
@@ -97,9 +98,9 @@ statsRoute.get('/stats', authMiddleware, async (c) => {
         successRate: s.requestCount > 0 ? (s.successCount / s.requestCount) * 100 : 0,
       })),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Stats error:', error);
-    return c.json({ error: 'Failed to fetch statistics' }, 500);
+    return c.json({ error: 'Failed to fetch statistics', details: getErrorMessage(error) }, 500);
   }
 });
 

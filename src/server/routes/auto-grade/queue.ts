@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../../../db/index.js';
 import { aiGradingJobs, aiUsageStats } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
+import { getErrorMessage } from '../../lib/error-utils.js';
 
 const queueRoute = new Hono<AuthContext>();
 
@@ -43,9 +44,9 @@ queueRoute.get('/queue', authMiddleware, async (c) => {
       estimatedCompletionMs,
       queueDepth: pending + processing,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Queue status error:', error);
-    return c.json({ error: 'Failed to fetch queue status' }, 500);
+    return c.json({ error: 'Failed to fetch queue status', details: getErrorMessage(error) }, 500);
   }
 });
 

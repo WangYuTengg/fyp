@@ -15,6 +15,7 @@ import { validateAssignmentHasAnswers } from '../../lib/validators.js';
 import { addJob } from '../../lib/worker.js';
 import { randomUUID } from 'crypto';
 import { batchAutoGradeSchema } from '../../lib/validation-schemas.js';
+import { getErrorMessage } from '../../lib/error-utils.js';
 import { errorResponse, ErrorCodes } from '../../lib/errors.js';
 
 const batchRoute = new Hono<AuthContext>();
@@ -104,9 +105,9 @@ batchRoute.post('/batch', authMiddleware, async (c) => {
       .where(eq(assignmentQuestions.assignmentId, assignmentId));
 
     // Filter by question types if specified
-    const targetTypes = questionTypes || ['written', 'uml'];
+    const targetTypes = new Set(questionTypes ?? ['written', 'uml']);
     const questionIds = assignmentQs
-      .filter((q) => targetTypes.includes(q.type as any))
+      .filter((q) => targetTypes.has(q.type))
       .map((q) => q.questionId);
 
     if (questionIds.length === 0) {
@@ -204,9 +205,9 @@ batchRoute.post('/batch', authMiddleware, async (c) => {
       estimatedCost: parseFloat(estimatedCost.toFixed(4)),
       message: `Queued ${queuedCount} answers for auto-grading`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Batch auto-grade error:', error);
-    return c.json({ error: 'Failed to queue auto-grading jobs', details: error.message }, 500);
+    return c.json({ error: 'Failed to queue auto-grading jobs', details: getErrorMessage(error) }, 500);
   }
 });
 

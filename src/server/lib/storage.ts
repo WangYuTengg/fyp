@@ -3,8 +3,8 @@ import { STORAGE_CONFIG } from '../config/constants.js';
 
 const STORAGE_BUCKET = STORAGE_CONFIG.BUCKET_NAME;
 const MAX_FILE_SIZE = STORAGE_CONFIG.MAX_FILE_SIZE;
-const ALLOWED_MIME_TYPES = STORAGE_CONFIG.ALLOWED_MIME_TYPES;
-const ALLOWED_EXTENSIONS = STORAGE_CONFIG.ALLOWED_EXTENSIONS;
+const ALLOWED_MIME_TYPES: readonly string[] = STORAGE_CONFIG.ALLOWED_MIME_TYPES;
+const ALLOWED_EXTENSIONS: readonly string[] = STORAGE_CONFIG.ALLOWED_EXTENSIONS;
 
 export type UploadResult = {
   path: string;
@@ -29,7 +29,7 @@ export function validateFile(file: {
 
   // Check file extension
   const extension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-  if (!ALLOWED_EXTENSIONS.includes(extension as any)) {
+  if (!ALLOWED_EXTENSIONS.includes(extension)) {
     return {
       valid: false,
       error: `File type not allowed. Allowed types: ${ALLOWED_EXTENSIONS.join(', ')}`,
@@ -37,7 +37,7 @@ export function validateFile(file: {
   }
 
   // Check MIME type (if available)
-  if (file.type && !ALLOWED_MIME_TYPES.includes(file.type as any)) {
+  if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
     return {
       valid: false,
       error: `MIME type not allowed. File type: ${file.type}`,
