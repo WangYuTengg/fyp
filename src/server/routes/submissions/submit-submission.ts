@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../../../db/index.js';
 import { answers, assignmentQuestions, assignments, marks, questions, submissions } from '../../../db/schema.js';
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 type McqOption = {
   id?: string;
@@ -198,7 +198,19 @@ submitSubmissionRoute.post('/:submissionId/submit', requireAuth, async (c) => {
     });
   }
 
-  const shouldAutoCompleteGrading = assignment?.type === 'mcq';
+  const [nonMcqQuestion] = await db
+    .select({ id: questions.id })
+    .from(assignmentQuestions)
+    .innerJoin(questions, eq(assignmentQuestions.questionId, questions.id))
+    .where(
+      and(
+        eq(assignmentQuestions.assignmentId, submission.assignmentId),
+        inArray(questions.type, ['written', 'uml', 'coding'])
+      )
+    )
+    .limit(1);
+
+  const shouldAutoCompleteGrading = !nonMcqQuestion;
   const [updated] = await db
     .update(submissions)
     .set({

@@ -73,9 +73,9 @@ export function CreateQuestionForm({
   const [modelAnswer, setModelAnswer] = useState('');
   const [showCorrectAnswers, setShowCorrectAnswers] = useState(false);
 
-  const filteredAssignments = useMemo(
-    () => assignments.filter((a) => a.type === questionType),
-    [assignments, questionType]
+  const availableAssignments = useMemo(
+    () => [...assignments].sort((a, b) => a.title.localeCompare(b.title)),
+    [assignments]
   );
   const validMcqOptions = useMemo(
     () => mcqOptions.filter((option) => option.text.trim().length > 0),
@@ -304,7 +304,7 @@ export function CreateQuestionForm({
                       }`}
                       title="Toggle correct answer"
                     >
-                      {option.isCorrect ? 'Correct' : 'Mark Correct'}
+                      {option.isCorrect ? 'Correct answer' : 'Mark as correct'}
                     </button>
                   </div>
 
@@ -436,15 +436,12 @@ export function CreateQuestionForm({
               className="form-select-block"
             >
               <option value="">-- None (add to question pool only) --</option>
-              {filteredAssignments.map((assignment) => (
+              {availableAssignments.map((assignment) => (
                 <option key={assignment.id} value={assignment.id}>
                   {assignment.title}
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-gray-500">
-              Only {questionType.toUpperCase()} assignments are shown.
-            </p>
           </div>
 
           <div>
@@ -536,7 +533,7 @@ export function CreateQuestionForm({
             <p className="text-xs uppercase tracking-wide text-gray-500">Assignment</p>
             <p className="text-gray-900">
               {selectedAssignmentId
-                ? filteredAssignments.find((assignment) => assignment.id === selectedAssignmentId)?.title ??
+                ? availableAssignments.find((assignment) => assignment.id === selectedAssignmentId)?.title ??
                   'Selected assignment'
                 : 'Question pool only'}
             </p>

@@ -3,8 +3,6 @@ import { useMemo, useState } from 'react';
 import type { Question } from '../../../lib/api';
 
 type CreateAssignmentFormProps = {
-  assignmentType: 'mcq' | 'written' | 'uml';
-  setAssignmentType: (type: 'mcq' | 'written' | 'uml') => void;
   questions: Question[];
   selectedQuestionIds: string[];
   setSelectedQuestionIds: (ids: string[]) => void;
@@ -40,8 +38,6 @@ const getMinDateTime = () => {
 };
 
 export function CreateAssignmentForm({
-  assignmentType,
-  setAssignmentType,
   questions,
   selectedQuestionIds,
   setSelectedQuestionIds,
@@ -56,9 +52,9 @@ export function CreateAssignmentForm({
   const [maxAttempts, setMaxAttempts] = useState(1);
   const [mcqPenaltyPerWrongSelection, setMcqPenaltyPerWrongSelection] = useState(1);
 
-  const questionsForType = useMemo(
-    () => questions.filter((q) => q.type === assignmentType),
-    [assignmentType, questions]
+  const availableQuestions = useMemo(
+    () => [...questions].sort((a, b) => a.title.localeCompare(b.title)),
+    [questions]
   );
 
   const isLastStep = step === STEP_TITLES.length - 1;
@@ -66,13 +62,11 @@ export function CreateAssignmentForm({
     if (step === 0) return title.trim().length > 0;
     if (step === 1) {
       const hasValidMaxAttempts = Number.isFinite(maxAttempts) && maxAttempts >= 1;
-      const hasValidPenalty =
-        assignmentType !== 'mcq' ||
-        (Number.isFinite(mcqPenaltyPerWrongSelection) && mcqPenaltyPerWrongSelection >= 0);
+      const hasValidPenalty = Number.isFinite(mcqPenaltyPerWrongSelection) && mcqPenaltyPerWrongSelection >= 0;
       return hasValidMaxAttempts && hasValidPenalty;
     }
     return true;
-  }, [assignmentType, maxAttempts, mcqPenaltyPerWrongSelection, step, title]);
+  }, [maxAttempts, mcqPenaltyPerWrongSelection, step, title]);
 
   const handleNext = () => {
     if (isLastStep || !canProceed) return;
@@ -101,6 +95,18 @@ export function CreateAssignmentForm({
     }
     setSubmitIntent(false);
     onSubmit(e);
+  };
+
+  const updateSelectedQuestionIds = (ids: string[]) => {
+    setSelectedQuestionIds(Array.from(new Set(ids)));
+  };
+
+  const toggleQuestionSelection = (questionId: string, checked: boolean) => {
+    if (checked) {
+      updateSelectedQuestionIds([...selectedQuestionIds, questionId]);
+      return;
+    }
+    updateSelectedQuestionIds(selectedQuestionIds.filter((id) => id !== questionId));
   };
 
   return (
@@ -146,21 +152,7 @@ export function CreateAssignmentForm({
       )}
 
       {step === 1 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <label htmlFor="create-assignment-type" className="block text-sm font-medium text-gray-700">Type</label>
-            <select
-              id="create-assignment-type"
-              value={assignmentType}
-              onChange={(event) => setAssignmentType(event.target.value as 'mcq' | 'written' | 'uml')}
-              className="form-select-block"
-              autoFocus
-            >
-              <option value="mcq">MCQ</option>
-              <option value="written">Written</option>
-              <option value="uml">UML</option>
-            </select>
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <label htmlFor="create-assignment-due-date" className="block text-sm font-medium text-gray-700">Due Date</label>
             <input
@@ -183,53 +175,50 @@ export function CreateAssignmentForm({
               className="form-input-block"
             />
           </div>
-          {assignmentType === 'mcq' && (
-            <div>
-              <label htmlFor="create-assignment-mcq-penalty" className="block text-sm font-medium text-gray-700">
-                Multi-answer penalty
-              </label>
-              <input
-                id="create-assignment-mcq-penalty"
-                type="number"
-                value={mcqPenaltyPerWrongSelection}
-                onChange={(e) => {
-                  const nextValue = Number(e.target.value);
-                  setMcqPenaltyPerWrongSelection(Number.isFinite(nextValue) ? nextValue : 0);
-                }}
-                min={0}
-                step={1}
-                className="form-input-block"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Points deducted per wrong selected option (multi-answer MCQ only).
-              </p>
-            </div>
-          )}
+          <div>
+            <label htmlFor="create-assignment-mcq-penalty" className="block text-sm font-medium text-gray-700">
+              Multi-answer penalty
+            </label>
+            <input
+              id="create-assignment-mcq-penalty"
+              type="number"
+              value={mcqPenaltyPerWrongSelection}
+              onChange={(e) => {
+                const nextValue = Number(e.target.value);
+                setMcqPenaltyPerWrongSelection(Number.isFinite(nextValue) ? nextValue : 0);
+              }}
+              min={0}
+              step={1}
+              className="form-input-block"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Points deducted per wrong selected option (multi-answer MCQ only).
+            </p>
+          </div>
         </div>
       )}
 
       {step === 2 && (
         <div className="border-t border-gray-200 pt-4">
-          <h3 className="text-sm font-medium text-gray-900">Questions (optional)</h3>
-          {questionsForType.length === 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-medium text-gray-900">Questions (optional)</h3>
+            <p className="text-xs text-gray-500">
+              Selected {selectedQuestionIds.length} of {availableQuestions.length} questions
+            </p>
+          </div>
+          {availableQuestions.length === 0 ? (
             <p className="mt-2 text-sm text-gray-500">
-              No {assignmentType.toUpperCase()} questions yet. Create some below.
+              No questions yet. Create some below.
             </p>
           ) : (
             <div className="mt-2 space-y-2 max-h-48 overflow-auto border border-gray-200 rounded p-3">
-              {questionsForType.map((q) => (
+              {availableQuestions.map((q) => (
                 <div key={q.id} className="flex items-start gap-3 text-sm">
                   <input
                     id={`create-assignment-question-${q.id}`}
                     type="checkbox"
                     checked={selectedQuestionIds.includes(q.id)}
-                    onChange={(evt) => {
-                      setSelectedQuestionIds(
-                        evt.target.checked
-                          ? [...selectedQuestionIds, q.id]
-                          : selectedQuestionIds.filter((id) => id !== q.id)
-                      );
-                    }}
+                    onChange={(evt) => toggleQuestionSelection(q.id, evt.target.checked)}
                     className="mt-1"
                   />
                   <label htmlFor={`create-assignment-question-${q.id}`}>
@@ -250,10 +239,6 @@ export function CreateAssignmentForm({
             <p className="font-medium text-gray-900">{title}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Type</p>
-            <p className="font-medium text-gray-900">{assignmentType.toUpperCase()}</p>
-          </div>
-          <div>
             <p className="text-xs uppercase tracking-wide text-gray-500">Due Date</p>
             <p className="text-gray-900">{dueDate || 'No due date set'}</p>
           </div>
@@ -261,12 +246,10 @@ export function CreateAssignmentForm({
             <p className="text-xs uppercase tracking-wide text-gray-500">Max Attempts</p>
             <p className="text-gray-900">{maxAttempts}</p>
           </div>
-          {assignmentType === 'mcq' && (
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Multi-answer Penalty</p>
-              <p className="text-gray-900">{mcqPenaltyPerWrongSelection} per wrong selection</p>
-            </div>
-          )}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-gray-500">Multi-answer Penalty</p>
+            <p className="text-gray-900">{mcqPenaltyPerWrongSelection} per wrong selection</p>
+          </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-500">Selected Questions</p>
             <p className="text-gray-900">{selectedQuestionIds.length}</p>

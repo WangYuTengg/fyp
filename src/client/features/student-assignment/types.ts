@@ -17,7 +17,6 @@ export type AssignmentDetails = {
   id: string;
   title: string;
   description: string | null;
-  type: string;
   courseId: string;
   dueDate: string | null;
   timeLimit: number | null;

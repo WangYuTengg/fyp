@@ -49,7 +49,6 @@ export function AssignmentsList({ assignments }: AssignmentsListProps) {
                   </div>
                   <p className="text-gray-600 mt-1">{assignment.description}</p>
                   <div className="mt-2 flex gap-4 text-sm text-gray-500">
-                    <span>Type: {assignment.type.toUpperCase()}</span>
                     {assignment.dueDate && (
                       <span>Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
                     )}

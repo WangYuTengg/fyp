@@ -166,8 +166,6 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                 size="xl"
               >
                 <CreateAssignmentForm
-                  assignmentType={assignmentForm.assignmentType}
-                  setAssignmentType={assignmentForm.setAssignmentType}
                   questions={questions}
                   selectedQuestionIds={assignmentForm.selectedQuestionIds}
                   setSelectedQuestionIds={assignmentForm.setSelectedQuestionIds}
@@ -234,7 +232,6 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                   tags={tags}
                 />
               </Modal>
-
               <QuestionFiltersComponent
                 filters={questionFilters}
                 setFilters={setQuestionFilters}
@@ -246,9 +243,9 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
               ) : (
                 <div className="space-y-4">
                   {questions.map((question) => (
-                    <QuestionCard 
-                      key={question.id} 
-                      question={question} 
+                    <QuestionCard
+                      key={question.id}
+                      question={question}
                       onDelete={questionForm.deleteQuestion}
                       onEdit={questionForm.editQuestion}
                       availableTags={tags}

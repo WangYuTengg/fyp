@@ -18,7 +18,6 @@ export type StaffAssignment = {
   id: string;
   title: string;
   description: string | null;
-  type: string;
   dueDate: string | null;
   maxAttempts: number | null;
   mcqPenaltyPerWrongSelection: number;

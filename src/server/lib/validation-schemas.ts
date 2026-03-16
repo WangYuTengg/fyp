@@ -34,7 +34,6 @@ export const createAssignmentSchema = z.object({
   courseId: z.string().uuid('Invalid course ID'),
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  type: z.enum(['mcq', 'written', 'uml']),
   dueDate: z.string().datetime().optional(),
   openDate: z.string().datetime().optional(),
   maxAttempts: z.number().int().min(1).optional().default(1),

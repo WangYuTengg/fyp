@@ -5,7 +5,6 @@ import { assignmentsApi } from '../../../lib/api';
 export function useAssignmentForm(courseId: string) {
   const [showForm, setShowForm] = useState(false);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
-  const [assignmentType, setAssignmentType] = useState<'mcq' | 'written' | 'uml'>('mcq');
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
@@ -44,25 +43,21 @@ export function useAssignmentForm(courseId: string) {
     },
   });
 
-  const handleAssignmentTypeChange = (newType: 'mcq' | 'written' | 'uml') => {
-    setAssignmentType(newType);
-    setSelectedQuestionIds([]);
-  };
-
   const createAssignment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const mcqPenaltyRaw = Number(formData.get('mcqPenaltyPerWrongSelection'));
-    const mcqPenaltyPerWrongSelection = Number.isFinite(mcqPenaltyRaw) ? mcqPenaltyRaw : 1;
+    const mcqPenaltyPerWrongSelection = Number.isFinite(mcqPenaltyRaw)
+      ? Math.max(0, Math.floor(mcqPenaltyRaw))
+      : 1;
 
     createMutation.mutate({
       courseId,
       title: formData.get('title'),
       description: formData.get('description'),
-      type: assignmentType,
       dueDate: formData.get('dueDate') || null,
       maxAttempts: Number(formData.get('maxAttempts')) || 1,
-      mcqPenaltyPerWrongSelection: assignmentType === 'mcq' ? mcqPenaltyPerWrongSelection : undefined,
+      mcqPenaltyPerWrongSelection,
       questionIds: selectedQuestionIds,
     });
   };
@@ -76,8 +71,6 @@ export function useAssignmentForm(courseId: string) {
     setShowForm,
     selectedQuestionIds,
     setSelectedQuestionIds,
-    assignmentType,
-    setAssignmentType: handleAssignmentTypeChange,
     createAssignment,
     togglePublish,
     deleteAssignment: (assignmentId: string) => deleteMutation.mutate(assignmentId),

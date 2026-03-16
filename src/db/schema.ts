@@ -68,7 +68,6 @@ export const assignments = pgTable('assignments', {
   courseId: uuid('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   description: text('description'),
-  type: assignmentTypeEnum('type').notNull(),
   dueDate: timestamp('due_date'),
   openDate: timestamp('open_date').defaultNow(),
   maxAttempts: integer('max_attempts').default(1),

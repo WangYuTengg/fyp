@@ -3,7 +3,6 @@ export type GradingAssignment = {
   courseId: string;
   title: string;
   description: string | null;
-  type: 'mcq' | 'written' | 'coding' | 'uml';
   dueDate: string | null;
   timeLimit: number | null;
   maxAttempts: number;

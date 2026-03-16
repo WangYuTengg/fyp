@@ -33,9 +33,9 @@ addQuestionsRoute.post('/:id/questions', requireAuth, async (c) => {
     return c.json({ error: 'Assignment not found' }, 404);
   }
 
-  // Validate questions exist, match type, and belong to the same course
+  // Validate questions exist and belong to the same course
   const questionRows = await db
-    .select({ id: questions.id, type: questions.type, courseId: questions.courseId })
+    .select({ id: questions.id, courseId: questions.courseId })
     .from(questions)
     .where(inArray(questions.id, questionIds));
 
@@ -43,12 +43,10 @@ addQuestionsRoute.post('/:id/questions', requireAuth, async (c) => {
     return c.json({ error: 'One or more questions were not found' }, 400);
   }
 
-  const invalidQuestion = questionRows.find(
-    (question) => question.type !== assignment.type || question.courseId !== assignment.courseId
-  );
+  const invalidQuestion = questionRows.find((question) => question.courseId !== assignment.courseId);
 
   if (invalidQuestion) {
-    return c.json({ error: 'All questions must match the assignment type and course' }, 400);
+    return c.json({ error: 'All questions must belong to this course' }, 400);
   }
 
   // Get current max order
