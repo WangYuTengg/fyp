@@ -88,6 +88,21 @@ export function QuestionCard({
         />
       )}
 
+      {question.type === 'coding' && (
+        <textarea
+          rows={12}
+          value={answer?.type === 'coding' ? answer.text : ''}
+          onChange={(e) => {
+            const value = e.target.value;
+            onUpdateAnswer(question.id, { type: 'coding', text: value });
+          }}
+          className="form-textarea-block min-h-56 font-mono text-sm"
+          placeholder="Write your code here..."
+          disabled={isSubmitted}
+          spellCheck={false}
+        />
+      )}
+
       {question.type === 'mcq' && (
         <div className="space-y-2">
           {getMcqOptions(question.content).map((option) => (
@@ -193,7 +208,7 @@ export function QuestionCard({
         </div>
       )}
 
-      {question.type !== 'written' && question.type !== 'mcq' && question.type !== 'uml' && (
+      {question.type !== 'written' && question.type !== 'coding' && question.type !== 'mcq' && question.type !== 'uml' && (
         <p className="text-sm text-gray-500">This question type is not supported yet.</p>
       )}
 

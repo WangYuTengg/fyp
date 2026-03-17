@@ -71,6 +71,10 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
         return umlChanged || editorChanged;
       }
 
+      if (answer.type === 'coding') {
+        return answer.text !== (savedAnswer.content.text ?? '');
+      }
+
       return answer.text !== (savedAnswer.content.text ?? '');
     });
   }, [answers, savedAnswersByQuestionId]);
@@ -81,6 +85,10 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
       const savedAnswer = savedAnswersByQuestionId.get(question.id);
 
       if (answer?.type === 'written') {
+        return answer.text.trim().length === 0;
+      }
+
+      if (answer?.type === 'coding') {
         return answer.text.trim().length === 0;
       }
 

@@ -6,6 +6,15 @@ import { inArray } from 'drizzle-orm';
 
 const createAssignmentRoute = new Hono<AuthContext>();
 
+function parseOptionalDate(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 'invalid' : parsed;
+}
+
 // Create an assignment (staff/admin only)
 createAssignmentRoute.post('/', requireAuth, async (c) => {
   const user = c.get('user')!;
@@ -37,11 +46,20 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     questionIds?: string[];
   };
 
-  if (!courseId || !title) {
+  const trimmedTitle = title?.trim();
+  const normalizedQuestionIds = Array.isArray(questionIds)
+    ? questionIds.filter((questionId, index) => questionIds.indexOf(questionId) === index)
+    : [];
+
+  if (!courseId || !trimmedTitle) {
     return c.json({ error: 'Missing required fields' }, 400);
   }
 
-  const maxAttemptsValue = typeof maxAttempts === 'number' && maxAttempts > 0 ? maxAttempts : 1;
+  if (maxAttempts !== undefined && maxAttempts !== null && (!Number.isInteger(maxAttempts) || maxAttempts < 1)) {
+    return c.json({ error: 'maxAttempts must be an integer >= 1' }, 400);
+  }
+
+  const maxAttemptsValue = typeof maxAttempts === 'number' ? maxAttempts : 1;
   let mcqPenaltyValue = 1;
 
   if (mcqPenaltyPerWrongSelection !== undefined && mcqPenaltyPerWrongSelection !== null) {
@@ -51,22 +69,40 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     mcqPenaltyValue = mcqPenaltyPerWrongSelection;
   }
 
+  if (timeLimit !== undefined && timeLimit !== null && (!Number.isInteger(timeLimit) || timeLimit < 1)) {
+    return c.json({ error: 'timeLimit must be an integer >= 1' }, 400);
+  }
+
+  const dueDateValue = parseOptionalDate(dueDate);
+  const openDateValue = parseOptionalDate(openDate);
+
+  if (dueDateValue === 'invalid') {
+    return c.json({ error: 'Invalid dueDate' }, 400);
+  }
+
+  if (openDateValue === 'invalid') {
+    return c.json({ error: 'Invalid openDate' }, 400);
+  }
+
   // Validate due date is in the future
-  if (dueDate) {
-    const dueDateObj = new Date(dueDate);
+  if (dueDateValue) {
     const now = new Date();
-    if (dueDateObj <= now) {
+    if (dueDateValue <= now) {
       return c.json({ error: 'Due date must be in the future' }, 400);
     }
   }
 
-  if (Array.isArray(questionIds) && questionIds.length > 0) {
+  if (dueDateValue && openDateValue && openDateValue >= dueDateValue) {
+    return c.json({ error: 'openDate must be earlier than dueDate' }, 400);
+  }
+
+  if (normalizedQuestionIds.length > 0) {
     const questionRows = await db
       .select({ id: questions.id, courseId: questions.courseId })
       .from(questions)
-      .where(inArray(questions.id, questionIds));
+      .where(inArray(questions.id, normalizedQuestionIds));
 
-    if (questionRows.length !== questionIds.length) {
+    if (questionRows.length !== normalizedQuestionIds.length) {
       return c.json({ error: 'One or more questions were not found' }, 400);
     }
 
@@ -81,21 +117,21 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     .insert(assignments)
     .values({
       courseId,
-      title,
-      description,
-      dueDate: dueDate ? new Date(dueDate) : null,
-      openDate: openDate ? new Date(openDate) : new Date(),
+      title: trimmedTitle,
+      description: description?.trim() || null,
+      dueDate: dueDateValue,
+      openDate: openDateValue ?? new Date(),
       maxAttempts: maxAttemptsValue,
       mcqPenaltyPerWrongSelection: mcqPenaltyValue,
-      timeLimit,
+      timeLimit: timeLimit ?? null,
       isPublished: false,
       createdBy: user.id,
     })
     .returning();
 
-  if (Array.isArray(questionIds) && questionIds.length > 0) {
+  if (normalizedQuestionIds.length > 0) {
     await db.insert(assignmentQuestions).values(
-      questionIds.map((questionId, index) => ({
+      normalizedQuestionIds.map((questionId, index) => ({
         assignmentId: assignment.id,
         questionId,
         order: index + 1,

@@ -1,4 +1,5 @@
 import type { AssignmentDetails } from '../types';
+import { QUESTION_TYPE_LABELS, QUESTION_TYPE_ORDER, getQuestionTypeBadgeClasses } from '../../../lib/question-types';
 
 type AssignmentHeaderProps = {
   assignment: AssignmentDetails;
@@ -19,6 +20,8 @@ export function AssignmentHeader({
   lastSaved,
   isSaving,
 }: AssignmentHeaderProps) {
+  const visibleQuestionTypes = QUESTION_TYPE_ORDER.filter((type) => assignment.questionTypeCounts[type] > 0);
+
   return (
     <>
       {toast && (
@@ -32,6 +35,16 @@ export function AssignmentHeader({
             <h1 className="text-2xl font-bold text-gray-900">{assignment.title}</h1>
             {assignment.description && <p className="mt-2 text-gray-600">{assignment.description}</p>}
             {dueDate && <p className="mt-2 text-sm text-gray-500">Due: {dueDate.toLocaleString()}</p>}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">
+                {assignment.questionCount} question{assignment.questionCount === 1 ? '' : 's'}
+              </span>
+              {visibleQuestionTypes.map((type) => (
+                <span key={type} className={getQuestionTypeBadgeClasses(type)}>
+                  {assignment.questionTypeCounts[type]} {QUESTION_TYPE_LABELS[type]}
+                </span>
+              ))}
+            </div>
           </div>
           {!submitted && (
             <div className="text-right">

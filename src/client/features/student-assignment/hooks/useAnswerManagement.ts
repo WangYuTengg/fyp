@@ -35,9 +35,9 @@ export function useAnswerManagement(
           umlText: answer.content.umlText,
           editorState: answer.content.editorState,
         };
-      } else if (question.type === 'written' && answer.content.text !== undefined) {
+      } else if ((question.type === 'written' || question.type === 'coding') && answer.content.text !== undefined) {
         hydratedAnswers[answer.questionId] = {
-          type: 'written',
+          type: question.type,
           text: answer.content.text,
         };
       }
@@ -89,7 +89,12 @@ export function useAnswerManagement(
           editorState: draft?.type === 'uml' ? draft.editorState : undefined,
         };
       } else {
-        content = { text: draft?.type === 'written' ? draft.text : '' };
+        content = {
+          text:
+            draft?.type === 'written' || draft?.type === 'coding'
+              ? draft.text
+              : '',
+        };
       }
 
       try {

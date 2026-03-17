@@ -46,18 +46,28 @@ export function useAssignmentForm(courseId: string) {
   const createAssignment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const maxAttemptsRaw = Number(formData.get('maxAttempts'));
     const mcqPenaltyRaw = Number(formData.get('mcqPenaltyPerWrongSelection'));
+    const timeLimitRaw = Number(formData.get('timeLimit'));
     const mcqPenaltyPerWrongSelection = Number.isFinite(mcqPenaltyRaw)
       ? Math.max(0, Math.floor(mcqPenaltyRaw))
       : 1;
+    const maxAttempts = Number.isFinite(maxAttemptsRaw)
+      ? Math.max(1, Math.floor(maxAttemptsRaw))
+      : 1;
+    const timeLimit = String(formData.get('timeLimit') || '').trim().length > 0 && Number.isFinite(timeLimitRaw)
+      ? Math.max(1, Math.floor(timeLimitRaw))
+      : null;
 
     createMutation.mutate({
       courseId,
-      title: formData.get('title'),
-      description: formData.get('description'),
+      title: String(formData.get('title') || '').trim(),
+      description: String(formData.get('description') || '').trim() || null,
       dueDate: formData.get('dueDate') || null,
-      maxAttempts: Number(formData.get('maxAttempts')) || 1,
+      openDate: formData.get('openDate') || null,
+      maxAttempts,
       mcqPenaltyPerWrongSelection,
+      timeLimit,
       questionIds: selectedQuestionIds,
     });
   };

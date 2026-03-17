@@ -2,6 +2,14 @@
 import { useMemo, useState } from 'react';
 import type { Question } from '../../../lib/api';
 import { useClampedPage } from '../../../hooks/useClampedPage';
+import {
+  QUESTION_TYPE_LABELS,
+  QUESTION_TYPE_ORDER,
+  countQuestionsByType,
+  formatQuestionTypeSummary,
+  getQuestionTypeBadgeClasses,
+  type QuestionType,
+} from '../../../lib/question-types';
 import { getPromptFromContent } from '../utils/question-utils';
 
 type CreateAssignmentFormProps = {
@@ -13,32 +21,68 @@ type CreateAssignmentFormProps = {
 };
 
 const STEP_TITLES = ['Basics', 'Settings', 'Questions', 'Review'] as const;
+const STEP_DESCRIPTIONS = [
+  'Set the assignment name and framing.',
+  'Configure schedule, attempts, and grading rules.',
+  'Mix question types and set the question order.',
+  'Review the final assignment before creating it.',
+] as const;
 const QUESTION_PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
+const DEFAULT_TIME_LIMIT_MINUTES = 60;
 
-const getDefaultDueDate = () => {
+function formatDateTimeInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function getDefaultDueDate() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(23, 59, 0, 0);
+  return formatDateTimeInputValue(tomorrow);
+}
 
-  const year = tomorrow.getFullYear();
-  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-  const day = String(tomorrow.getDate()).padStart(2, '0');
-  const hours = String(tomorrow.getHours()).padStart(2, '0');
-  const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+function getMinDateTime() {
+  return formatDateTimeInputValue(new Date());
+}
 
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-};
+function formatDateTimeSummary(value: string) {
+  if (!value.trim()) {
+    return 'Not set';
+  }
 
-const getMinDateTime = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
 
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-};
+  return parsed.toLocaleString();
+}
+
+function reorderItems<T>(items: T[], fromIndex: number, toIndex: number) {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) {
+    return items;
+  }
+
+  const nextItems = [...items];
+  const [item] = nextItems.splice(fromIndex, 1);
+  nextItems.splice(toIndex, 0, item);
+  return nextItems;
+}
+
+function formatQuestionCount(count: number) {
+  return `${count} question${count === 1 ? '' : 's'}`;
+}
+
+function getVisibleQuestionTypes(questions: Question[]) {
+  const counts = countQuestionsByType(questions);
+  return QUESTION_TYPE_ORDER.filter((type) => counts[type] > 0);
+}
 
 export function CreateAssignmentForm({
   questions,
@@ -52,36 +96,68 @@ export function CreateAssignmentForm({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState(getDefaultDueDate);
+  const [enableOpenDate, setEnableOpenDate] = useState(false);
+  const [openDate, setOpenDate] = useState('');
   const [maxAttempts, setMaxAttempts] = useState(1);
+  const [hasTimeLimit, setHasTimeLimit] = useState(false);
+  const [timeLimit, setTimeLimit] = useState(DEFAULT_TIME_LIMIT_MINUTES);
   const [mcqPenaltyPerWrongSelection, setMcqPenaltyPerWrongSelection] = useState(1);
   const [questionSearch, setQuestionSearch] = useState('');
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [questionPageSize, setQuestionPageSize] = useState<number>(20);
+  const [typeFilters, setTypeFilters] = useState<QuestionType[]>([]);
 
   const availableQuestions = useMemo(
     () => [...questions].sort((a, b) => a.title.localeCompare(b.title)),
     [questions]
   );
 
+  const questionsById = useMemo(
+    () => new Map(availableQuestions.map((question) => [question.id, question])),
+    [availableQuestions]
+  );
+
+  const selectedQuestionSet = useMemo(() => new Set(selectedQuestionIds), [selectedQuestionIds]);
+
+  const selectedQuestions = useMemo(
+    () =>
+      selectedQuestionIds
+        .map((questionId) => questionsById.get(questionId))
+        .filter((question): question is Question => Boolean(question)),
+    [questionsById, selectedQuestionIds]
+  );
+
+  const availableTypeCounts = useMemo(() => countQuestionsByType(availableQuestions), [availableQuestions]);
+  const selectedTypeCounts = useMemo(() => countQuestionsByType(selectedQuestions), [selectedQuestions]);
+  const totalSelectedPoints = useMemo(
+    () => selectedQuestions.reduce((sum, question) => sum + question.points, 0),
+    [selectedQuestions]
+  );
+
+  const visibleQuestionTypes = useMemo(() => getVisibleQuestionTypes(availableQuestions), [availableQuestions]);
+
   const filteredQuestions = useMemo(() => {
     const search = questionSearch.trim().toLowerCase();
 
-    return availableQuestions
-      .filter((question) => {
-        if (showSelectedOnly && !selectedQuestionIds.includes(question.id)) {
-          return false;
-        }
+    return availableQuestions.filter((question) => {
+      if (showSelectedOnly && !selectedQuestionSet.has(question.id)) {
+        return false;
+      }
 
-        if (!search) {
-          return true;
-        }
+      if (typeFilters.length > 0 && !typeFilters.includes(question.type)) {
+        return false;
+      }
 
-        const titleMatch = question.title.toLowerCase().includes(search);
-        const promptMatch = getPromptFromContent(question.content).toLowerCase().includes(search);
-        const tagMatch = (question.tags || []).some((tag) => tag.toLowerCase().includes(search));
-        return titleMatch || promptMatch || tagMatch;
-      });
-  }, [availableQuestions, questionSearch, selectedQuestionIds, showSelectedOnly]);
+      if (!search) {
+        return true;
+      }
+
+      const titleMatch = question.title.toLowerCase().includes(search);
+      const promptMatch = getPromptFromContent(question.content).toLowerCase().includes(search);
+      const tagMatch = (question.tags || []).some((tag) => tag.toLowerCase().includes(search));
+      return titleMatch || promptMatch || tagMatch;
+    });
+  }, [availableQuestions, questionSearch, selectedQuestionSet, showSelectedOnly, typeFilters]);
 
   const filteredQuestionIds = useMemo(
     () => filteredQuestions.map((question) => question.id),
@@ -102,45 +178,64 @@ export function CreateAssignmentForm({
     [pagedQuestions]
   );
 
+  const settingsValidationMessage = useMemo(() => {
+    if (!dueDate.trim()) {
+      return 'Choose a due date.';
+    }
+
+    const dueDateValue = new Date(dueDate);
+    if (Number.isNaN(dueDateValue.getTime())) {
+      return 'Choose a valid due date.';
+    }
+
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
+      return 'Max attempts must be at least 1.';
+    }
+
+    if (!Number.isInteger(mcqPenaltyPerWrongSelection) || mcqPenaltyPerWrongSelection < 0) {
+      return 'Penalty must be 0 or higher.';
+    }
+
+    if (hasTimeLimit && (!Number.isInteger(timeLimit) || timeLimit < 1)) {
+      return 'Time limit must be at least 1 minute.';
+    }
+
+    if (!enableOpenDate) {
+      return null;
+    }
+
+    if (!openDate.trim()) {
+      return 'Choose an open date or turn off the open date option.';
+    }
+
+    const openDateValue = new Date(openDate);
+    if (Number.isNaN(openDateValue.getTime())) {
+      return 'Choose a valid open date.';
+    }
+
+    if (openDateValue >= dueDateValue) {
+      return 'Open date must be earlier than the due date.';
+    }
+
+    return null;
+  }, [dueDate, enableOpenDate, hasTimeLimit, maxAttempts, mcqPenaltyPerWrongSelection, openDate, timeLimit]);
+
   const isLastStep = step === STEP_TITLES.length - 1;
   const canProceed = useMemo(() => {
-    if (step === 0) return title.trim().length > 0;
+    if (step === 0) {
+      return title.trim().length > 0;
+    }
+
     if (step === 1) {
-      const hasValidMaxAttempts = Number.isFinite(maxAttempts) && maxAttempts >= 1;
-      const hasValidPenalty = Number.isFinite(mcqPenaltyPerWrongSelection) && mcqPenaltyPerWrongSelection >= 0;
-      return hasValidMaxAttempts && hasValidPenalty;
+      return settingsValidationMessage === null;
     }
+
     return true;
-  }, [maxAttempts, mcqPenaltyPerWrongSelection, step, title]);
+  }, [settingsValidationMessage, step, title]);
 
-  const handleNext = () => {
-    if (isLastStep || !canProceed) return;
-    setSubmitIntent(false);
-    setStep((current) => current + 1);
-  };
-
-  const handleBack = () => {
-    if (step === 0) return;
-    setSubmitIntent(false);
-    setStep((current) => current - 1);
-  };
-
-  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    if (!isLastStep) {
-      e.preventDefault();
-      setSubmitIntent(false);
-      if (canProceed) {
-        handleNext();
-      }
-      return;
-    }
-    if (!submitIntent) {
-      e.preventDefault();
-      return;
-    }
-    setSubmitIntent(false);
-    onSubmit(e);
-  };
+  const pageStart = filteredQuestions.length === 0 ? 0 : (questionPage - 1) * questionPageSize + 1;
+  const pageEnd = Math.min(questionPage * questionPageSize, filteredQuestions.length);
+  const pageRangeLabel = filteredQuestions.length === 0 ? '0' : `${pageStart}-${pageEnd}`;
 
   const updateSelectedQuestionIds = (ids: string[]) => {
     setSelectedQuestionIds(Array.from(new Set(ids)));
@@ -151,6 +246,21 @@ export function CreateAssignmentForm({
       updateSelectedQuestionIds([...selectedQuestionIds, questionId]);
       return;
     }
+
+    updateSelectedQuestionIds(selectedQuestionIds.filter((id) => id !== questionId));
+  };
+
+  const moveSelectedQuestion = (questionId: string, direction: 'up' | 'down') => {
+    const currentIndex = selectedQuestionIds.indexOf(questionId);
+    if (currentIndex === -1) {
+      return;
+    }
+
+    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    updateSelectedQuestionIds(reorderItems(selectedQuestionIds, currentIndex, nextIndex));
+  };
+
+  const removeSelectedQuestion = (questionId: string) => {
     updateSelectedQuestionIds(selectedQuestionIds.filter((id) => id !== questionId));
   };
 
@@ -172,116 +282,357 @@ export function CreateAssignmentForm({
     updateSelectedQuestionIds(selectedQuestionIds.filter((id) => !visibleSet.has(id)));
   };
 
-  const pageStart = filteredQuestions.length === 0 ? 0 : (questionPage - 1) * questionPageSize + 1;
-  const pageEnd = Math.min(questionPage * questionPageSize, filteredQuestions.length);
-  const pageRangeLabel = filteredQuestions.length === 0 ? '0' : `${pageStart}-${pageEnd}`;
+  const clearAllSelected = () => {
+    setSelectedQuestionIds([]);
+  };
+
+  const toggleTypeFilter = (type: QuestionType) => {
+    setTypeFilters((currentFilters) =>
+      currentFilters.includes(type)
+        ? currentFilters.filter((currentType) => currentType !== type)
+        : [...currentFilters, type]
+    );
+    resetQuestionPage();
+  };
+
+  const handleNext = () => {
+    if (isLastStep || !canProceed) {
+      return;
+    }
+
+    setSubmitIntent(false);
+    setStep((currentStep) => currentStep + 1);
+  };
+
+  const handleBack = () => {
+    if (step === 0) {
+      return;
+    }
+
+    setSubmitIntent(false);
+    setStep((currentStep) => currentStep - 1);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (!isLastStep) {
+      e.preventDefault();
+      setSubmitIntent(false);
+
+      if (canProceed) {
+        handleNext();
+      }
+      return;
+    }
+
+    if (!submitIntent) {
+      e.preventDefault();
+      return;
+    }
+
+    setSubmitIntent(false);
+    onSubmit(e);
+  };
 
   return (
-    <form onSubmit={handleFormSubmit} className="space-y-4">
+    <form onSubmit={handleFormSubmit} className="space-y-6">
       <input type="hidden" name="title" value={title} />
       <input type="hidden" name="description" value={description} />
       <input type="hidden" name="dueDate" value={dueDate} />
+      <input type="hidden" name="openDate" value={enableOpenDate ? openDate : ''} />
       <input type="hidden" name="maxAttempts" value={String(maxAttempts)} />
-      <input
-        type="hidden"
-        name="mcqPenaltyPerWrongSelection"
-        value={String(mcqPenaltyPerWrongSelection)}
-      />
+      <input type="hidden" name="mcqPenaltyPerWrongSelection" value={String(mcqPenaltyPerWrongSelection)} />
+      <input type="hidden" name="timeLimit" value={hasTimeLimit ? String(timeLimit) : ''} />
 
-      <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-        <span className="font-medium">Step {step + 1} of {STEP_TITLES.length}:</span> {STEP_TITLES[step]}
+      <div className="rounded-xl border border-gray-200 bg-gradient-to-r from-slate-50 to-blue-50 p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl">
+            <h3 className="text-lg font-semibold text-gray-900">Build a mixed-type assignment</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Assignments can include any combination of the questions currently in your pool. The selected order here
+              becomes the student-facing order.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <div className="rounded-lg border border-white bg-white/80 px-4 py-3 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Selected</p>
+              <p className="mt-1 text-lg font-semibold text-gray-900">{formatQuestionCount(selectedQuestions.length)}</p>
+            </div>
+            <div className="rounded-lg border border-white bg-white/80 px-4 py-3 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total points</p>
+              <p className="mt-1 text-lg font-semibold text-gray-900">{totalSelectedPoints}</p>
+            </div>
+            <div className="rounded-lg border border-white bg-white/80 px-4 py-3 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Question mix</p>
+              <p className="mt-1 text-sm font-medium text-gray-900">{formatQuestionTypeSummary(selectedTypeCounts)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {STEP_TITLES.map((stepTitle, index) => {
+          const isCurrentStep = index === step;
+          const isComplete = index < step;
+
+          return (
+            <div
+              key={stepTitle}
+              className={`rounded-xl border px-4 py-3 transition-colors ${
+                isCurrentStep
+                  ? 'border-blue-300 bg-blue-50'
+                  : isComplete
+                    ? 'border-emerald-200 bg-emerald-50'
+                    : 'border-gray-200 bg-white'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                    isCurrentStep
+                      ? 'bg-blue-600 text-white'
+                      : isComplete
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {index + 1}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{stepTitle}</p>
+                  <p className="text-xs text-gray-500">{STEP_DESCRIPTIONS[index]}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {step === 0 && (
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="create-assignment-title" className="block text-sm font-medium text-gray-700">Title</label>
-            <input
-              id="create-assignment-title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="form-input-block"
-              autoFocus
-            />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,1fr)]">
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <h3 className="text-base font-semibold text-gray-900">Assignment details</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Use a clear title and short description so students understand what the assignment is asking for.
+            </p>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <label htmlFor="create-assignment-title" className="block text-sm font-medium text-gray-700">
+                  Title
+                </label>
+                <input
+                  id="create-assignment-title"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Example: UML modeling and short-answer review"
+                  className="form-input-block"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label htmlFor="create-assignment-description" className="block text-sm font-medium text-gray-700">
+                  Description
+                </label>
+                <textarea
+                  id="create-assignment-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={5}
+                  placeholder="Add instructions, scope, or notes for students."
+                  className="form-textarea-block"
+                />
+              </div>
+            </div>
           </div>
-          <div>
-            <label htmlFor="create-assignment-description" className="block text-sm font-medium text-gray-700">Description</label>
-            <textarea
-              id="create-assignment-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="form-textarea-block"
-            />
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+            <h3 className="text-base font-semibold text-gray-900">Writing tips</h3>
+            <div className="mt-4 space-y-3 text-sm text-gray-600">
+              <p>Keep the title task-focused so it is easy to scan in the course assignment list.</p>
+              <p>Use the description for expectations, submission guidance, or how the question mix should be approached.</p>
+              <p>Question-specific prompts stay inside each question, so avoid repeating them here.</p>
+            </div>
           </div>
         </div>
       )}
 
       {step === 1 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <label htmlFor="create-assignment-due-date" className="block text-sm font-medium text-gray-700">Due Date</label>
-            <input
-              id="create-assignment-due-date"
-              type="datetime-local"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              min={getMinDateTime()}
-              className="form-input-block"
-            />
+        <div className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <h3 className="text-base font-semibold text-gray-900">Availability</h3>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label htmlFor="create-assignment-due-date" className="block text-sm font-medium text-gray-700">
+                    Due date
+                  </label>
+                  <input
+                    id="create-assignment-due-date"
+                    type="datetime-local"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    min={getMinDateTime()}
+                    className="form-input-block"
+                  />
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={enableOpenDate}
+                      onChange={(e) => {
+                        setEnableOpenDate(e.target.checked);
+                        if (!e.target.checked) {
+                          setOpenDate('');
+                        }
+                      }}
+                    />
+                    Set a separate open date
+                  </label>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Leave this off to make the assignment available immediately after creation and publishing.
+                  </p>
+                  {enableOpenDate && (
+                    <div className="mt-3">
+                      <label htmlFor="create-assignment-open-date" className="block text-sm font-medium text-gray-700">
+                        Open date
+                      </label>
+                      <input
+                        id="create-assignment-open-date"
+                        type="datetime-local"
+                        value={openDate}
+                        onChange={(e) => setOpenDate(e.target.value)}
+                        min={getMinDateTime()}
+                        className="form-input-block"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <h3 className="text-base font-semibold text-gray-900">Attempts and grading rules</h3>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="create-assignment-max-attempts" className="block text-sm font-medium text-gray-700">
+                    Max attempts
+                  </label>
+                  <input
+                    id="create-assignment-max-attempts"
+                    type="number"
+                    value={maxAttempts}
+                    onChange={(e) => {
+                      const nextValue = Number(e.target.value);
+                      setMaxAttempts(Number.isFinite(nextValue) ? Math.max(1, Math.floor(nextValue)) : 1);
+                    }}
+                    min={1}
+                    step={1}
+                    className="form-input-block"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="create-assignment-mcq-penalty" className="block text-sm font-medium text-gray-700">
+                    Multi-answer penalty
+                  </label>
+                  <input
+                    id="create-assignment-mcq-penalty"
+                    type="number"
+                    value={mcqPenaltyPerWrongSelection}
+                    onChange={(e) => {
+                      const nextValue = Number(e.target.value);
+                      setMcqPenaltyPerWrongSelection(Number.isFinite(nextValue) ? Math.max(0, Math.floor(nextValue)) : 0);
+                    }}
+                    min={0}
+                    step={1}
+                    className="form-input-block"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Applied when students choose incorrect options in multi-answer MCQs.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={hasTimeLimit}
+                    onChange={(e) => {
+                      setHasTimeLimit(e.target.checked);
+                      if (!e.target.checked) {
+                        setTimeLimit(DEFAULT_TIME_LIMIT_MINUTES);
+                      }
+                    }}
+                  />
+                  Add a time limit
+                </label>
+                <p className="mt-1 text-xs text-gray-500">
+                  Use this when the assignment should stay timed once a student starts.
+                </p>
+                {hasTimeLimit && (
+                  <div className="mt-3 max-w-xs">
+                    <label htmlFor="create-assignment-time-limit" className="block text-sm font-medium text-gray-700">
+                      Time limit (minutes)
+                    </label>
+                    <input
+                      id="create-assignment-time-limit"
+                      type="number"
+                      value={timeLimit}
+                      onChange={(e) => {
+                        const nextValue = Number(e.target.value);
+                        setTimeLimit(Number.isFinite(nextValue) ? Math.max(1, Math.floor(nextValue)) : 1);
+                      }}
+                      min={1}
+                      step={1}
+                      className="form-input-block"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          <div>
-            <label htmlFor="create-assignment-max-attempts" className="block text-sm font-medium text-gray-700">Max Attempts</label>
-            <input
-              id="create-assignment-max-attempts"
-              type="number"
-              value={maxAttempts}
-              onChange={(e) => setMaxAttempts(Number(e.target.value) || 1)}
-              min={1}
-              className="form-input-block"
-            />
-          </div>
-          <div>
-            <label htmlFor="create-assignment-mcq-penalty" className="block text-sm font-medium text-gray-700">
-              Multi-answer penalty
-            </label>
-            <input
-              id="create-assignment-mcq-penalty"
-              type="number"
-              value={mcqPenaltyPerWrongSelection}
-              onChange={(e) => {
-                const nextValue = Number(e.target.value);
-                setMcqPenaltyPerWrongSelection(Number.isFinite(nextValue) ? nextValue : 0);
-              }}
-              min={0}
-              step={1}
-              className="form-input-block"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Points deducted per wrong selected option (multi-answer MCQ only).
-            </p>
-          </div>
+
+          {settingsValidationMessage && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {settingsValidationMessage}
+            </div>
+          )}
         </div>
       )}
 
       {step === 2 && (
-        <div className="border-t border-gray-200 pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-medium text-gray-900">Questions (optional)</h3>
-            <p className="text-xs text-gray-500">
-              Selected {selectedQuestionIds.length} of {availableQuestions.length} questions
-            </p>
-          </div>
-          {availableQuestions.length === 0 ? (
-            <p className="mt-2 text-sm text-gray-500">
-              No questions yet. Create some below.
-            </p>
-          ) : (
-            <div className="mt-2 space-y-3 rounded border border-gray-200 p-3">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <div className="sm:col-span-2">
-                  <label htmlFor="assignment-question-search" className="block text-xs font-medium text-gray-600">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+          <div className="space-y-4">
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">Select questions</h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Search the pool, filter by type, then build the exact mixed sequence you want students to answer.
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Pool size</p>
+                    <p className="mt-1 text-lg font-semibold text-gray-900">{availableQuestions.length}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Selected mix</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">{formatQuestionTypeSummary(selectedTypeCounts)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_160px]">
+                <div>
+                  <label htmlFor="assignment-question-search" className="block text-sm font-medium text-gray-700">
                     Search questions
                   </label>
                   <input
@@ -292,12 +643,13 @@ export function CreateAssignmentForm({
                       setQuestionSearch(event.target.value);
                       resetQuestionPage();
                     }}
-                    placeholder="Title, prompt, or tag"
+                    placeholder="Search by title, prompt, or tag"
                     className="form-input-block"
                   />
                 </div>
+
                 <div>
-                  <label htmlFor="assignment-question-page-size" className="block text-xs font-medium text-gray-600">
+                  <label htmlFor="assignment-question-page-size" className="block text-sm font-medium text-gray-700">
                     Per page
                   </label>
                   <select
@@ -318,7 +670,33 @@ export function CreateAssignmentForm({
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              {visibleQuestionTypes.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Filter by type</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {visibleQuestionTypes.map((type) => {
+                      const isActive = typeFilters.includes(type);
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => toggleTypeFilter(type)}
+                          aria-pressed={isActive}
+                          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                            isActive
+                              ? 'border-blue-300 bg-blue-50 text-blue-700'
+                              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {QUESTION_TYPE_LABELS[type]} ({availableTypeCounts[type]})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
                 <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                   <input
                     type="checkbox"
@@ -333,71 +711,122 @@ export function CreateAssignmentForm({
                 <button
                   type="button"
                   onClick={selectVisible}
-                  className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                  className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-white"
                 >
                   Select page
                 </button>
                 <button
                   type="button"
                   onClick={clearVisible}
-                  className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                  className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-white"
                 >
                   Clear page
                 </button>
                 <button
                   type="button"
                   onClick={selectAllFiltered}
-                  className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                  className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-white"
                 >
-                  Select all filtered
+                  Select filtered
                 </button>
                 <button
                   type="button"
                   onClick={clearFiltered}
-                  className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                  className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-white"
                 >
                   Clear filtered
                 </button>
+                {selectedQuestionIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearAllSelected}
+                    className="rounded border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50"
+                  >
+                    Clear all selected
+                  </button>
+                )}
               </div>
 
-              <p className="text-xs text-gray-500">
-                Showing {pageRangeLabel} of {filteredQuestions.length} filtered questions
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+                <p>
+                  Showing <span className="font-medium text-gray-900">{pageRangeLabel}</span> of{' '}
+                  <span className="font-medium text-gray-900">{filteredQuestions.length}</span> matching questions
+                </p>
+                <p>
+                  Selected <span className="font-medium text-gray-900">{selectedQuestionIds.length}</span> total
+                </p>
+              </div>
 
               {filteredQuestions.length === 0 ? (
-                <p className="text-sm text-gray-500">No questions match your current filters.</p>
+                <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center">
+                  <p className="font-medium text-gray-900">No questions match the current filters.</p>
+                  <p className="mt-1 text-sm text-gray-500">Try changing the search, clearing type filters, or showing all questions again.</p>
+                </div>
               ) : (
-                <div className="space-y-2 max-h-64 overflow-auto">
-                  {pagedQuestions.map((q) => (
-                    <div key={q.id} className="flex items-start gap-3 rounded border border-gray-100 px-2 py-2 text-sm hover:bg-gray-50">
-                      <input
-                        id={`create-assignment-question-${q.id}`}
-                        type="checkbox"
-                        checked={selectedQuestionIds.includes(q.id)}
-                        onChange={(evt) => toggleQuestionSelection(q.id, evt.target.checked)}
-                        className="mt-1"
-                      />
-                      <label htmlFor={`create-assignment-question-${q.id}`} className="min-w-0">
-                        <span className="font-medium text-gray-900">{q.title}</span>
-                        <span className="block text-xs text-gray-500 mt-1">{q.points} pts</span>
-                        <span className="block text-xs text-gray-500 truncate">{getPromptFromContent(q.content)}</span>
-                      </label>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  {pagedQuestions.map((question) => {
+                    const isSelected = selectedQuestionSet.has(question.id);
+
+                    return (
+                      <div
+                        key={question.id}
+                        className={`rounded-xl border p-4 transition-colors ${
+                          isSelected ? 'border-blue-300 bg-blue-50/60' : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            id={`create-assignment-question-${question.id}`}
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(event) => toggleQuestionSelection(question.id, event.target.checked)}
+                            className="mt-1"
+                          />
+                          <label htmlFor={`create-assignment-question-${question.id}`} className="min-w-0 flex-1 cursor-pointer">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium text-gray-900">{question.title}</span>
+                              <span className={getQuestionTypeBadgeClasses(question.type)}>
+                                {QUESTION_TYPE_LABELS[question.type]}
+                              </span>
+                              <span className="text-xs font-medium text-gray-500">{question.points} pts</span>
+                            </div>
+                            <p className="mt-2 text-sm text-gray-600">{getPromptFromContent(question.content)}</p>
+                            {question.tags && question.tags.length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {question.tags.slice(0, 4).map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                                {question.tags.length > 4 && (
+                                  <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
+                                    +{question.tags.length - 4} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
               {totalQuestionPages > 1 && (
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm text-gray-500">
                     Page {questionPage} of {totalQuestionPages}
                   </p>
-                  <div className="flex gap-1">
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setQuestionPage((currentPage) => Math.max(1, currentPage - 1))}
                       disabled={questionPage === 1}
-                      className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Prev
                     </button>
@@ -405,7 +834,7 @@ export function CreateAssignmentForm({
                       type="button"
                       onClick={() => setQuestionPage((currentPage) => Math.min(totalQuestionPages, currentPage + 1))}
                       disabled={questionPage === totalQuestionPages}
-                      className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Next
                     </button>
@@ -413,45 +842,176 @@ export function CreateAssignmentForm({
                 </div>
               )}
             </div>
-          )}
+          </div>
+
+          <aside className="rounded-xl border border-gray-200 bg-white p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Selected order</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  Reorder questions here. Students will see them in this sequence.
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-right">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total points</p>
+                <p className="text-sm font-semibold text-gray-900">{totalSelectedPoints}</p>
+              </div>
+            </div>
+
+            {selectedQuestions.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-dashed border-gray-300 p-6 text-center">
+                <p className="font-medium text-gray-900">No questions selected yet.</p>
+                <p className="mt-1 text-sm text-gray-500">Pick any mix of question types from the list on the left.</p>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {selectedQuestions.map((question, index) => (
+                  <div key={question.id} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-gray-900 px-2 text-xs font-semibold text-white">
+                            {index + 1}
+                          </span>
+                          <span className="font-medium text-gray-900">{question.title}</span>
+                          <span className={getQuestionTypeBadgeClasses(question.type)}>
+                            {QUESTION_TYPE_LABELS[question.type]}
+                          </span>
+                          <span className="text-xs font-medium text-gray-500">{question.points} pts</span>
+                        </div>
+                        <p className="mt-2 text-sm text-gray-600">{getPromptFromContent(question.content)}</p>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => moveSelectedQuestion(question.id, 'up')}
+                          disabled={index === 0}
+                          className="rounded border border-gray-300 px-2.5 py-1.5 text-sm text-gray-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveSelectedQuestion(question.id, 'down')}
+                          disabled={index === selectedQuestions.length - 1}
+                          className="rounded border border-gray-300 px-2.5 py-1.5 text-sm text-gray-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Down
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeSelectedQuestion(question.id)}
+                          className="rounded border border-red-200 px-2.5 py-1.5 text-sm text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </aside>
         </div>
       )}
 
       {step === 3 && (
-        <div className="space-y-3 rounded-md border border-gray-200 p-4 text-sm text-gray-700">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Title</p>
-            <p className="font-medium text-gray-900">{title}</p>
+        <div className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,1fr)]">
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <h3 className="text-base font-semibold text-gray-900">Assignment summary</h3>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Title</p>
+                  <p className="mt-1 text-sm font-medium text-gray-900">{title}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Due date</p>
+                  <p className="mt-1 text-sm text-gray-900">{formatDateTimeSummary(dueDate)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Open date</p>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {enableOpenDate ? formatDateTimeSummary(openDate) : 'Open immediately'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Time limit</p>
+                  <p className="mt-1 text-sm text-gray-900">{hasTimeLimit ? `${timeLimit} minutes` : 'No time limit'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Max attempts</p>
+                  <p className="mt-1 text-sm text-gray-900">{maxAttempts}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Multi-answer penalty</p>
+                  <p className="mt-1 text-sm text-gray-900">{mcqPenaltyPerWrongSelection} per wrong option</p>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Description</p>
+                <p className="mt-1 text-sm text-gray-900">{description.trim() || 'No description provided.'}</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+              <h3 className="text-base font-semibold text-gray-900">Question composition</h3>
+              <div className="mt-4 space-y-3">
+                <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Questions</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">{formatQuestionCount(selectedQuestions.length)}</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total points</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">{totalSelectedPoints}</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Type mix</p>
+                  <p className="mt-1 text-sm font-medium text-gray-900">{formatQuestionTypeSummary(selectedTypeCounts)}</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Due Date</p>
-            <p className="text-gray-900">{dueDate || 'No due date set'}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Max Attempts</p>
-            <p className="text-gray-900">{maxAttempts}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Multi-answer Penalty</p>
-            <p className="text-gray-900">{mcqPenaltyPerWrongSelection} per wrong selection</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Selected Questions</p>
-            <p className="text-gray-900">{selectedQuestionIds.length}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Description</p>
-            <p className="text-gray-900">{description.trim() || 'No description provided.'}</p>
-          </div>
+
+          {selectedQuestions.length === 0 ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              This assignment will be created without questions. You can still use it as a shell and add questions later.
+            </div>
+          ) : (
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-base font-semibold text-gray-900">Question order preview</h3>
+                <p className="text-sm text-gray-500">{formatQuestionCount(selectedQuestions.length)}</p>
+              </div>
+              <div className="mt-4 space-y-3">
+                {selectedQuestions.map((question, index) => (
+                  <div key={question.id} className="rounded-xl border border-gray-200 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-gray-900 px-2 text-xs font-semibold text-white">
+                        {index + 1}
+                      </span>
+                      <span className="font-medium text-gray-900">{question.title}</span>
+                      <span className={getQuestionTypeBadgeClasses(question.type)}>
+                        {QUESTION_TYPE_LABELS[question.type]}
+                      </span>
+                      <span className="text-xs font-medium text-gray-500">{question.points} pts</span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600">{getPromptFromContent(question.content)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-2 pt-2">
+      <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
         <button
           type="button"
           onClick={handleBack}
           disabled={step === 0 || isSubmitting}
-          className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Back
         </button>
@@ -461,16 +1021,16 @@ export function CreateAssignmentForm({
             type="submit"
             onClick={() => setSubmitIntent(true)}
             disabled={isSubmitting}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSubmitting ? 'Creating...' : 'Create Assignment'}
+            {isSubmitting ? 'Creating...' : 'Create assignment'}
           </button>
         ) : (
           <button
             type="button"
             onClick={handleNext}
             disabled={!canProceed || isSubmitting}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Next
           </button>

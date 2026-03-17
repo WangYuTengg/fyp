@@ -1,3 +1,5 @@
+import type { QuestionTypeCounts } from '../../lib/question-types';
+
 export type StudentCourse = {
   id: string;
   code: string;
@@ -15,4 +17,6 @@ export type StudentAssignment = {
   maxAttempts: number | null;
   mcqPenaltyPerWrongSelection: number;
   submissionStatus?: 'draft' | 'submitted' | 'late' | null;
+  questionCount: number;
+  questionTypeCounts: QuestionTypeCounts;
 };

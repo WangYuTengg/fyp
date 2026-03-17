@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { StaffAssignment } from '../types';
+import { QUESTION_TYPE_LABELS, QUESTION_TYPE_ORDER, getQuestionTypeBadgeClasses } from '../../../lib/question-types';
 
 type AssignmentCardProps = {
   assignment: StaffAssignment;
@@ -16,6 +17,7 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
   const [confirmText, setConfirmText] = useState('');
   const hasAttempts = assignment.attemptCount > 0;
   const isUnpublishLocked = assignment.isPublished && hasAttempts;
+  const visibleQuestionTypes = QUESTION_TYPE_ORDER.filter((type) => assignment.questionTypeCounts[type] > 0);
 
   const handlePublishClick = () => {
     if (isUnpublishLocked) return;
@@ -74,6 +76,18 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
               <span>Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
             )}
             <span>Penalty: -{assignment.mcqPenaltyPerWrongSelection} per wrong multi-answer option</span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">
+              {assignment.questionCount === 0
+                ? 'No questions yet'
+                : `${assignment.questionCount} question${assignment.questionCount === 1 ? '' : 's'}`}
+            </span>
+            {visibleQuestionTypes.map((type) => (
+              <span key={type} className={getQuestionTypeBadgeClasses(type)}>
+                {assignment.questionTypeCounts[type]} {QUESTION_TYPE_LABELS[type]}
+              </span>
+            ))}
           </div>
           {assignment.isPublished && (
             <p className="mt-2 text-sm text-gray-600">

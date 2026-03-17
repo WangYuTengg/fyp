@@ -1,3 +1,5 @@
+import type { QuestionTypeCounts } from '../../lib/question-types';
+
 export type StaffCourse = {
   id: string;
   code: string;
@@ -23,4 +25,6 @@ export type StaffAssignment = {
   mcqPenaltyPerWrongSelection: number;
   isPublished: boolean;
   attemptCount: number;
+  questionCount: number;
+  questionTypeCounts: QuestionTypeCounts;
 };

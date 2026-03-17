@@ -156,7 +156,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                 isOpen={assignmentForm.showForm}
                 onClose={() => assignmentForm.setShowForm(false)}
                 title="Create Assignment"
-                size="xl"
+                size="screen"
               >
                 <CreateAssignmentForm
                   questions={questions}

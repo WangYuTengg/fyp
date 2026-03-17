@@ -1,10 +1,21 @@
 import { Hono } from 'hono';
 import { db } from '../../../db/index.js';
-import { assignments, enrollments, submissions } from '../../../db/schema.js';
+import { assignmentQuestions, assignments, enrollments, questions, submissions } from '../../../db/schema.js';
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
 import { eq, and, desc, inArray } from 'drizzle-orm';
 
 const listAssignmentsRoute = new Hono<AuthContext>();
+
+type QuestionType = 'mcq' | 'written' | 'coding' | 'uml';
+
+function createEmptyQuestionTypeCounts() {
+  return {
+    mcq: 0,
+    written: 0,
+    uml: 0,
+    coding: 0,
+  };
+}
 
 // Get assignments for a course
 listAssignmentsRoute.get('/course/:courseId', requireAuth, async (c) => {
@@ -41,13 +52,44 @@ listAssignmentsRoute.get('/course/:courseId', requireAuth, async (c) => {
     )
     .orderBy(desc(assignments.createdAt));
 
+  if (assignmentsList.length === 0) {
+    return c.json([]);
+  }
+
+  const assignmentIds = assignmentsList.map((assignment) => assignment.id);
+  const questionRows = await db
+    .select({
+      assignmentId: assignmentQuestions.assignmentId,
+      type: questions.type,
+    })
+    .from(assignmentQuestions)
+    .innerJoin(questions, eq(assignmentQuestions.questionId, questions.id))
+    .where(inArray(assignmentQuestions.assignmentId, assignmentIds));
+
+  const questionStatsByAssignment = new Map<string, {
+    questionCount: number;
+    questionTypeCounts: ReturnType<typeof createEmptyQuestionTypeCounts>;
+  }>();
+
+  for (const row of questionRows) {
+    const stats = questionStatsByAssignment.get(row.assignmentId) ?? {
+      questionCount: 0,
+      questionTypeCounts: createEmptyQuestionTypeCounts(),
+    };
+
+    stats.questionCount += 1;
+    stats.questionTypeCounts[row.type as QuestionType] += 1;
+    questionStatsByAssignment.set(row.assignmentId, stats);
+  }
+
+  const getQuestionStats = (assignmentId: string) =>
+    questionStatsByAssignment.get(assignmentId) ?? {
+      questionCount: 0,
+      questionTypeCounts: createEmptyQuestionTypeCounts(),
+    };
+
   // For students, include submission status
   if (user.role === 'student') {
-    if (assignmentsList.length === 0) {
-      return c.json([]);
-    }
-
-    const assignmentIds = assignmentsList.map((a) => a.id);
     const userSubmissions = await db
       .select()
       .from(submissions)
@@ -64,17 +106,12 @@ listAssignmentsRoute.get('/course/:courseId', requireAuth, async (c) => {
 
     const assignmentsWithStatus = assignmentsList.map((assignment) => ({
       ...assignment,
+      ...getQuestionStats(assignment.id),
       submissionStatus: submissionsByAssignment.get(assignment.id)?.status || null,
     }));
 
     return c.json(assignmentsWithStatus);
   }
-
-  if (assignmentsList.length === 0) {
-    return c.json([]);
-  }
-
-  const assignmentIds = assignmentsList.map((assignment) => assignment.id);
   const submissionRows = await db
     .select({
       assignmentId: submissions.assignmentId,
@@ -92,6 +129,7 @@ listAssignmentsRoute.get('/course/:courseId', requireAuth, async (c) => {
 
   const assignmentsWithAttempts = assignmentsList.map((assignment) => ({
     ...assignment,
+    ...getQuestionStats(assignment.id),
     attemptCount: attemptsByAssignment.get(assignment.id) ?? 0,
   }));
 

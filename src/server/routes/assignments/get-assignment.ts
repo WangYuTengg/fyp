@@ -7,6 +7,15 @@ import { omitTeacherOnlyFields, toStudentSafeMcqContent } from '../../lib/conten
 
 const getAssignmentRoute = new Hono<AuthContext>();
 
+function createEmptyQuestionTypeCounts() {
+  return {
+    mcq: 0,
+    written: 0,
+    uml: 0,
+    coding: 0,
+  };
+}
+
 // Get a single assignment
 getAssignmentRoute.get('/:id', requireAuth, async (c) => {
   const assignmentId = c.req.param('id');
@@ -80,7 +89,17 @@ getAssignmentRoute.get('/:id', requireAuth, async (c) => {
       })
     : assignmentQs;
 
-  return c.json({ ...assignment, questions: sanitizedQuestions });
+  const questionTypeCounts = createEmptyQuestionTypeCounts();
+  for (const row of assignmentQs) {
+    questionTypeCounts[row.question.type] += 1;
+  }
+
+  return c.json({
+    ...assignment,
+    questionCount: assignmentQs.length,
+    questionTypeCounts,
+    questions: sanitizedQuestions,
+  });
 });
 
 export default getAssignmentRoute;

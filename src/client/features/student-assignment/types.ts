@@ -1,4 +1,5 @@
 import type { ClassDiagramState } from '../../components/uml/classDiagram';
+import type { QuestionTypeCounts } from '../../lib/question-types';
 
 export type AssignmentQuestion = {
   id: string;
@@ -21,6 +22,8 @@ export type AssignmentDetails = {
   dueDate: string | null;
   timeLimit: number | null;
   mcqPenaltyPerWrongSelection: number;
+  questionCount: number;
+  questionTypeCounts: QuestionTypeCounts;
   questions: AssignmentQuestion[];
 };
 
@@ -50,5 +53,6 @@ export type Answer = {
 
 export type AnswerState =
   | { type: 'written'; text: string }
+  | { type: 'coding'; text: string }
   | { type: 'mcq'; selectedOptionIds: string[] }
   | { type: 'uml'; umlText: string; editorState?: ClassDiagramState };
