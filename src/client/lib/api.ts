@@ -120,6 +120,29 @@ export const assignmentsApi = {
     method: 'PATCH',
     body: JSON.stringify({ isPublished }),
   }),
+  publishResults: (id: string, publish: boolean) =>
+    apiClient<{ success: boolean; id: string; resultsPublished: boolean; resultsPublishedAt: string | null }>(
+      `/api/assignments/${id}/publish-results`,
+      { method: 'POST', body: JSON.stringify({ publish }) }
+    ),
+  getGradingProgress: (id: string) =>
+    apiClient<{
+      assignment: { id: string; title: string; resultsPublished: boolean; resultsPublishedAt: string | null };
+      summary: { totalSubmissions: number; gradedSubmissions: number; pendingSubmissions: number };
+      questionStats: Array<{
+        questionId: string;
+        questionTitle: string;
+        questionType: string;
+        maxPoints: number;
+        totalAnswers: number;
+        gradedAnswers: number;
+        avgScore: number;
+        aiGradedCount: number;
+        aiAcceptedCount: number;
+        overrideCount: number;
+      }>;
+      gradeDistribution: { mean: number; median: number; passCount: number; failCount: number; scores: number[] };
+    }>(`/api/assignments/${id}/grading-progress`),
   remove: (id: string) => apiClient<{ success: true }>(`/api/assignments/${id}`, {
     method: 'DELETE',
   }),
@@ -230,6 +253,44 @@ export const questionsApi = {
     }),
   remove: (id: string) =>
     apiClient<{ success: true }>(`/api/questions/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+export const autoGradeApi = {
+  batchAccept: (answerIds: string[]) =>
+    apiClient<{ success: boolean; accepted: number; skipped: number }>(
+      '/api/auto-grade/batch-accept',
+      { method: 'POST', body: JSON.stringify({ answerIds }) }
+    ),
+};
+
+export type RubricCriterion = {
+  id: string;
+  description: string;
+  maxPoints: number;
+  levels?: Array<{ label: string; points: number; description?: string }>;
+};
+
+export type Rubric = {
+  id: string;
+  questionId: string;
+  criteria: RubricCriterion[];
+  totalPoints: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const rubricsApi = {
+  getByQuestion: (questionId: string) =>
+    apiClient<{ rubric: Rubric | null }>(`/api/questions/${questionId}/rubrics`),
+  save: (questionId: string, criteria: Array<{ id?: string; description: string; maxPoints: number; levels?: Array<{ label: string; points: number; description?: string }> }>) =>
+    apiClient<{ success: boolean; rubric: Rubric }>(`/api/questions/${questionId}/rubrics`, {
+      method: 'POST',
+      body: JSON.stringify({ criteria }),
+    }),
+  remove: (questionId: string) =>
+    apiClient<{ success: boolean }>(`/api/questions/${questionId}/rubrics`, {
       method: 'DELETE',
     }),
 };

@@ -6,6 +6,8 @@ export type GradingAssignment = {
   dueDate: string | null;
   timeLimit: number | null;
   maxAttempts: number;
+  resultsPublished?: boolean;
+  resultsPublishedAt?: string | null;
 };
 
 export type GradingSubmission = {
@@ -52,7 +54,11 @@ export type GradingMark = {
   maxPoints: number;
   feedback: string | null;
   isAiAssisted: boolean;
+  aiSuggestionAccepted: boolean;
   markedBy: string | null;
+  overrideReason: string | null;
+  previousScore: number | null;
+  overriddenAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -63,4 +69,5 @@ export type QuestionGrade = {
   points: number;
   maxPoints: number;
   feedback: string;
+  overrideReason?: string;
 };

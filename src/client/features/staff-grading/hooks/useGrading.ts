@@ -68,6 +68,7 @@ export function useGrading(assignmentId: string, initialSubmissionId?: string) {
           points: Math.round(grade.points),
           maxPoints: Math.round(grade.maxPoints),
           feedback: grade.feedback.trim() ? grade.feedback.trim() : undefined,
+          overrideReason: grade.overrideReason || undefined,
         })),
       };
 
