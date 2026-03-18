@@ -74,6 +74,8 @@ export const assignments = pgTable('assignments', {
   mcqPenaltyPerWrongSelection: integer('mcq_penalty_per_wrong_selection').default(1).notNull(),
   timeLimit: integer('time_limit'), // in minutes
   isPublished: boolean('is_published').default(false).notNull(),
+  resultsPublished: boolean('results_published').default(false).notNull(),
+  resultsPublishedAt: timestamp('results_published_at'),
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -145,7 +147,10 @@ export const marks = pgTable('marks', {
   feedback: text('feedback'),
   markedBy: uuid('marked_by').references(() => users.id),
   isAiAssisted: boolean('is_ai_assisted').default(false),
-  aiSuggestionAccepted: boolean('ai_suggestion_accepted').default(false), // Track if AI suggestion was accepted
+  aiSuggestionAccepted: boolean('ai_suggestion_accepted').default(false),
+  overrideReason: text('override_reason'),
+  previousScore: integer('previous_score'),
+  overriddenAt: timestamp('overridden_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
