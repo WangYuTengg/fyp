@@ -22,12 +22,12 @@ gradeSubmissionRoute.post('/:submissionId/grade', requireAuth, async (c) => {
   // Validate request body - support both bulk and single grade formats
   const bulkValidation = bulkGradeSchema.safeParse(body);
 
-  let gradesList: Array<{ answerId?: string; points: number; maxPoints: number; feedback?: string }>;
+  let gradesList: Array<{ answerId?: string; points: number; maxPoints: number; feedback?: string; overrideReason?: string }>;
   if (bulkValidation.success) {
     gradesList = bulkValidation.data.grades;
   } else {
     // Try legacy single-grade format
-    gradesList = [body as { answerId: string; points: number; maxPoints: number; feedback?: string }];
+    gradesList = [body as { answerId: string; points: number; maxPoints: number; feedback?: string; overrideReason?: string }];
 
     // Validate single grade has required fields
     if (gradesList[0].points === undefined || gradesList[0].maxPoints === undefined) {
@@ -41,7 +41,7 @@ gradeSubmissionRoute.post('/:submissionId/grade', requireAuth, async (c) => {
   const createdMarks = [];
 
   for (const grade of gradesList) {
-    const { answerId, points, maxPoints, feedback } = grade;
+    const { answerId, points, maxPoints, feedback, overrideReason } = grade;
 
     // Prevent duplicate marks: check if this answer already has a mark
     if (answerId) {
@@ -57,7 +57,10 @@ gradeSubmissionRoute.post('/:submissionId/grade', requireAuth, async (c) => {
         .limit(1);
 
       if (existingMark) {
-        // Update existing mark instead of creating duplicate
+        // Track override if score changed on an AI-assisted mark
+        const isScoreChanged = existingMark.points !== points;
+        const shouldTrackOverride = isScoreChanged && (existingMark.isAiAssisted || existingMark.aiSuggestionAccepted);
+
         const [updated] = await db
           .update(marks)
           .set({
@@ -66,6 +69,11 @@ gradeSubmissionRoute.post('/:submissionId/grade', requireAuth, async (c) => {
             feedback,
             markedBy: user.id,
             updatedAt: new Date(),
+            ...(shouldTrackOverride || overrideReason ? {
+              overrideReason: overrideReason || null,
+              previousScore: isScoreChanged ? existingMark.points : existingMark.previousScore,
+              overriddenAt: isScoreChanged ? new Date() : existingMark.overriddenAt,
+            } : {}),
           })
           .where(eq(marks.id, existingMark.id))
           .returning();

@@ -93,6 +93,8 @@ export const assignments = pgTable('assignments', {
   latePenaltyCap: numeric('late_penalty_cap'), // max penalty percentage (e.g., 50 means 50% cap)
   attemptScoringMethod: text('attempt_scoring_method').default('latest').notNull(), // 'latest' | 'highest'
   isPublished: boolean('is_published').default(false).notNull(),
+  resultsPublished: boolean('results_published').default(false).notNull(),
+  resultsPublishedAt: timestamp('results_published_at'),
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -169,7 +171,10 @@ export const marks = pgTable('marks', {
   feedback: text('feedback'),
   markedBy: uuid('marked_by').references(() => users.id),
   isAiAssisted: boolean('is_ai_assisted').default(false),
-  aiSuggestionAccepted: boolean('ai_suggestion_accepted').default(false), // Track if AI suggestion was accepted
+  aiSuggestionAccepted: boolean('ai_suggestion_accepted').default(false),
+  overrideReason: text('override_reason'),
+  previousScore: integer('previous_score'),
+  overriddenAt: timestamp('overridden_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

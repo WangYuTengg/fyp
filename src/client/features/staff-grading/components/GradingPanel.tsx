@@ -299,6 +299,9 @@ export function GradingPanel({
           onGradeChange={handleGradeChange}
           isReadOnly={isGraded}
           pointsInputRef={pointsInputRef}
+          existingMark={
+            (submission.marks ?? []).find((m) => m.answerId === activeAnswer.id) ?? null
+          }
         />
       ) : (
         <div className="bg-white shadow rounded-lg p-6">

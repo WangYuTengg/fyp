@@ -4,6 +4,7 @@ import listQuestionsRoute from './list-questions.js';
 import createQuestionRoute from './create-question.js';
 import updateQuestionRoute from './update-question.js';
 import deleteQuestionRoute from './delete-question.js';
+import rubricsRoute from './rubrics.js';
 import exportQuestionsRoute from './export-questions.js';
 import importQuestionsRoute from './import-questions.js';
 
@@ -13,6 +14,7 @@ questions.route('/', listQuestionsRoute);
 questions.route('/', createQuestionRoute);
 questions.route('/', updateQuestionRoute);
 questions.route('/', deleteQuestionRoute);
+questions.route('/', rubricsRoute);
 questions.route('/', exportQuestionsRoute);
 questions.route('/', importQuestionsRoute);
 
