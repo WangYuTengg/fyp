@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../../../db/index.js';
 import { answers, marks, questions, submissions } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
-import { eq, and, isNull, isNotNull, sql } from 'drizzle-orm';
+import { eq, and, isNotNull, sql } from 'drizzle-orm';
 import { getAiGradingSuggestion } from '../../lib/content-utils.js';
 import { getErrorMessage } from '../../lib/error-utils.js';
 import { z } from 'zod';

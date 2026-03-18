@@ -174,16 +174,19 @@ export function validateBody<T extends z.ZodType>(schema: T, body: unknown): z.i
 /**
  * Helper to safely validate request body and return error on failure
  */
+type ValidationSuccess<T> = { success: true; data: T; error?: never };
+type ValidationFailure = { success: false; error: string; data?: never };
+
 export function safeValidateBody<T extends z.ZodType>(
   schema: T,
   body: unknown
-): { success: true; data: z.infer<T> } | { success: false; error: string } {
+): ValidationSuccess<z.infer<T>> | ValidationFailure {
   const result = schema.safeParse(body);
-  
+
   if (result.success) {
     return { success: true, data: result.data };
   }
-  
+
   const firstError = result.error.issues[0];
   return {
     success: false,

@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { apiClient, autoGradeApi } from '../../../lib/api';
 import { UMLViewer } from '../../../components/UMLViewer';
 import {
   CheckCircleIcon,
   XCircleIcon,
-  QuestionMarkCircleIcon,
   ArrowLeftIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
@@ -146,7 +145,7 @@ export function BulkReviewWorkflow() {
               if (a.aiGradingSuggestion && !markedAnswerIds.has(a.id)) {
                 let suggestion = a.aiGradingSuggestion;
                 if (typeof suggestion === 'string') {
-                  try { suggestion = JSON.parse(suggestion); } catch { suggestion = null; }
+                  try { suggestion = JSON.parse(suggestion); } catch { suggestion = {} as Record<string, unknown>; }
                 }
                 if (suggestion) {
                   reviewAnswers.push({
@@ -310,7 +309,7 @@ export function BulkReviewWorkflow() {
             onClick={() =>
               navigate({
                 to: '/staff/grading',
-                search: { assignmentId },
+                search: { assignmentId, submissionId: undefined },
               })
             }
             className="mt-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
@@ -330,7 +329,7 @@ export function BulkReviewWorkflow() {
         <p className="text-gray-500 mb-4">All AI suggestions have already been reviewed.</p>
         <button
           type="button"
-          onClick={() => navigate({ to: '/staff/grading', search: { assignmentId } })}
+          onClick={() => navigate({ to: '/staff/grading', search: { assignmentId, submissionId: undefined } })}
           className="text-blue-600 hover:text-blue-800 font-medium"
         >
           Back to Grading
@@ -346,7 +345,7 @@ export function BulkReviewWorkflow() {
         <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={() => navigate({ to: '/staff/grading', search: { assignmentId } })}
+            onClick={() => navigate({ to: '/staff/grading', search: { assignmentId, submissionId: undefined } })}
             className="text-gray-500 hover:text-gray-700"
           >
             <ArrowLeftIcon className="h-5 w-5" />
