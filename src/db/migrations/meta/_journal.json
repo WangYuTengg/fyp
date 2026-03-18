@@ -71,6 +71,20 @@
       "when": 1771342515070,
       "tag": "0009_wild_strong_guy",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1773738091474,
+      "tag": "0010_cynical_nextwave",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1773815737564,
+      "tag": "0011_clever_tempest",
+      "breakpoints": true
     }
   ]
 }
