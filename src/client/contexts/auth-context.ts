@@ -25,6 +25,8 @@ export interface AuthContextType {
   /** Admin-only UI impersonation setting. */
   adminViewAs: 'student' | 'staff' | null;
   setAdminViewAs: (role: 'student' | 'staff') => void;
+  /** Set a custom JWT token from password-based login */
+  setCustomToken: (token: string, user: NonNullable<DbUser>) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
