@@ -44,6 +44,7 @@ vi.mock('../../db/index.js', () => ({
     select: () => createChainProxy(),
     insert: () => createChainProxy(),
     update: () => createChainProxy(),
+    delete: () => createChainProxy(),
     execute: vi.fn().mockResolvedValue([{ result: 1 }]),
   },
 }));

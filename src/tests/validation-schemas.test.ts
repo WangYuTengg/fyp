@@ -16,7 +16,7 @@ describe('Admin User Management Schemas', () => {
         email: 'test@example.com',
         name: 'Test User',
         role: 'student',
-        password: 'password123',
+        password: 'Password1',
       });
       expect(result.success).toBe(true);
     });
@@ -26,7 +26,7 @@ describe('Admin User Management Schemas', () => {
         email: 'not-an-email',
         name: 'Test User',
         role: 'student',
-        password: 'password123',
+        password: 'Password1',
       });
       expect(result.success).toBe(false);
     });
@@ -36,7 +36,7 @@ describe('Admin User Management Schemas', () => {
         email: 'test@example.com',
         name: '',
         role: 'student',
-        password: 'password123',
+        password: 'Password1',
       });
       expect(result.success).toBe(false);
     });
@@ -46,7 +46,7 @@ describe('Admin User Management Schemas', () => {
         email: 'test@example.com',
         name: 'Test User',
         role: 'superadmin',
-        password: 'password123',
+        password: 'Password1',
       });
       expect(result.success).toBe(false);
     });
@@ -67,7 +67,7 @@ describe('Admin User Management Schemas', () => {
           email: 'test@example.com',
           name: 'Test User',
           role,
-          password: 'password123',
+          password: 'Password1',
         });
         expect(result.success).toBe(true);
       }
@@ -90,7 +90,7 @@ describe('Admin User Management Schemas', () => {
 
   describe('adminResetPasswordSchema', () => {
     it('accepts valid password', () => {
-      const result = adminResetPasswordSchema.safeParse({ password: 'newpass123' });
+      const result = adminResetPasswordSchema.safeParse({ password: 'Newpass1' });
       expect(result.success).toBe(true);
     });
 
@@ -104,8 +104,8 @@ describe('Admin User Management Schemas', () => {
     it('accepts valid bulk user data', () => {
       const result = bulkCreateUsersSchema.safeParse({
         users: [
-          { email: 'a@example.com', name: 'User A', role: 'student', password: 'pass123' },
-          { email: 'b@example.com', name: 'User B', role: 'staff', password: 'pass456' },
+          { email: 'a@example.com', name: 'User A', role: 'student', password: 'Pass1234' },
+          { email: 'b@example.com', name: 'User B', role: 'staff', password: 'Pass4567' },
         ],
       });
       expect(result.success).toBe(true);
@@ -119,8 +119,8 @@ describe('Admin User Management Schemas', () => {
     it('rejects when any user has invalid email', () => {
       const result = bulkCreateUsersSchema.safeParse({
         users: [
-          { email: 'valid@example.com', name: 'User A', role: 'student', password: 'pass123' },
-          { email: 'invalid', name: 'User B', role: 'student', password: 'pass456' },
+          { email: 'valid@example.com', name: 'User A', role: 'student', password: 'Pass1234' },
+          { email: 'invalid', name: 'User B', role: 'student', password: 'Pass4567' },
         ],
       });
       expect(result.success).toBe(false);
@@ -145,7 +145,7 @@ describe('Password Reset Schemas', () => {
     it('accepts valid token and password', () => {
       const result = resetPasswordSchema.safeParse({
         token: 'abc-123-def',
-        password: 'newpass123',
+        password: 'Newpass1',
       });
       expect(result.success).toBe(true);
     });
@@ -153,7 +153,7 @@ describe('Password Reset Schemas', () => {
     it('rejects empty token', () => {
       const result = resetPasswordSchema.safeParse({
         token: '',
-        password: 'newpass123',
+        password: 'Newpass1',
       });
       expect(result.success).toBe(false);
     });
@@ -171,7 +171,7 @@ describe('Password Reset Schemas', () => {
     it('accepts valid credentials', () => {
       const result = loginSchema.safeParse({
         email: 'user@example.com',
-        password: 'password123',
+        password: 'Password1',
       });
       expect(result.success).toBe(true);
     });
@@ -179,7 +179,7 @@ describe('Password Reset Schemas', () => {
     it('rejects invalid email', () => {
       const result = loginSchema.safeParse({
         email: 'not-email',
-        password: 'password123',
+        password: 'Password1',
       });
       expect(result.success).toBe(false);
     });
