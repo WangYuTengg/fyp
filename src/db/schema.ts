@@ -73,6 +73,8 @@ export const assignments = pgTable('assignments', {
   maxAttempts: integer('max_attempts').default(1),
   mcqPenaltyPerWrongSelection: integer('mcq_penalty_per_wrong_selection').default(1).notNull(),
   timeLimit: integer('time_limit'), // in minutes
+  monitorFocus: boolean('monitor_focus').default(false).notNull(),
+  maxTabSwitches: integer('max_tab_switches'),
   isPublished: boolean('is_published').default(false).notNull(),
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -100,6 +102,7 @@ export const submissions = pgTable('submissions', {
   startedAt: timestamp('started_at').defaultNow().notNull(),
   submittedAt: timestamp('submitted_at'),
   gradedAt: timestamp('graded_at'),
+  tabSwitches: jsonb('tab_switches').default([]).notNull(), // Array of { leftAt, returnedAt, durationMs }
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
