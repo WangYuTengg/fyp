@@ -44,6 +44,7 @@ vi.mock('../../db/schema.js', () => ({
   answers: { id: 'id', content: 'content', submissionId: 'submissionId', questionId: 'questionId', aiGradingSuggestion: 'aiGradingSuggestion' },
   questions: { id: 'id', type: 'type', content: 'content', points: 'points', rubric: 'rubric' },
   marks: { id: 'id', submissionId: 'submissionId', answerId: 'answerId' },
+  submissions: { id: 'id', status: 'status', gradedAt: 'gradedAt', updatedAt: 'updatedAt', userId: 'userId' },
   aiGradingJobs: { id: 'id', status: 'status', tokensUsed: 'tokensUsed', cost: 'cost', completedAt: 'completedAt', error: 'error' },
   aiUsageStats: { date: 'date', totalTokens: 'totalTokens', totalCost: 'totalCost', requestCount: 'requestCount', successCount: 'successCount', failureCount: 'failureCount', avgProcessingTime: 'avgProcessingTime' },
 }));
@@ -51,6 +52,11 @@ vi.mock('../../db/schema.js', () => ({
 vi.mock('drizzle-orm', () => ({
   eq: (a: unknown, b: unknown) => [a, b],
   and: (...args: unknown[]) => args,
+  isNotNull: (a: unknown) => a,
+  sql: Object.assign(
+    (strings: TemplateStringsArray, ..._values: unknown[]) => strings.join(''),
+    { join: (..._args: unknown[]) => '' },
+  ),
 }));
 
 // Mock AI module
@@ -114,11 +120,38 @@ vi.mock('../../server/lib/notifications.js', () => ({
   notifyGradingFailed: (...args: unknown[]) => mockNotifyGradingFailed(...args),
 }));
 
+// Mock validation schemas (for single route)
+vi.mock('../../server/lib/validation-schemas.js', () => ({
+  singleAutoGradeSchema: {
+    safeParse: vi.fn((body: unknown) => {
+      const b = body as Record<string, unknown>;
+      if (b && b.answerId) {
+        return { success: true, data: b };
+      }
+      return { success: false, error: { issues: [{ path: ['answerId'], message: 'Required' }] } };
+    }),
+  },
+}));
+
+// Mock errors util
+vi.mock('../../server/lib/errors.js', () => ({
+  errorResponse: vi.fn((msg: string, details: unknown) => ({ error: msg, details })),
+  ErrorCodes: { VALIDATION_ERROR: 'VALIDATION_ERROR' },
+}));
+
+// Mock worker (for single route job queueing)
+const mockAddJob = vi.fn().mockResolvedValue(undefined);
+vi.mock('../../server/lib/worker.js', () => ({
+  addJob: (...args: unknown[]) => mockAddJob(...args),
+}));
+
 import { Hono } from 'hono';
 import autoGradeWritten from '../../server/jobs/auto-grade-written.js';
 import autoGradeUML from '../../server/jobs/auto-grade-uml.js';
 import acceptRoute from '../../server/routes/auto-grade/accept.js';
 import rejectRoute from '../../server/routes/auto-grade/reject.js';
+import batchAcceptRoute from '../../server/routes/auto-grade/batch-accept.js';
+import singleRoute from '../../server/routes/auto-grade/single.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -549,5 +582,229 @@ describe('T12: Failure tracking', () => {
     expect(mockNotifyGradingFailed).toHaveBeenCalledWith(
       'user-1', 'ans-1', 'sub-1', 'q-1', 'Rate limited', 'batch-1',
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T12: Batch operations — accept all in assignment
+// ---------------------------------------------------------------------------
+describe('T12: Batch accept operations', () => {
+  const staffUser = { id: 'staff-1', email: 'prof@staff.main.ntu.edu.sg', role: 'staff', supabaseId: 'sup-1' };
+
+  function createBatchApp() {
+    const app = new Hono();
+    app.use('*', async (c, next) => {
+      c.set('user', staffUser);
+      return next();
+    });
+    app.route('/', batchAcceptRoute);
+    return app;
+  }
+
+  it('batch-accept creates marks for multiple answers', async () => {
+    const app = createBatchApp();
+
+    // Fetch answers with AI suggestions
+    queryResults.push([
+      { id: 'ans-1', submissionId: 'sub-1', aiGradingSuggestion: { points: 8, reasoning: 'Good' }, maxPoints: 10 },
+      { id: 'ans-2', submissionId: 'sub-1', aiGradingSuggestion: { points: 9, reasoning: 'Great' }, maxPoints: 10 },
+    ]);
+    // Check existing marks — none
+    queryResults.push([]);
+    // Insert marks
+    queryResults.push([
+      { id: 'mark-1', answerId: 'ans-1' },
+      { id: 'mark-2', answerId: 'ans-2' },
+    ]);
+    // Answer count for sub-1
+    queryResults.push([{ count: 2 }]);
+    // Mark count for sub-1
+    queryResults.push([{ count: 2 }]);
+    // Update submission to graded
+    queryResults.push([]);
+
+    const res = await app.request('/batch-accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answerIds: ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'] }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.accepted).toBe(2);
+    expect(body.skipped).toBe(0);
+  });
+
+  it('batch-accept skips already-marked answers', async () => {
+    const app = createBatchApp();
+
+    // Fetch answers with AI suggestions
+    queryResults.push([
+      { id: 'ans-1', submissionId: 'sub-1', aiGradingSuggestion: { points: 8, reasoning: 'Good' }, maxPoints: 10 },
+    ]);
+    // Existing marks — ans-1 already has a mark
+    queryResults.push([{ answerId: 'ans-1' }]);
+
+    const res = await app.request('/batch-accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answerIds: ['00000000-0000-4000-8000-000000000001'] }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.accepted).toBe(0);
+    expect(body.skipped).toBe(1);
+  });
+
+  it('batch-accept rejects invalid request (empty array)', async () => {
+    const app = createBatchApp();
+
+    const res = await app.request('/batch-accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answerIds: [] }),
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('batch-accept rejects student access', async () => {
+    const app = new Hono();
+    app.use('*', async (c, next) => {
+      c.set('user', { id: 'student-1', email: 'student@e.ntu.edu.sg', role: 'student' });
+      return next();
+    });
+    app.route('/', batchAcceptRoute);
+
+    const res = await app.request('/batch-accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answerIds: ['00000000-0000-4000-8000-000000000001'] }),
+    });
+
+    expect(res.status).toBe(403);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T12: Re-grading — triggering re-grade creates new AI job
+// ---------------------------------------------------------------------------
+describe('T12: Re-grading via single route', () => {
+  const staffUser = { id: 'staff-1', email: 'prof@staff.main.ntu.edu.sg', role: 'staff', supabaseId: 'sup-1' };
+
+  function createSingleApp() {
+    const app = new Hono();
+    app.use('*', async (c, next) => {
+      c.set('user', staffUser);
+      return next();
+    });
+    app.route('/', singleRoute);
+    return app;
+  }
+
+  it('re-grade with forceRegrade creates new job', async () => {
+    const app = createSingleApp();
+
+    // Answer with existing AI suggestion
+    queryResults.push([{
+      id: 'ans-1',
+      questionId: 'q-1',
+      submissionId: 'sub-1',
+      aiGradingSuggestion: { points: 5, reasoning: 'Old grade' },
+      questionType: 'written',
+      userId: 'user-1',
+    }]);
+    // Clear existing AI suggestion (update)
+    queryResults.push([]);
+    // Insert new job record
+    queryResults.push([{ id: 'job-2' }]);
+
+    const res = await app.request('/single', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answerId: 'ans-1', forceRegrade: true }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.jobId).toBe('job-2');
+    expect(mockAddJob).toHaveBeenCalledWith('auto-grade-written', expect.objectContaining({
+      answerId: 'ans-1',
+      questionId: 'q-1',
+    }));
+  });
+
+  it('rejects re-grade without forceRegrade flag', async () => {
+    const app = createSingleApp();
+
+    // Answer with existing AI suggestion
+    queryResults.push([{
+      id: 'ans-1',
+      questionId: 'q-1',
+      submissionId: 'sub-1',
+      aiGradingSuggestion: { points: 5, reasoning: 'Existing' },
+      questionType: 'written',
+      userId: 'user-1',
+    }]);
+
+    const res = await app.request('/single', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answerId: 'ans-1' }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('already has AI grading suggestion');
+  });
+
+  it('grades answer without existing suggestion (no forceRegrade needed)', async () => {
+    const app = createSingleApp();
+
+    // Answer without AI suggestion
+    queryResults.push([{
+      id: 'ans-1',
+      questionId: 'q-1',
+      submissionId: 'sub-1',
+      aiGradingSuggestion: null,
+      questionType: 'uml',
+      userId: 'user-1',
+    }]);
+    // Insert new job record
+    queryResults.push([{ id: 'job-3' }]);
+
+    const res = await app.request('/single', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answerId: 'ans-1' }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(mockAddJob).toHaveBeenCalledWith('auto-grade-uml', expect.objectContaining({
+      answerId: 'ans-1',
+    }));
+  });
+
+  it('returns 404 for non-existent answer', async () => {
+    const app = createSingleApp();
+
+    // No answer found
+    queryResults.push([]);
+
+    const res = await app.request('/single', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answerId: 'non-existent' }),
+    });
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error).toBe('Answer not found');
   });
 });
