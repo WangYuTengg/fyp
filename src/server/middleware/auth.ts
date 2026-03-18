@@ -4,10 +4,9 @@ import { supabase } from '../lib/supabase.js';
 import { db } from '../../db/index.js';
 import { users } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { env } from '../config/env.js';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'dev-jwt-secret-change-in-production'
-);
+const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
 
 // Extend Hono context to include user
 export type AuthContext = {

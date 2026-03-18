@@ -42,8 +42,8 @@ function ResetPassword() {
     e.preventDefault();
     setError('');
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+      setError('Password must be at least 8 characters with uppercase, lowercase, and a number');
       return;
     }
 
@@ -103,7 +103,7 @@ function ResetPassword() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="form-input-block"
-                  placeholder="Min 6 characters"
+                  placeholder="Min 8 chars, uppercase, lowercase, number"
                 />
               </div>
 

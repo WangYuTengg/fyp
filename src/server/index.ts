@@ -2,9 +2,15 @@ import * as dotenv from 'dotenv';
 // Load env vars BEFORE any other imports that use them
 dotenv.config();
 
+// S11: Validate environment variables before anything else — fail-fast on misconfiguration
+import './config/env.js';
+
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
+import { bodyLimit } from 'hono/body-limit';
+import { secureHeaders } from 'hono/secure-headers';
+import { cors } from 'hono/cors';
 import { rateLimiter } from 'hono-rate-limiter';
 import type { TaskList } from 'graphile-worker';
 import authRoutes from './routes/auth/index.js';
@@ -24,8 +30,90 @@ import autoGradeWritten, { type AutoGradeWrittenPayload } from './jobs/auto-grad
 import autoGradeUML, { type AutoGradeUMLPayload } from './jobs/auto-grade-uml.js';
 import autoSubmitExpired from './jobs/auto-submit-expired.js';
 import { RATE_LIMIT_CONFIG } from './config/constants.js';
+import { env } from './config/env.js';
 
 const app = new Hono<AuthContext>();
+
+// S3: Security headers — place first so every response gets them
+const isProduction = env.NODE_ENV === 'production';
+app.use(
+  '*',
+  secureHeaders({
+    strictTransportSecurity: isProduction
+      ? 'max-age=31536000; includeSubDomains'
+      : undefined,
+    contentSecurityPolicy: isProduction
+      ? {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"], // Tailwind needs inline styles
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          connectSrc: ["'self'", env.VITE_SUPABASE_URL],
+          frameSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+        }
+      : undefined, // Relaxed in development (Vite HMR needs inline scripts)
+    xFrameOptions: 'DENY',
+    xContentTypeOptions: 'nosniff',
+    referrerPolicy: 'strict-origin-when-cross-origin',
+    permissionsPolicy: {
+      camera: [],
+      microphone: [],
+      geolocation: [],
+    },
+  })
+);
+
+// S4: CORS — restrict API access to the legitimate frontend origin
+app.use(
+  '/api/*',
+  cors({
+    origin: env.VITE_APP_URL,
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    credentials: false, // Bearer token auth — no cookies needed
+  })
+);
+
+// S2: Larger limit for CSV bulk upload route (10MB) — must be registered before global limit
+app.use('/api/admin/users/bulk', bodyLimit({ maxSize: 10 * 1024 * 1024 }));
+
+// S2: Global body size limit (1MB for JSON APIs)
+app.use('/api/*', bodyLimit({ maxSize: 1 * 1024 * 1024 }));
+
+// S10: Strict rate limiting for auth endpoints (5 req/min per IP)
+const authLimiter = rateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  limit: 5,
+  standardHeaders: 'draft-6',
+  keyGenerator: (c) =>
+    c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'default',
+  handler: (c) =>
+    c.json(
+      { success: false, error: 'Too many attempts. Please try again in 60 seconds.' },
+      429
+    ),
+});
+
+app.use('/api/auth/signin', authLimiter);
+app.use('/api/auth/password-login', authLimiter);
+app.use('/api/auth/signup', authLimiter);
+
+// S10: Even stricter for forgot-password (3 req/min per IP)
+const forgotPasswordLimiter = rateLimiter({
+  windowMs: 60 * 1000,
+  limit: 3,
+  standardHeaders: 'draft-6',
+  keyGenerator: (c) =>
+    c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'default',
+  handler: (c) =>
+    c.json(
+      { success: false, error: 'Too many attempts. Please try again in 60 seconds.' },
+      429
+    ),
+});
+
+app.use('/api/auth/forgot-password', forgotPasswordLimiter);
 
 // Rate limiting middleware - apply to all API routes except monitoring endpoints
 const limiter = rateLimiter({

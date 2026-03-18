@@ -5,10 +5,21 @@ import { z } from 'zod';
  * Use these to validate and type-check incoming requests
  */
 
+// S7: Shared password validation — minimum 8 chars, 1 uppercase, 1 lowercase, 1 number
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/\d/, 'Password must contain at least one number');
+
+// Relaxed password schema for login (don't enforce complexity on existing passwords)
+const loginPasswordSchema = z.string().min(1, 'Password is required');
+
 // User/Auth schemas
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: loginPasswordSchema,
 });
 
 // Course schemas
@@ -120,7 +131,7 @@ export const createUserSchema = z.object({
   email: z.string().email('Invalid email address'),
   name: z.string().min(1, 'Name is required'),
   role: z.enum(['admin', 'staff', 'student']),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: passwordSchema,
 });
 
 export const updateUserSchema = z.object({
@@ -130,7 +141,7 @@ export const updateUserSchema = z.object({
 });
 
 export const adminResetPasswordSchema = z.object({
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: passwordSchema,
 });
 
 export const bulkCreateUsersSchema = z.object({
@@ -138,7 +149,7 @@ export const bulkCreateUsersSchema = z.object({
     email: z.string().email('Invalid email address'),
     name: z.string().min(1, 'Name is required'),
     role: z.enum(['admin', 'staff', 'student']),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    password: passwordSchema,
   })).min(1, 'At least one user is required').max(500, 'Maximum 500 users per batch'),
 });
 
@@ -149,7 +160,7 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   token: z.string().min(1, 'Token is required'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: passwordSchema,
 });
 
 // Tag schemas

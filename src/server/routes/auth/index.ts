@@ -8,6 +8,7 @@ import signUpRoute from './signup.js';
 import passwordLoginRoute from './password-login.js';
 import forgotPasswordRoute from './forgot-password.js';
 import resetPasswordRoute from './reset-password.js';
+import refreshRoute from './refresh.js';
 
 const auth = new Hono<AuthContext>();
 
@@ -19,5 +20,6 @@ auth.route('/', signOutRoute);
 auth.route('/', passwordLoginRoute);
 auth.route('/', forgotPasswordRoute);
 auth.route('/', resetPasswordRoute);
+auth.route('/', refreshRoute);
 
 export default auth;

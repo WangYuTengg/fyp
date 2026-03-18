@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import bcrypt from 'bcryptjs';
 import { db } from '../../../db/index.js';
-import { users, passwordResetTokens } from '../../../db/schema.js';
+import { users, passwordResetTokens, refreshTokens } from '../../../db/schema.js';
 import type { AuthContext } from '../../middleware/auth.js';
 import { safeValidateBody, resetPasswordSchema } from '../../lib/validation-schemas.js';
 import { eq, and, isNull, gte } from 'drizzle-orm';
@@ -50,6 +50,11 @@ resetPasswordRoute.post('/reset-password', async (c) => {
     .update(passwordResetTokens)
     .set({ usedAt: new Date() })
     .where(eq(passwordResetTokens.id, resetToken.id));
+
+  // S9: Revoke all refresh tokens on password change
+  await db
+    .delete(refreshTokens)
+    .where(eq(refreshTokens.userId, resetToken.userId));
 
   return c.json({ message: 'Password reset successfully' });
 });

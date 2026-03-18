@@ -49,8 +49,8 @@ function parseCsv(text: string): { rows: ParsedRow[]; errors: ParseError[] } {
       continue;
     }
 
-    if (!password || password.length < 6) {
-      errors.push({ lineNumber, message: 'Password must be at least 6 characters' });
+    if (!password || password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+      errors.push({ lineNumber, message: 'Password must be at least 8 characters with uppercase, lowercase, and a number' });
       continue;
     }
 

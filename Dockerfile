@@ -38,6 +38,10 @@ RUN npm ci --only=production
 # Copy built assets from builder stage
 COPY --from=builder /app/dist ./dist
 
+# S8: Run as non-root user for defense-in-depth
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
 # Expose the port
 EXPOSE 3000
 
