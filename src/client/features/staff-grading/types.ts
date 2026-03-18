@@ -1,3 +1,9 @@
+export type TabSwitchEvent = {
+  leftAt: string;
+  returnedAt: string;
+  durationMs: number;
+};
+
 export type GradingAssignment = {
   id: string;
   courseId: string;
@@ -6,6 +12,8 @@ export type GradingAssignment = {
   dueDate: string | null;
   timeLimit: number | null;
   maxAttempts: number;
+  monitorFocus: boolean;
+  maxTabSwitches: number | null;
 };
 
 export type GradingSubmission = {
@@ -17,6 +25,7 @@ export type GradingSubmission = {
   startedAt: string;
   submittedAt: string | null;
   gradedAt: string | null;
+  tabSwitches?: TabSwitchEvent[];
   user?: {
     id: string;
     email: string;

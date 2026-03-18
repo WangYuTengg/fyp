@@ -74,6 +74,8 @@ export const assignments = pgTable('assignments', {
   maxAttempts: integer('max_attempts').default(1),
   mcqPenaltyPerWrongSelection: integer('mcq_penalty_per_wrong_selection').default(1).notNull(),
   timeLimit: integer('time_limit'), // in minutes
+  monitorFocus: boolean('monitor_focus').default(false).notNull(),
+  maxTabSwitches: integer('max_tab_switches'),
   shuffleQuestions: boolean('shuffle_questions').default(false).notNull(),
   latePenaltyType: text('late_penalty_type').default('none').notNull(), // 'none' | 'fixed' | 'per_day' | 'per_hour'
   latePenaltyValue: numeric('late_penalty_value'), // percentage value (e.g., 10 means 10%)
@@ -106,6 +108,7 @@ export const submissions = pgTable('submissions', {
   startedAt: timestamp('started_at').defaultNow().notNull(),
   submittedAt: timestamp('submitted_at'),
   gradedAt: timestamp('graded_at'),
+  tabSwitches: jsonb('tab_switches').default([]).notNull(), // Array of { leftAt, returnedAt, durationMs }
   questionOrder: jsonb('question_order'), // Array of questionIds in shuffled display order
   autoSubmitted: boolean('auto_submitted').default(false).notNull(),
   latePenaltyApplied: numeric('late_penalty_applied'), // penalty percentage actually applied

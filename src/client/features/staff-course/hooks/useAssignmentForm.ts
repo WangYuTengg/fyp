@@ -75,6 +75,11 @@ export function useAssignmentForm(courseId: string) {
       ? Math.max(1, Math.floor(timeLimitRaw))
       : null;
 
+    const monitorFocus = formData.get('monitorFocus') === 'true';
+    const maxTabSwitchesRaw = Number(formData.get('maxTabSwitches'));
+    const maxTabSwitches = String(formData.get('maxTabSwitches') || '').trim().length > 0 && Number.isFinite(maxTabSwitchesRaw)
+      ? Math.max(1, Math.floor(maxTabSwitchesRaw))
+      : null;
     const latePenaltyType = String(formData.get('latePenaltyType') || 'none');
     const latePenaltyValueRaw = Number(formData.get('latePenaltyValue'));
     const latePenaltyCapRaw = Number(formData.get('latePenaltyCap'));
@@ -89,6 +94,8 @@ export function useAssignmentForm(courseId: string) {
       maxAttempts,
       mcqPenaltyPerWrongSelection,
       timeLimit,
+      monitorFocus,
+      maxTabSwitches,
       shuffleQuestions: formData.get('shuffleQuestions') === '1',
       latePenaltyType,
       latePenaltyValue: latePenaltyType !== 'none' && Number.isFinite(latePenaltyValueRaw) ? latePenaltyValueRaw : undefined,

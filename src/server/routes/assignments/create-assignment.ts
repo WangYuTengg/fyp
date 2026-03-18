@@ -33,6 +33,8 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     maxAttempts,
     mcqPenaltyPerWrongSelection,
     timeLimit,
+    monitorFocus,
+    maxTabSwitches,
     latePenaltyType,
     latePenaltyValue,
     latePenaltyCap,
@@ -48,6 +50,8 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     maxAttempts?: number | null;
     mcqPenaltyPerWrongSelection?: number | null;
     timeLimit?: number | null;
+    monitorFocus?: boolean;
+    maxTabSwitches?: number | null;
     latePenaltyType?: string | null;
     latePenaltyValue?: number | null;
     latePenaltyCap?: number | null;
@@ -81,6 +85,10 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
 
   if (timeLimit !== undefined && timeLimit !== null && (!Number.isInteger(timeLimit) || timeLimit < 1)) {
     return c.json({ error: 'timeLimit must be an integer >= 1' }, 400);
+  }
+
+  if (maxTabSwitches !== undefined && maxTabSwitches !== null && (!Number.isInteger(maxTabSwitches) || maxTabSwitches < 1)) {
+    return c.json({ error: 'maxTabSwitches must be an integer >= 1' }, 400);
   }
 
   const validPenaltyTypes = ['none', 'fixed', 'per_day', 'per_hour'] as const;
@@ -153,6 +161,8 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
       maxAttempts: maxAttemptsValue,
       mcqPenaltyPerWrongSelection: mcqPenaltyValue,
       timeLimit: timeLimit ?? null,
+      monitorFocus: monitorFocus === true,
+      maxTabSwitches: maxTabSwitches ?? null,
       shuffleQuestions: shuffleQuestions === true,
       latePenaltyType: penaltyType,
       latePenaltyValue: penaltyType !== 'none' && latePenaltyValue != null ? String(latePenaltyValue) : null,

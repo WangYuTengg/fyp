@@ -102,6 +102,9 @@ export function CreateAssignmentForm({
   const [hasTimeLimit, setHasTimeLimit] = useState(false);
   const [timeLimit, setTimeLimit] = useState(DEFAULT_TIME_LIMIT_MINUTES);
   const [mcqPenaltyPerWrongSelection, setMcqPenaltyPerWrongSelection] = useState(1);
+  const [monitorFocus, setMonitorFocus] = useState(false);
+  const [hasMaxTabSwitches, setHasMaxTabSwitches] = useState(false);
+  const [maxTabSwitches, setMaxTabSwitches] = useState(5);
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [latePenaltyType, setLatePenaltyType] = useState<'none' | 'fixed' | 'per_day' | 'per_hour'>('none');
   const [latePenaltyValue, setLatePenaltyValue] = useState(10);
@@ -348,6 +351,8 @@ export function CreateAssignmentForm({
       <input type="hidden" name="maxAttempts" value={String(maxAttempts)} />
       <input type="hidden" name="mcqPenaltyPerWrongSelection" value={String(mcqPenaltyPerWrongSelection)} />
       <input type="hidden" name="timeLimit" value={hasTimeLimit ? String(timeLimit) : ''} />
+      <input type="hidden" name="monitorFocus" value={monitorFocus ? 'true' : 'false'} />
+      <input type="hidden" name="maxTabSwitches" value={monitorFocus && hasMaxTabSwitches ? String(maxTabSwitches) : ''} />
       <input type="hidden" name="shuffleQuestions" value={shuffleQuestions ? '1' : '0'} />
       <input type="hidden" name="latePenaltyType" value={latePenaltyType} />
       <input type="hidden" name="latePenaltyValue" value={latePenaltyType !== 'none' ? String(latePenaltyValue) : ''} />
@@ -602,6 +607,65 @@ export function CreateAssignmentForm({
                       step={1}
                       className="form-input-block"
                     />
+                  </div>
+                )}
+              </div>
+
+              {/* Focus Monitoring */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-900 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={monitorFocus}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    onChange={(e) => {
+                      setMonitorFocus(e.target.checked);
+                      if (!e.target.checked) {
+                        setHasMaxTabSwitches(false);
+                        setMaxTabSwitches(5);
+                      }
+                    }}
+                  />
+                  Monitor tab switches
+                </label>
+                <p className="mt-1 text-xs text-gray-500">
+                  Track when students leave the exam tab. Tab switches are logged and visible during grading.
+                </p>
+                {monitorFocus && (
+                  <div className="mt-3 space-y-3">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hasMaxTabSwitches}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        onChange={(e) => {
+                          setHasMaxTabSwitches(e.target.checked);
+                          if (!e.target.checked) {
+                            setMaxTabSwitches(5);
+                          }
+                        }}
+                      />
+                      Auto-submit after threshold
+                    </label>
+                    {hasMaxTabSwitches && (
+                      <div className="max-w-xs">
+                        <label htmlFor="create-assignment-max-tab-switches" className="block text-sm font-medium text-gray-700">
+                          Max tab switches before auto-submit
+                        </label>
+                        <input
+                          id="create-assignment-max-tab-switches"
+                          type="number"
+                          value={maxTabSwitches}
+                          onChange={(e) => {
+                            const nextValue = Number(e.target.value);
+                            setMaxTabSwitches(Number.isFinite(nextValue) ? Math.max(1, Math.floor(nextValue)) : 1);
+                          }}
+                          min={1}
+                          step={1}
+                          className="form-input-block"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1074,6 +1138,16 @@ export function CreateAssignmentForm({
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Multi-answer penalty</p>
                   <p className="mt-1 text-sm text-gray-900">{mcqPenaltyPerWrongSelection} per wrong option</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Focus monitoring</p>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {monitorFocus
+                      ? hasMaxTabSwitches
+                        ? `Enabled (auto-submit after ${maxTabSwitches} tab switches)`
+                        : 'Enabled (tracking only)'
+                      : 'Disabled'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Question order</p>
