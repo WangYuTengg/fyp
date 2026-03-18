@@ -1,11 +1,12 @@
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { useAuth } from '../hooks/useAuth';
-import { 
-  BookOpenIcon, 
+import {
+  BookOpenIcon,
   AcademicCapIcon,
   BellIcon,
   Cog6ToothIcon,
   ChartBarIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline';
 import { UserInfo } from './UserInfo';
 import { useEffect, useState } from 'react';
@@ -42,6 +43,12 @@ const navigation: NavItem[] = [
     href: '/staff/notifications',
     icon: BellIcon,
     roles: ['staff', 'admin']
+  },
+  {
+    name: 'User Management',
+    href: '/staff/admin/users',
+    icon: UsersIcon,
+    roles: ['admin']
   },
   {
     name: 'Settings',
