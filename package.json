@@ -17,6 +17,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
+    "db:seed-passwords": "tsx src/db/seed-passwords.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -31,6 +32,7 @@
     "@tanstack/react-router": "^1.156.0",
     "@tanstack/router-devtools": "^1.156.0",
     "@tanstack/router-plugin": "^1.156.0",
+    "@types/bcryptjs": "^2.4.6",
     "@xyflow/react": "^12.10.0",
     "ai": "^6.0.50",
     "bcryptjs": "^3.0.3",
@@ -47,6 +49,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
+    "recharts": "^3.8.0",
     "tsx": "^4.21.0",
     "zod": "^4.3.6"
   },

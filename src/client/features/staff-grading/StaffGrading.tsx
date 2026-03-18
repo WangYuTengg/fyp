@@ -1,5 +1,6 @@
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useNavigate, useSearch, Link } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowDownTrayIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
 import { useGrading } from './hooks/useGrading';
 import { SubmissionList } from './components/SubmissionList';
@@ -133,13 +134,31 @@ export function StaffGrading() {
               Manual Grading Workspace (Question-by-Question)
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate({ to: `/staff/courses/${assignment.courseId}` })}
-            className="text-blue-600 hover:text-blue-800 font-medium"
-          >
-            Back to Course
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/staff/assignment-analytics"
+              search={{ assignmentId }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              <ChartBarIcon className="h-4 w-4" />
+              Analytics
+            </Link>
+            <button
+              type="button"
+              onClick={() => window.open(`/api/assignments/${assignmentId}/export-grades`, '_blank')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+            >
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate({ to: `/staff/courses/${assignment.courseId}` })}
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Back to Course
+            </button>
+          </div>
         </div>
       </div>
 

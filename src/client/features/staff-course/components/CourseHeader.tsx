@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { HomeIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import type { StaffCourse } from '../types';
 
 type CourseHeaderProps = {
@@ -7,6 +7,10 @@ type CourseHeaderProps = {
 };
 
 export function CourseHeader({ course }: CourseHeaderProps) {
+  const handleExportCourseGrades = () => {
+    window.open(`/api/courses/${course.id}/export-grades`, '_blank');
+  };
+
   return (
     <>
       <nav className="flex" aria-label="Breadcrumb">
@@ -29,11 +33,22 @@ export function CourseHeader({ course }: CourseHeaderProps) {
       </nav>
 
       <div className="bg-white shadow rounded-lg p-6">
-        <h1 className="text-3xl font-bold text-gray-900">{course.code}</h1>
-        <p className="text-xl text-gray-600 mt-2">{course.name}</p>
-        <p className="text-gray-500 mt-4">{course.description}</p>
-        <div className="mt-4 text-sm text-gray-500">
-          {course.academicYear} • {course.semester}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{course.code}</h1>
+            <p className="text-xl text-gray-600 mt-2">{course.name}</p>
+            <p className="text-gray-500 mt-4">{course.description}</p>
+            <div className="mt-4 text-sm text-gray-500">
+              {course.academicYear} • {course.semester}
+            </div>
+          </div>
+          <button
+            onClick={handleExportCourseGrades}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium shrink-0"
+          >
+            <ArrowDownTrayIcon className="h-4 w-4" />
+            Export All Grades
+          </button>
         </div>
       </div>
     </>

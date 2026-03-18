@@ -132,9 +132,19 @@ export function SubmissionList({
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate">
-                    {index + 1}. {submission.user?.fullName || submission.user?.email || 'Unknown'}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium text-gray-900 truncate">
+                      {index + 1}. {submission.user?.fullName || submission.user?.email || 'Unknown'}
+                    </p>
+                    {Array.isArray(submission.tabSwitches) && submission.tabSwitches.length > 0 && (
+                      <span
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800 whitespace-nowrap"
+                        title={`${submission.tabSwitches.length} tab switch${submission.tabSwitches.length === 1 ? '' : 'es'} detected`}
+                      >
+                        ! {submission.tabSwitches.length}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500 mt-1">Attempt {submission.attemptNumber}</p>
                   {submission.submittedAt && (
                     <p className="text-xs text-gray-500">{new Date(submission.submittedAt).toLocaleString()}</p>

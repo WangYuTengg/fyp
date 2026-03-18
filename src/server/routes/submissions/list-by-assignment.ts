@@ -48,6 +48,7 @@ listByAssignmentRoute.get('/assignment/:assignmentId', requireAuth, async (c) =>
       startedAt: submissions.startedAt,
       submittedAt: submissions.submittedAt,
       gradedAt: submissions.gradedAt,
+      tabSwitches: submissions.tabSwitches,
       createdAt: submissions.createdAt,
       updatedAt: submissions.updatedAt,
       user: {
