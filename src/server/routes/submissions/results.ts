@@ -30,6 +30,7 @@ resultsRoute.get('/:submissionId/results', requireAuth, async (c) => {
         id: assignments.id,
         title: assignments.title,
         courseId: assignments.courseId,
+        resultsPublished: assignments.resultsPublished,
       },
     })
     .from(submissions)
@@ -47,6 +48,11 @@ resultsRoute.get('/:submissionId/results', requireAuth, async (c) => {
 
   if (!isOwner && !isStaff) {
     return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  // Students can only see results when published
+  if (isOwner && !isStaff && !submission.assignment.resultsPublished) {
+    return c.json({ error: 'Results have not been published yet', resultsAvailable: false }, 403);
   }
 
   // Fetch course info
