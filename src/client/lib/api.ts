@@ -178,6 +178,11 @@ export const submissionsApi = {
     return response.json();
   },
   getFileHistory: (answerId: string) => apiClient<unknown[]>(`/api/submissions/answer/${answerId}/file-history`),
+  reportFocusEvent: (submissionId: string, data: { leftAt: string; returnedAt: string; durationMs: number }) =>
+    apiClient<{ success: boolean; data: { tabSwitchCount: number; maxTabSwitches: number | null; shouldAutoSubmit: boolean } }>(
+      `/api/submissions/${submissionId}/focus-event`,
+      { method: 'POST', body: JSON.stringify(data) }
+    ),
 };
 
 export const questionsApi = {

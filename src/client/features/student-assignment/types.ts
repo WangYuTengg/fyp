@@ -22,6 +22,8 @@ export type AssignmentDetails = {
   dueDate: string | null;
   timeLimit: number | null;
   mcqPenaltyPerWrongSelection: number;
+  monitorFocus: boolean;
+  maxTabSwitches: number | null;
   questionCount: number;
   questionTypeCounts: QuestionTypeCounts;
   questions: AssignmentQuestion[];
