@@ -33,6 +33,8 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     maxAttempts,
     mcqPenaltyPerWrongSelection,
     timeLimit,
+    monitorFocus,
+    maxTabSwitches,
     questionIds,
   } = body as {
     courseId?: string;
@@ -43,6 +45,8 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     maxAttempts?: number | null;
     mcqPenaltyPerWrongSelection?: number | null;
     timeLimit?: number | null;
+    monitorFocus?: boolean;
+    maxTabSwitches?: number | null;
     questionIds?: string[];
   };
 
@@ -71,6 +75,10 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
 
   if (timeLimit !== undefined && timeLimit !== null && (!Number.isInteger(timeLimit) || timeLimit < 1)) {
     return c.json({ error: 'timeLimit must be an integer >= 1' }, 400);
+  }
+
+  if (maxTabSwitches !== undefined && maxTabSwitches !== null && (!Number.isInteger(maxTabSwitches) || maxTabSwitches < 1)) {
+    return c.json({ error: 'maxTabSwitches must be an integer >= 1' }, 400);
   }
 
   const dueDateValue = parseOptionalDate(dueDate);
@@ -124,6 +132,8 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
       maxAttempts: maxAttemptsValue,
       mcqPenaltyPerWrongSelection: mcqPenaltyValue,
       timeLimit: timeLimit ?? null,
+      monitorFocus: monitorFocus === true,
+      maxTabSwitches: maxTabSwitches ?? null,
       isPublished: false,
       createdBy: user.id,
     })
