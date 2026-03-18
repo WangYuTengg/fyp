@@ -16,7 +16,8 @@
     "start": "NODE_ENV=production node dist/server/index.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:seed-passwords": "tsx src/db/seed-passwords.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.23",
@@ -29,14 +30,17 @@
     "@tanstack/react-router": "^1.156.0",
     "@tanstack/router-devtools": "^1.156.0",
     "@tanstack/router-plugin": "^1.156.0",
+    "@types/bcryptjs": "^2.4.6",
     "@xyflow/react": "^12.10.0",
     "ai": "^6.0.50",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.1",
     "graphile-worker": "^0.16.6",
     "hono": "^4.11.5",
     "hono-rate-limiter": "^0.5.3",
+    "jose": "^6.2.1",
     "plantuml-encoder": "^1.4.0",
     "postgres": "^3.4.8",
     "react": "^19.2.0",
@@ -62,6 +66,7 @@
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vitest": "^4.1.0"
   }
 }

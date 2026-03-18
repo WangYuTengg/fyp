@@ -8,13 +8,18 @@ type AssignmentCardProps = {
   assignment: StaffAssignment;
   onTogglePublish: (assignmentId: string, nextIsPublished: boolean) => void;
   onDelete?: (assignmentId: string) => void;
+  onClone?: (assignmentId: string, options?: { newTitle?: string; newDueDate?: string | null }) => void;
+  isCloning?: boolean;
 };
 
-export function AssignmentCard({ assignment, onTogglePublish, onDelete }: AssignmentCardProps) {
+export function AssignmentCard({ assignment, onTogglePublish, onDelete, onClone, isCloning }: AssignmentCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [showCloneModal, setShowCloneModal] = useState(false);
   const [nextPublishState, setNextPublishState] = useState<boolean | null>(null);
   const [confirmText, setConfirmText] = useState('');
+  const [cloneTitle, setCloneTitle] = useState('');
+  const [cloneDueDate, setCloneDueDate] = useState('');
   const hasAttempts = assignment.attemptCount > 0;
   const isUnpublishLocked = assignment.isPublished && hasAttempts;
   const visibleQuestionTypes = QUESTION_TYPE_ORDER.filter((type) => assignment.questionTypeCounts[type] > 0);
@@ -52,6 +57,28 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
     setConfirmText('');
+  };
+
+  const handleCloneClick = () => {
+    setCloneTitle(`${assignment.title} (Copy)`);
+    setCloneDueDate('');
+    setShowCloneModal(true);
+  };
+
+  const handleConfirmClone = () => {
+    onClone?.(assignment.id, {
+      newTitle: cloneTitle.trim() || undefined,
+      newDueDate: cloneDueDate || null,
+    });
+    setShowCloneModal(false);
+    setCloneTitle('');
+    setCloneDueDate('');
+  };
+
+  const handleCancelClone = () => {
+    setShowCloneModal(false);
+    setCloneTitle('');
+    setCloneDueDate('');
   };
 
   return (
@@ -110,6 +137,16 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
               Grade
             </Link>
           )}
+          {onClone && (
+            <button
+              type="button"
+              onClick={handleCloneClick}
+              disabled={isCloning}
+              className="text-gray-600 hover:text-gray-800 font-medium py-2 px-4 rounded hover:bg-gray-100 disabled:opacity-50"
+            >
+              {isCloning ? 'Cloning...' : 'Clone'}
+            </button>
+          )}
           <button
             type="button"
             onClick={handlePublishClick}
@@ -167,6 +204,62 @@ export function AssignmentCard({ assignment, onTogglePublish, onDelete }: Assign
                 }`}
               >
                 {nextPublishState ? 'Publish Assignment' : 'Unpublish Assignment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clone Modal */}
+      {showCloneModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">Clone Assignment</h3>
+            <p className="mb-4 text-sm text-gray-600">
+              Create a copy of &ldquo;{assignment.title}&rdquo; with all its questions and settings. The clone starts unpublished.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="clone-title" className="block text-sm font-medium text-gray-700">
+                  Title
+                </label>
+                <input
+                  id="clone-title"
+                  type="text"
+                  value={cloneTitle}
+                  onChange={(e) => setCloneTitle(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label htmlFor="clone-due-date" className="block text-sm font-medium text-gray-700">
+                  New due date (optional)
+                </label>
+                <input
+                  id="clone-due-date"
+                  type="datetime-local"
+                  value={cloneDueDate}
+                  onChange={(e) => setCloneDueDate(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">Leave blank to clone without a due date.</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleCancelClone}
+                className="rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmClone}
+                className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              >
+                Clone Assignment
               </button>
             </div>
           </div>
