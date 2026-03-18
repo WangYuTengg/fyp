@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import type { RefObject } from 'react';
-import type { GradingAnswer, QuestionGrade } from '../types';
+import type { GradingAnswer, GradingMark, QuestionGrade } from '../types';
 import { UMLViewer } from '../../../components/UMLViewer';
+import { UMLAnnotationOverlay, AnnotationSidebar, type AnnotationPin } from './UMLAnnotationOverlay';
 import {
   CheckCircleIcon,
   ChevronDownIcon,
@@ -10,6 +11,14 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline';
 
+const OVERRIDE_REASONS = [
+  { value: 'too_lenient', label: 'AI too lenient' },
+  { value: 'too_strict', label: 'AI too strict' },
+  { value: 'partial_credit', label: 'Partial credit' },
+  { value: 'misunderstood_rubric', label: 'Misunderstood rubric' },
+  { value: 'other', label: 'Other' },
+] as const;
+
 type QuestionGradeCardProps = {
   answer: GradingAnswer;
   questionNumber: number;
@@ -17,6 +26,7 @@ type QuestionGradeCardProps = {
   onGradeChange: (grade: QuestionGrade) => void;
   isReadOnly: boolean;
   pointsInputRef?: RefObject<HTMLInputElement | null>;
+  existingMark?: GradingMark | null;
 };
 
 type ParsedAISuggestion = {
@@ -38,6 +48,7 @@ export function QuestionGradeCard({
   onGradeChange,
   isReadOnly,
   pointsInputRef,
+  existingMark,
 }: QuestionGradeCardProps) {
   const [showReference, setShowReference] = useState(false);
   const [showAISuggestion, setShowAISuggestion] = useState(true);
@@ -57,6 +68,26 @@ export function QuestionGradeCard({
 
     return answer.aiGradingSuggestion as ParsedAISuggestion;
   }, [answer.aiGradingSuggestion]);
+
+  // B7: Track whether this is an override of an AI-graded mark
+  const isAiMark = existingMark?.isAiAssisted || existingMark?.aiSuggestionAccepted;
+  const [showOverrideReason, setShowOverrideReason] = useState(false);
+
+  const handleOverrideReasonChange = useCallback(
+    (reason: string) => {
+      const currentGradeValue =
+        grade ?? {
+          answerId: answer.id,
+          questionId: answer.questionId,
+          points: 0,
+          maxPoints: question?.points ?? 0,
+          feedback: '',
+        };
+
+      onGradeChange({ ...currentGradeValue, overrideReason: reason });
+    },
+    [grade, answer.id, answer.questionId, question?.points, onGradeChange]
+  );
 
   if (!question) {
     return null;
@@ -79,6 +110,11 @@ export function QuestionGradeCard({
   const handlePointsChange = (value: string) => {
     const parsed = Number.parseInt(value, 10);
     const points = Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(maxPoints, parsed));
+
+    // Show override reason dropdown if changing an AI-graded mark
+    if (isAiMark && existingMark && points !== existingMark.points) {
+      setShowOverrideReason(true);
+    }
 
     onGradeChange({
       ...currentGrade,
@@ -136,31 +172,90 @@ export function QuestionGradeCard({
     );
   };
 
+  // B2: Split view toggle
+  const [splitView, setSplitView] = useState(true);
+
+  // B3: UML Annotations
+  const [annotations, setAnnotations] = useState<AnnotationPin[]>(() => {
+    // Parse existing annotations from feedback JSONB
+    if (existingMark?.feedback) {
+      try {
+        const parsed = JSON.parse(existingMark.feedback);
+        if (parsed && Array.isArray(parsed.annotations)) {
+          return parsed.annotations as AnnotationPin[];
+        }
+      } catch {
+        // Not JSON feedback, that's fine
+      }
+    }
+    return [];
+  });
+
+  const handleAnnotationsChange = useCallback(
+    (newAnnotations: AnnotationPin[]) => {
+      setAnnotations(newAnnotations);
+      // Store annotations in feedback as JSON
+      const feedbackObj = {
+        text: currentGrade?.feedback || '',
+        annotations: newAnnotations,
+      };
+      onGradeChange({
+        ...(currentGrade ?? {
+          answerId: answer.id,
+          questionId: answer.questionId,
+          points: 0,
+          maxPoints: question?.points ?? 0,
+          feedback: '',
+        }),
+        feedback: JSON.stringify(feedbackObj),
+      });
+    },
+    [currentGrade, answer.id, answer.questionId, question?.points, onGradeChange]
+  );
+
   // Extract content based on question type.
   const renderAnswer = () => {
     if (question.type === 'written') {
       const modelAnswer =
         typeof question.content.modelAnswer === 'string' ? question.content.modelAnswer : null;
 
-      return (
-        <div className="space-y-3">
-          <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Student Answer</h4>
-            <div className="bg-gray-50 rounded p-4 whitespace-pre-wrap">
-              {(answer.content.text as string) || (
-                <em className="text-gray-400">No answer provided</em>
-              )}
-            </div>
+      const studentPanel = (
+        <div className="flex-1 min-w-0">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Student Answer</h4>
+          <div className="bg-gray-50 rounded p-4 whitespace-pre-wrap h-full">
+            {(answer.content.text as string) || (
+              <em className="text-gray-400">No answer provided</em>
+            )}
           </div>
+        </div>
+      );
 
+      const modelPanel = modelAnswer ? (
+        <div className="flex-1 min-w-0">
+          <h4 className="text-sm font-medium text-green-700 mb-2">Model Answer</h4>
+          <div className="bg-green-50 rounded p-4 whitespace-pre-wrap border border-green-200 h-full">
+            {modelAnswer}
+          </div>
+        </div>
+      ) : null;
+
+      return (
+        <div className="space-y-2">
           {modelAnswer ? (
-            <div>
-              <h4 className="text-sm font-medium text-green-700 mb-2">Model Answer</h4>
-              <div className="bg-green-50 rounded p-4 whitespace-pre-wrap border border-green-200">
-                {modelAnswer}
-              </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSplitView((prev) => !prev)}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                {splitView ? 'Stack view' : 'Split view'}
+              </button>
             </div>
           ) : null}
+          <div className={modelAnswer && splitView ? 'grid grid-cols-2 gap-4' : 'space-y-3'}>
+            {studentPanel}
+            {modelPanel}
+          </div>
         </div>
       );
     }
@@ -223,16 +318,29 @@ export function QuestionGradeCard({
           ? question.content.modelAnswer
           : question.content.referenceDiagram;
       const templateDiagram = question.content.referenceDiagram;
+      const hasAnswerDiagram = answerDiagram && typeof answerDiagram === 'string';
 
-      return (
-        <div className="space-y-4">
-          <div>
-            <h4 className="font-medium text-gray-700 mb-2">Student Submission</h4>
+      const studentDiagram = (
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-gray-700 mb-2">Student Submission</h4>
+          <div className="relative">
             {umlText && typeof umlText === 'string' ? (
-              <UMLViewer umlText={umlText} title="Student Diagram" />
+              <>
+                <UMLViewer umlText={umlText} title="Student Diagram" />
+                <UMLAnnotationOverlay
+                  annotations={annotations}
+                  onAnnotationsChange={isReadOnly ? undefined : handleAnnotationsChange}
+                  readOnly={isReadOnly}
+                />
+              </>
             ) : answer.fileUrl ? (
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-lg overflow-hidden relative">
                 <img src={answer.fileUrl} alt="UML Diagram" className="w-full h-auto" />
+                <UMLAnnotationOverlay
+                  annotations={annotations}
+                  onAnnotationsChange={isReadOnly ? undefined : handleAnnotationsChange}
+                  readOnly={isReadOnly}
+                />
                 <div className="p-2 bg-gray-50 text-xs text-gray-600">
                   <a
                     href={answer.fileUrl}
@@ -248,9 +356,32 @@ export function QuestionGradeCard({
               <em className="text-gray-400">No diagram submitted</em>
             )}
           </div>
+          {annotations.length > 0 ? (
+            <div className="mt-3">
+              <AnnotationSidebar
+                annotations={annotations}
+                selectedPin={null}
+                onSelectPin={() => {}}
+              />
+            </div>
+          ) : null}
+          {!isReadOnly && question.type === 'uml' ? (
+            <p className="text-xs text-gray-400 mt-2">Click on the diagram to place annotation pins.</p>
+          ) : null}
+        </div>
+      );
 
-          {answerDiagram && typeof answerDiagram === 'string' ? (
-            <div>
+      const referenceDiagramPanel = hasAnswerDiagram ? (
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-green-700 mb-2">Answer Diagram</h4>
+          <UMLViewer umlText={answerDiagram} title="Answer Diagram" className="border-green-300" />
+        </div>
+      ) : null;
+
+      return (
+        <div className="space-y-3">
+          {hasAnswerDiagram ? (
+            <div className="flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setShowReference(!showReference)}
@@ -259,16 +390,25 @@ export function QuestionGradeCard({
                 {showReference ? 'Hide' : 'Show'} Answer Diagram
               </button>
               {showReference ? (
-                <div className="mt-2">
-                  <UMLViewer umlText={answerDiagram} title="Answer Diagram" />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setSplitView((prev) => !prev)}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  {splitView ? 'Stack view' : 'Side by side'}
+                </button>
               ) : null}
             </div>
           ) : null}
 
+          <div className={showReference && hasAnswerDiagram && splitView ? 'grid grid-cols-2 gap-4' : 'space-y-4'}>
+            {studentDiagram}
+            {showReference ? referenceDiagramPanel : null}
+          </div>
+
           {templateDiagram && typeof templateDiagram === 'string' && templateDiagram.trim().length > 0 ? (
             <div className="text-xs text-gray-500">
-              Template diagram is available in the question and was shown to students.
+              Template diagram was shown to students during the assignment.
             </div>
           ) : null}
         </div>
@@ -439,6 +579,30 @@ export function QuestionGradeCard({
                 className="form-textarea-block min-h-45"
               />
             </div>
+
+            {showOverrideReason && !isReadOnly ? (
+              <div className="border-t border-gray-200 pt-3">
+                <label htmlFor="overrideReason" className="block text-sm font-medium text-amber-700 mb-1">
+                  Override Reason
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  You're changing an AI-graded score. Why?
+                </p>
+                <select
+                  id="overrideReason"
+                  value={currentGrade.overrideReason || ''}
+                  onChange={(event) => handleOverrideReasonChange(event.target.value)}
+                  className="form-select-block"
+                >
+                  <option value="">Select a reason...</option>
+                  {OVERRIDE_REASONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
