@@ -43,6 +43,7 @@ vi.mock('../../db/index.js', () => ({
 vi.mock('../../db/schema.js', () => ({
   users: { id: 'id', email: 'email', passwordHash: 'passwordHash', role: 'role', deactivatedAt: 'deactivatedAt', supabaseId: 'supabaseId', name: 'name' },
   passwordResetTokens: { id: 'id', userId: 'userId', token: 'token', expiresAt: 'expiresAt', usedAt: 'usedAt', createdAt: 'createdAt' },
+  refreshTokens: { id: 'id', userId: 'userId', token: 'token', expiresAt: 'expiresAt', usedAt: 'usedAt', createdAt: 'createdAt' },
 }));
 
 vi.mock('drizzle-orm', () => ({

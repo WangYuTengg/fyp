@@ -55,6 +55,7 @@ vi.mock('../../db/schema.js', () => ({
   submissions: { id: 'id' },
   systemSettings: { key: 'key', value: 'value' },
   passwordResetTokens: { id: 'id' },
+  refreshTokens: { id: 'id', userId: 'userId', token: 'token', expiresAt: 'expiresAt', usedAt: 'usedAt', createdAt: 'createdAt' },
   aiGradingJobs: { id: 'id', status: 'status' },
   aiUsageStats: { id: 'id', date: 'date', avgProcessingTime: 'avgProcessingTime' },
   notifications: { id: 'id' },

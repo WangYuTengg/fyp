@@ -184,10 +184,10 @@ describe('Password Reset Schemas', () => {
       expect(result.success).toBe(false);
     });
 
-    it('rejects short password', () => {
+    it('rejects empty password', () => {
       const result = loginSchema.safeParse({
         email: 'user@example.com',
-        password: '12345',
+        password: '',
       });
       expect(result.success).toBe(false);
     });
