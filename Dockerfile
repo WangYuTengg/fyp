@@ -39,7 +39,8 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 
 # S8: Run as non-root user for defense-in-depth
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && chown -R appuser:appgroup /app
 USER appuser
 
 # Expose the port

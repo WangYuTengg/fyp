@@ -21,10 +21,10 @@ refreshRoute.post('/refresh', async (c) => {
     return c.json({ error: 'Refresh token is required' }, 400);
   }
 
-  // Find valid, unused, non-expired refresh token
-  const [existing] = await db
-    .select()
-    .from(refreshTokens)
+  // Atomically consume the refresh token (UPDATE...WHERE...RETURNING prevents TOCTOU race)
+  const [consumed] = await db
+    .update(refreshTokens)
+    .set({ usedAt: new Date() })
     .where(
       and(
         eq(refreshTokens.token, refreshToken),
@@ -32,23 +32,17 @@ refreshRoute.post('/refresh', async (c) => {
         gte(refreshTokens.expiresAt, new Date())
       )
     )
-    .limit(1);
+    .returning();
 
-  if (!existing) {
+  if (!consumed) {
     return c.json({ error: 'Invalid or expired refresh token' }, 401);
   }
-
-  // Mark old token as used (single-use rotation)
-  await db
-    .update(refreshTokens)
-    .set({ usedAt: new Date() })
-    .where(eq(refreshTokens.id, existing.id));
 
   // Verify user still exists and is active
   const [user] = await db
     .select()
     .from(users)
-    .where(eq(users.id, existing.userId))
+    .where(eq(users.id, consumed.userId))
     .limit(1);
 
   if (!user || user.deactivatedAt) {

@@ -1,4 +1,9 @@
+import * as dotenv from 'dotenv';
 import { z } from 'zod';
+
+// Ensure .env is loaded even if this module is imported before index.ts
+// (e.g., in tests or alternative entry points). Idempotent — safe to call multiple times.
+dotenv.config();
 
 /**
  * Server environment validation — fail-fast on missing/invalid config.

@@ -98,6 +98,7 @@ const authLimiter = rateLimiter({
 app.use('/api/auth/signin', authLimiter);
 app.use('/api/auth/password-login', authLimiter);
 app.use('/api/auth/signup', authLimiter);
+app.use('/api/auth/refresh', authLimiter);
 
 // S10: Even stricter for forgot-password (3 req/min per IP)
 const forgotPasswordLimiter = rateLimiter({
