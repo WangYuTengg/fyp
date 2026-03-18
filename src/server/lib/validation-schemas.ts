@@ -39,6 +39,10 @@ export const createAssignmentSchema = z.object({
   maxAttempts: z.number().int().min(1).optional().default(1),
   mcqPenaltyPerWrongSelection: z.number().int().min(0).optional().default(1),
   timeLimit: z.number().int().min(1).optional(),
+  latePenaltyType: z.enum(['none', 'fixed', 'per_day', 'per_hour']).optional().default('none'),
+  latePenaltyValue: z.number().min(0).max(100).optional(),
+  latePenaltyCap: z.number().min(0).max(100).optional(),
+  attemptScoringMethod: z.enum(['latest', 'highest']).optional().default('latest'),
   isPublished: z.boolean().optional().default(false),
 });
 

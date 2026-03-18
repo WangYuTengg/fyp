@@ -35,7 +35,20 @@ export function useAssignmentData(assignmentId: string) {
     run();
   }, [user, assignmentId]);
 
-  const questions = useMemo(() => assignment?.questions ?? [], [assignment]);
+  const questions = useMemo(() => {
+    const qs = assignment?.questions ?? [];
+    // If the submission has a shuffled question order, reorder accordingly
+    if (submission?.questionOrder && Array.isArray(submission.questionOrder) && submission.questionOrder.length > 0) {
+      const orderMap = new Map<string, number>();
+      (submission.questionOrder as string[]).forEach((qId, idx) => orderMap.set(qId, idx));
+      return [...qs].sort((a, b) => {
+        const aIdx = orderMap.get(a.question.id) ?? Number.MAX_SAFE_INTEGER;
+        const bIdx = orderMap.get(b.question.id) ?? Number.MAX_SAFE_INTEGER;
+        return aIdx - bIdx;
+      });
+    }
+    return qs;
+  }, [assignment, submission?.questionOrder]);
   const questionsById = useMemo(() => {
     const map = new Map<string, (typeof questions)[0]['question']>();
     questions.forEach((item) => map.set(item.question.id, item.question));
