@@ -110,9 +110,28 @@ resultsRoute.get('/:submissionId/results', requireAuth, async (c) => {
     })
   );
 
+  // Fetch penalty info from the full submission record
+  const [fullSubmission] = await db
+    .select({
+      latePenaltyApplied: submissions.latePenaltyApplied,
+      latePenaltyDetails: submissions.latePenaltyDetails,
+      autoSubmitted: submissions.autoSubmitted,
+    })
+    .from(submissions)
+    .where(eq(submissions.id, submissionId))
+    .limit(1);
+
   // Calculate totals
   const totalPoints = answersWithDetails.reduce((sum, a) => sum + a.question.points, 0);
   const earnedPoints = answersWithDetails.reduce((sum, a) => sum + (a.mark?.points || 0), 0);
+
+  // Apply late penalty to final score if applicable
+  const penaltyPercent = fullSubmission?.latePenaltyApplied
+    ? Number(fullSubmission.latePenaltyApplied)
+    : 0;
+  const finalPoints = penaltyPercent > 0
+    ? Math.max(0, Math.round(earnedPoints * (1 - penaltyPercent / 100) * 100) / 100)
+    : earnedPoints;
 
   return c.json({
     ...submission,
@@ -123,6 +142,10 @@ resultsRoute.get('/:submissionId/results', requireAuth, async (c) => {
     answers: answersWithDetails,
     totalPoints,
     earnedPoints,
+    finalPoints,
+    latePenaltyApplied: fullSubmission?.latePenaltyApplied ?? null,
+    latePenaltyDetails: fullSubmission?.latePenaltyDetails ?? null,
+    autoSubmitted: fullSubmission?.autoSubmitted ?? false,
   });
 });
 

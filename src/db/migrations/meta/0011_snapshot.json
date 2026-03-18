@@ -1,6 +1,6 @@
 {
-  "id": "e7dda914-a20a-4334-b6c6-4fc54b90a0ca",
-  "prevId": "6be1abd1-3a14-4712-9dfa-146148ac5527",
+  "id": "65c40e53-cee9-4e75-a188-6505495b1588",
+  "prevId": "e7dda914-a20a-4334-b6c6-4fc54b90a0ca",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -513,6 +513,39 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "shuffle_questions": {
+          "name": "shuffle_questions",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "late_penalty_type": {
+          "name": "late_penalty_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'none'"
+        },
+        "late_penalty_value": {
+          "name": "late_penalty_value",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "late_penalty_cap": {
+          "name": "late_penalty_cap",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempt_scoring_method": {
+          "name": "attempt_scoring_method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'latest'"
         },
         "is_published": {
           "name": "is_published",
@@ -1330,6 +1363,31 @@
           "primaryKey": false,
           "notNull": false
         },
+        "question_order": {
+          "name": "question_order",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auto_submitted": {
+          "name": "auto_submitted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "late_penalty_applied": {
+          "name": "late_penalty_applied",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "late_penalty_details": {
+          "name": "late_penalty_details",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -1588,7 +1646,8 @@
       "values": [
         "grading_failed",
         "grading_completed",
-        "batch_completed"
+        "batch_completed",
+        "auto_submitted"
       ]
     },
     "public.submission_status": {

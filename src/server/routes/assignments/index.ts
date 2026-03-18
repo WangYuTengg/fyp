@@ -8,6 +8,7 @@ import deleteAssignmentRoute from './delete-assignment.js';
 import addQuestionsRoute from './add-questions.js';
 import removeQuestionRoute from './remove-question.js';
 import reorderQuestionsRoute from './reorder-questions.js';
+import cloneAssignmentRoute from './clone-assignment.js';
 
 const assignments = new Hono<AuthContext>();
 
@@ -19,5 +20,6 @@ assignments.route('/', deleteAssignmentRoute);
 assignments.route('/', addQuestionsRoute);
 assignments.route('/', removeQuestionRoute);
 assignments.route('/', reorderQuestionsRoute);
+assignments.route('/', cloneAssignmentRoute);
 
 export default assignments;

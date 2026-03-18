@@ -39,18 +39,29 @@ export type Question = {
   updatedAt: string;
 };
 
+function getAccessToken(): Promise<string | null> {
+  // Check for custom token first (password login)
+  const customToken = typeof window !== 'undefined'
+    ? window.localStorage.getItem('uml-platform.customToken')
+    : null;
+  if (customToken) return Promise.resolve(customToken);
+
+  // Fall back to Supabase session
+  return supabase.auth.getSession().then(({ data: { session } }) => session?.access_token ?? null);
+}
+
 /**
  * API client with automatic auth token injection
  */
 export async function apiClient<TResponse = unknown>(endpoint: string, options: RequestInit = {}): Promise<TResponse> {
-  const { data: { session } } = await supabase.auth.getSession();
-  
+  const token = await getAccessToken();
+
   const headers = new Headers(options.headers);
-  
-  if (session?.access_token) {
-    headers.set('Authorization', `Bearer ${session.access_token}`);
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
-  
+
   headers.set('Content-Type', 'application/json');
 
   let response: Response;
@@ -134,6 +145,11 @@ export const assignmentsApi = {
     method: 'PATCH',
     body: JSON.stringify({ questionLinks }),
   }),
+  clone: (id: string, data: { targetCourseId?: string; newTitle?: string; newDueDate?: string | null }) =>
+    apiClient<unknown>(`/api/assignments/${id}/clone`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // Submissions API
@@ -156,8 +172,8 @@ export const submissionsApi = {
     body: JSON.stringify(data),
   }),
   uploadFile: async (submissionId: string, questionId: string, file: File) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
+    const token = await getAccessToken();
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('questionId', questionId);
@@ -165,7 +181,7 @@ export const submissionsApi = {
     const response = await fetch(`${API_BASE}/api/submissions/${submissionId}/upload`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${session?.access_token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: formData, // Don't set Content-Type, let browser set it with boundary
     });
@@ -237,6 +253,60 @@ export const questionsApi = {
     apiClient<{ success: true }>(`/api/questions/${id}`, {
       method: 'DELETE',
     }),
+  exportQuestions: async (courseId: string, format: 'csv' | 'json' = 'json') => {
+    const token = await getAccessToken();
+    const response = await fetch(`${API_BASE}/api/questions/course/${courseId}/export?format=${format}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Export failed' })) as ApiError;
+      throw new ApiRequestError(error.error || 'Export failed', response.status);
+    }
+    if (format === 'csv') {
+      return response.text();
+    }
+    return response.json();
+  },
+  importQuestions: async (courseId: string, file: File) => {
+    const token = await getAccessToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE}/api/questions/course/${courseId}/import`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Import failed' })) as ApiError;
+      throw new ApiRequestError(error.error || 'Import failed', response.status);
+    }
+
+    return response.json() as Promise<{
+      imported: number;
+      duplicates: number;
+      duplicatesTitles: string[];
+      errors?: Array<{ row: number; error: string }>;
+      total: number;
+    }>;
+  },
+  importQuestionsJson: async (courseId: string, questions: unknown[]) => {
+    return apiClient<{
+      imported: number;
+      duplicates: number;
+      duplicatesTitles: string[];
+      errors?: Array<{ row: number; error: string }>;
+      total: number;
+    }>(`/api/questions/course/${courseId}/import`, {
+      method: 'POST',
+      body: JSON.stringify(questions),
+    });
+  },
 };
 
 export const tagsApi = {

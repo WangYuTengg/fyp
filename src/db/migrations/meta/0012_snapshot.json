@@ -1,5 +1,5 @@
 {
-  "id": "e7dda914-a20a-4334-b6c6-4fc54b90a0ca",
+  "id": "05ae8b35-461f-4183-9c72-e80dfc646bbc",
   "prevId": "6be1abd1-3a14-4712-9dfa-146148ac5527",
   "version": "7",
   "dialect": "postgresql",
@@ -510,6 +510,19 @@
         },
         "time_limit": {
           "name": "time_limit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monitor_focus": {
+          "name": "monitor_focus",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "max_tab_switches": {
+          "name": "max_tab_switches",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -1330,6 +1343,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "tab_switches": {
+          "name": "tab_switches",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -1488,12 +1508,6 @@
         },
         "name": {
           "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "password_hash": {
-          "name": "password_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": false
