@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GradingAnswer, GradingAssignment, GradingSubmission, QuestionGrade } from '../types';
+import type { GradingAnswer, GradingAssignment, GradingSubmission, QuestionGrade, TabSwitchEvent } from '../types';
 import { QuestionGradeCard } from './QuestionGradeCard';
+import { TabSwitchLog } from './TabSwitchLog';
 
 type GradingPanelProps = {
   submission: GradingSubmission;
@@ -253,6 +254,11 @@ export function GradingPanel({
           </button>
         </div>
       </div>
+
+      {/* Tab switch log */}
+      {Array.isArray(submission.tabSwitches) && submission.tabSwitches.length > 0 && (
+        <TabSwitchLog tabSwitches={submission.tabSwitches as TabSwitchEvent[]} />
+      )}
 
       {answers.length > 0 ? (
         <div className="bg-white shadow rounded-lg p-4">
