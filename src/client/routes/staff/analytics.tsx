@@ -1,6 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { AnalyticsTab } from '../../features/staff-grading/components/AnalyticsTab';
-import { ChartBarIcon } from '@heroicons/react/24/outline';
+import {
+  ChartBarIcon,
+  AcademicCapIcon,
+} from '@heroicons/react/24/outline';
 
 export const Route = createFileRoute('/staff/analytics')({
   component: AnalyticsPage,
@@ -18,6 +21,18 @@ function AnalyticsPage() {
         <p className="text-sm text-gray-600">
           View usage statistics, costs, and queue monitoring
         </p>
+
+        {/* Quick Links */}
+        <div className="mt-4 flex gap-3">
+          <Link
+            to="/staff/assignment-analytics"
+            search={{ assignmentId: '' }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium border border-blue-200"
+          >
+            <AcademicCapIcon className="h-4 w-4" />
+            Question Analytics
+          </Link>
+        </div>
       </div>
 
       {/* Analytics Content */}

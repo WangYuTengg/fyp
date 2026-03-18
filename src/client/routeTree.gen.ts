@@ -18,6 +18,7 @@ import { Route as StaffIndexRouteImport } from './routes/staff/index'
 import { Route as StaffSettingsRouteImport } from './routes/staff/settings'
 import { Route as StaffNotificationsRouteImport } from './routes/staff/notifications'
 import { Route as StaffGradingRouteImport } from './routes/staff/grading'
+import { Route as StaffAssignmentAnalyticsRouteImport } from './routes/staff/assignment-analytics'
 import { Route as StaffAnalyticsRouteImport } from './routes/staff/analytics'
 import { Route as StudentSubmissionsSubmissionIdRouteImport } from './routes/student/submissions/$submissionId'
 import { Route as StudentCoursesCourseIdRouteImport } from './routes/student/courses/$courseId'
@@ -69,6 +70,12 @@ const StaffGradingRoute = StaffGradingRouteImport.update({
   path: '/grading',
   getParentRoute: () => StaffRoute,
 } as any)
+const StaffAssignmentAnalyticsRoute =
+  StaffAssignmentAnalyticsRouteImport.update({
+    id: '/assignment-analytics',
+    path: '/assignment-analytics',
+    getParentRoute: () => StaffRoute,
+  } as any)
 const StaffAnalyticsRoute = StaffAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -103,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/staff/analytics': typeof StaffAnalyticsRoute
+  '/staff/assignment-analytics': typeof StaffAssignmentAnalyticsRoute
   '/staff/grading': typeof StaffGradingRoute
   '/staff/notifications': typeof StaffNotificationsRoute
   '/staff/settings': typeof StaffSettingsRoute
@@ -117,6 +125,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/staff/analytics': typeof StaffAnalyticsRoute
+  '/staff/assignment-analytics': typeof StaffAssignmentAnalyticsRoute
   '/staff/grading': typeof StaffGradingRoute
   '/staff/notifications': typeof StaffNotificationsRoute
   '/staff/settings': typeof StaffSettingsRoute
@@ -134,6 +143,7 @@ export interface FileRoutesById {
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/staff/analytics': typeof StaffAnalyticsRoute
+  '/staff/assignment-analytics': typeof StaffAssignmentAnalyticsRoute
   '/staff/grading': typeof StaffGradingRoute
   '/staff/notifications': typeof StaffNotificationsRoute
   '/staff/settings': typeof StaffSettingsRoute
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/staff/analytics'
+    | '/staff/assignment-analytics'
     | '/staff/grading'
     | '/staff/notifications'
     | '/staff/settings'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/staff/analytics'
+    | '/staff/assignment-analytics'
     | '/staff/grading'
     | '/staff/notifications'
     | '/staff/settings'
@@ -182,6 +194,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/staff/analytics'
+    | '/staff/assignment-analytics'
     | '/staff/grading'
     | '/staff/notifications'
     | '/staff/settings'
@@ -265,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffGradingRouteImport
       parentRoute: typeof StaffRoute
     }
+    '/staff/assignment-analytics': {
+      id: '/staff/assignment-analytics'
+      path: '/assignment-analytics'
+      fullPath: '/staff/assignment-analytics'
+      preLoaderRoute: typeof StaffAssignmentAnalyticsRouteImport
+      parentRoute: typeof StaffRoute
+    }
     '/staff/analytics': {
       id: '/staff/analytics'
       path: '/analytics'
@@ -305,6 +325,7 @@ declare module '@tanstack/react-router' {
 
 interface StaffRouteChildren {
   StaffAnalyticsRoute: typeof StaffAnalyticsRoute
+  StaffAssignmentAnalyticsRoute: typeof StaffAssignmentAnalyticsRoute
   StaffGradingRoute: typeof StaffGradingRoute
   StaffNotificationsRoute: typeof StaffNotificationsRoute
   StaffSettingsRoute: typeof StaffSettingsRoute
@@ -314,6 +335,7 @@ interface StaffRouteChildren {
 
 const StaffRouteChildren: StaffRouteChildren = {
   StaffAnalyticsRoute: StaffAnalyticsRoute,
+  StaffAssignmentAnalyticsRoute: StaffAssignmentAnalyticsRoute,
   StaffGradingRoute: StaffGradingRoute,
   StaffNotificationsRoute: StaffNotificationsRoute,
   StaffSettingsRoute: StaffSettingsRoute,
