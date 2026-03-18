@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, pgEnum, integer, boolean, jsonb, unique, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, pgEnum, integer, boolean, jsonb, unique, index, numeric } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Define enums
@@ -7,17 +7,29 @@ export const courseRoleEnum = pgEnum('course_role', ['lecturer', 'ta', 'lab_exec
 export const assignmentTypeEnum = pgEnum('assignment_type', ['mcq', 'written', 'coding', 'uml']);
 export const submissionStatusEnum = pgEnum('submission_status', ['draft', 'submitted', 'late', 'grading', 'graded']);
 export const aiJobStatusEnum = pgEnum('ai_job_status', ['pending', 'processing', 'completed', 'failed']);
-export const notificationTypeEnum = pgEnum('notification_type', ['grading_failed', 'grading_completed', 'batch_completed']);
+export const notificationTypeEnum = pgEnum('notification_type', ['grading_failed', 'grading_completed', 'batch_completed', 'auto_submitted']);
 
 // Users table
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: text('email').notNull().unique(),
   name: text('name'),
+  passwordHash: text('password_hash'),
   role: userRoleEnum('role').default('student').notNull(),
   supabaseId: text('supabase_id').unique(),
+  deactivatedAt: timestamp('deactivated_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Password reset tokens
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  usedAt: timestamp('used_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Courses table
@@ -73,6 +85,13 @@ export const assignments = pgTable('assignments', {
   maxAttempts: integer('max_attempts').default(1),
   mcqPenaltyPerWrongSelection: integer('mcq_penalty_per_wrong_selection').default(1).notNull(),
   timeLimit: integer('time_limit'), // in minutes
+  monitorFocus: boolean('monitor_focus').default(false).notNull(),
+  maxTabSwitches: integer('max_tab_switches'),
+  shuffleQuestions: boolean('shuffle_questions').default(false).notNull(),
+  latePenaltyType: text('late_penalty_type').default('none').notNull(), // 'none' | 'fixed' | 'per_day' | 'per_hour'
+  latePenaltyValue: numeric('late_penalty_value'), // percentage value (e.g., 10 means 10%)
+  latePenaltyCap: numeric('late_penalty_cap'), // max penalty percentage (e.g., 50 means 50% cap)
+  attemptScoringMethod: text('attempt_scoring_method').default('latest').notNull(), // 'latest' | 'highest'
   isPublished: boolean('is_published').default(false).notNull(),
   resultsPublished: boolean('results_published').default(false).notNull(),
   resultsPublishedAt: timestamp('results_published_at'),
@@ -102,6 +121,11 @@ export const submissions = pgTable('submissions', {
   startedAt: timestamp('started_at').defaultNow().notNull(),
   submittedAt: timestamp('submitted_at'),
   gradedAt: timestamp('graded_at'),
+  tabSwitches: jsonb('tab_switches').default([]).notNull(), // Array of { leftAt, returnedAt, durationMs }
+  questionOrder: jsonb('question_order'), // Array of questionIds in shuffled display order
+  autoSubmitted: boolean('auto_submitted').default(false).notNull(),
+  latePenaltyApplied: numeric('late_penalty_applied'), // penalty percentage actually applied
+  latePenaltyDetails: jsonb('late_penalty_details'), // { type, value, cap, minutesLate, penaltyPercent, rawScore, adjustedScore }
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -296,4 +320,8 @@ export const aiGradingJobsRelations = relations(aiGradingJobs, ({ one }) => ({
 
 export const staffNotificationsRelations = relations(staffNotifications, ({ one }) => ({
   user: one(users, { fields: [staffNotifications.userId], references: [users.id] }),
+}));
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, { fields: [passwordResetTokens.userId], references: [users.id] }),
 }));

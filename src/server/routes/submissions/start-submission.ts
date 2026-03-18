@@ -1,10 +1,39 @@
 import { Hono } from 'hono';
 import { db } from '../../../db/index.js';
-import { submissions, assignments, answers, enrollments } from '../../../db/schema.js';
+import { submissions, assignments, answers, enrollments, assignmentQuestions } from '../../../db/schema.js';
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
 import { eq, and, desc, count } from 'drizzle-orm';
 import { startSubmissionSchema } from '../../lib/validation-schemas.js';
 import { errorResponse, ErrorCodes } from '../../lib/errors.js';
+import { deterministicShuffle } from './deterministic-shuffle.js';
+
+async function generateQuestionOrder(assignmentId: string, submissionId: string): Promise<string[] | null> {
+  // Fetch assignment to check if shuffling is enabled
+  const [assignment] = await db
+    .select({ shuffleQuestions: assignments.shuffleQuestions })
+    .from(assignments)
+    .where(eq(assignments.id, assignmentId))
+    .limit(1);
+
+  if (!assignment?.shuffleQuestions) {
+    return null;
+  }
+
+  // Get question IDs in their default order
+  const questionLinks = await db
+    .select({ questionId: assignmentQuestions.questionId })
+    .from(assignmentQuestions)
+    .where(eq(assignmentQuestions.assignmentId, assignmentId))
+    .orderBy(assignmentQuestions.order);
+
+  const questionIds = questionLinks.map((q) => q.questionId);
+
+  if (questionIds.length <= 1) {
+    return null;
+  }
+
+  return deterministicShuffle(questionIds, submissionId);
+}
 
 const startSubmissionRoute = new Hono<AuthContext>();
 
@@ -45,27 +74,27 @@ startSubmissionRoute.post('/start', requireAuth, async (c) => {
     return c.json({ error: 'Assignment not yet open' }, 403);
   }
 
-  // Check for any existing submission (draft or submitted)
-  const [existingSubmission] = await db
+  // Check for an existing draft — return it if found (resume in-progress attempt)
+  const [existingDraft] = await db
     .select()
     .from(submissions)
     .where(
       and(
         eq(submissions.assignmentId, assignmentId),
-        eq(submissions.userId, user.id)
+        eq(submissions.userId, user.id),
+        eq(submissions.status, 'draft')
       )
     )
     .orderBy(desc(submissions.createdAt))
     .limit(1);
 
-  if (existingSubmission) {
-    // Load answers for the submission
+  if (existingDraft) {
     const existingAnswers = await db
       .select()
       .from(answers)
-      .where(eq(answers.submissionId, existingSubmission.id));
+      .where(eq(answers.submissionId, existingDraft.id));
 
-    return c.json({ ...existingSubmission, answers: existingAnswers });
+    return c.json({ ...existingDraft, answers: existingAnswers });
   }
 
   // Admins can start a submission for UI inspection without enrollment.
@@ -90,6 +119,16 @@ startSubmissionRoute.post('/start', requireAuth, async (c) => {
         startedAt: new Date(),
       })
       .returning();
+
+    // Generate shuffled question order if enabled
+    const questionOrder = await generateQuestionOrder(assignmentId, submission.id);
+    if (questionOrder) {
+      await db
+        .update(submissions)
+        .set({ questionOrder })
+        .where(eq(submissions.id, submission.id));
+      return c.json({ ...submission, questionOrder, answers: [] }, 201);
+    }
 
     return c.json({ ...submission, answers: [] }, 201);
   }
@@ -134,6 +173,16 @@ startSubmissionRoute.post('/start', requireAuth, async (c) => {
       startedAt: new Date(),
     })
     .returning();
+
+  // Generate shuffled question order if enabled
+  const questionOrder = await generateQuestionOrder(assignmentId, submission.id);
+  if (questionOrder) {
+    await db
+      .update(submissions)
+      .set({ questionOrder })
+      .where(eq(submissions.id, submission.id));
+    return c.json({ ...submission, questionOrder, answers: [] }, 201);
+  }
 
   return c.json({ ...submission, answers: [] }, 201);
 });

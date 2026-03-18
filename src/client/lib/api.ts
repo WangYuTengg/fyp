@@ -39,18 +39,37 @@ export type Question = {
   updatedAt: string;
 };
 
+function getAccessToken(): Promise<string | null> {
+  // Check for custom token first (password login)
+  const customToken = typeof window !== 'undefined'
+    ? window.localStorage.getItem('uml-platform.customToken')
+    : null;
+  if (customToken) return Promise.resolve(customToken);
+
+  // Fall back to Supabase session
+  return supabase.auth.getSession().then(({ data: { session } }) => session?.access_token ?? null);
+}
+
 /**
  * API client with automatic auth token injection
  */
+const CUSTOM_TOKEN_KEY = 'uml-platform.customToken';
+
 export async function apiClient<TResponse = unknown>(endpoint: string, options: RequestInit = {}): Promise<TResponse> {
-  const { data: { session } } = await supabase.auth.getSession();
-  
   const headers = new Headers(options.headers);
-  
-  if (session?.access_token) {
-    headers.set('Authorization', `Bearer ${session.access_token}`);
+
+  // Try custom JWT token first (password-based login)
+  const customToken = typeof window !== 'undefined' ? localStorage.getItem(CUSTOM_TOKEN_KEY) : null;
+  if (customToken) {
+    headers.set('Authorization', `Bearer ${customToken}`);
+  } else {
+    // Fallback to Supabase session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers.set('Authorization', `Bearer ${session.access_token}`);
+    }
   }
-  
+
   headers.set('Content-Type', 'application/json');
 
   let response: Response;
@@ -157,6 +176,11 @@ export const assignmentsApi = {
     method: 'PATCH',
     body: JSON.stringify({ questionLinks }),
   }),
+  clone: (id: string, data: { targetCourseId?: string; newTitle?: string; newDueDate?: string | null }) =>
+    apiClient<unknown>(`/api/assignments/${id}/clone`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // Submissions API
@@ -179,8 +203,8 @@ export const submissionsApi = {
     body: JSON.stringify(data),
   }),
   uploadFile: async (submissionId: string, questionId: string, file: File) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
+    const token = await getAccessToken();
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('questionId', questionId);
@@ -188,7 +212,7 @@ export const submissionsApi = {
     const response = await fetch(`${API_BASE}/api/submissions/${submissionId}/upload`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${session?.access_token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: formData, // Don't set Content-Type, let browser set it with boundary
     });
@@ -201,6 +225,11 @@ export const submissionsApi = {
     return response.json();
   },
   getFileHistory: (answerId: string) => apiClient<unknown[]>(`/api/submissions/answer/${answerId}/file-history`),
+  reportFocusEvent: (submissionId: string, data: { leftAt: string; returnedAt: string; durationMs: number }) =>
+    apiClient<{ success: boolean; data: { tabSwitchCount: number; maxTabSwitches: number | null; shouldAutoSubmit: boolean } }>(
+      `/api/submissions/${submissionId}/focus-event`,
+      { method: 'POST', body: JSON.stringify(data) }
+    ),
 };
 
 export const questionsApi = {
@@ -255,6 +284,60 @@ export const questionsApi = {
     apiClient<{ success: true }>(`/api/questions/${id}`, {
       method: 'DELETE',
     }),
+  exportQuestions: async (courseId: string, format: 'csv' | 'json' = 'json') => {
+    const token = await getAccessToken();
+    const response = await fetch(`${API_BASE}/api/questions/course/${courseId}/export?format=${format}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Export failed' })) as ApiError;
+      throw new ApiRequestError(error.error || 'Export failed', response.status);
+    }
+    if (format === 'csv') {
+      return response.text();
+    }
+    return response.json();
+  },
+  importQuestions: async (courseId: string, file: File) => {
+    const token = await getAccessToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE}/api/questions/course/${courseId}/import`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Import failed' })) as ApiError;
+      throw new ApiRequestError(error.error || 'Import failed', response.status);
+    }
+
+    return response.json() as Promise<{
+      imported: number;
+      duplicates: number;
+      duplicatesTitles: string[];
+      errors?: Array<{ row: number; error: string }>;
+      total: number;
+    }>;
+  },
+  importQuestionsJson: async (courseId: string, questions: unknown[]) => {
+    return apiClient<{
+      imported: number;
+      duplicates: number;
+      duplicatesTitles: string[];
+      errors?: Array<{ row: number; error: string }>;
+      total: number;
+    }>(`/api/questions/course/${courseId}/import`, {
+      method: 'POST',
+      body: JSON.stringify(questions),
+    });
+  },
 };
 
 export const autoGradeApi = {
@@ -297,4 +380,121 @@ export const rubricsApi = {
 
 export const tagsApi = {
   listByCourse: (courseId: string) => apiClient<string[]>(`/api/tags/course/${courseId}`),
+};
+
+// Admin user management API
+export type AdminUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: 'admin' | 'staff' | 'student';
+  deactivatedAt: string | null;
+  createdAt: string;
+};
+
+export type AdminUserListResponse = {
+  users: AdminUser[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export type BulkCreateUserInput = {
+  email: string;
+  name: string;
+  role: 'admin' | 'staff' | 'student';
+  password: string;
+};
+
+export type BulkCreateResult = {
+  email: string;
+  status: 'created' | 'already_exists' | 'error';
+  userId?: string;
+  error?: string;
+};
+
+export const adminApi = {
+  listUsers: (params?: { q?: string; role?: string; status?: string; page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.q) searchParams.set('q', params.q);
+    if (params?.role) searchParams.set('role', params.role);
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const query = searchParams.toString();
+    return apiClient<AdminUserListResponse>(`/api/admin/users${query ? `?${query}` : ''}`);
+  },
+  createUser: (data: { email: string; name: string; role: string; password: string }) =>
+    apiClient<AdminUser>('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateUser: (id: string, data: { name?: string; role?: string; isActive?: boolean }) =>
+    apiClient<AdminUser>(`/api/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteUser: (id: string) =>
+    apiClient<{ success: true }>(`/api/admin/users/${id}`, {
+      method: 'DELETE',
+    }),
+  bulkCreateUsers: (users: BulkCreateUserInput[]) =>
+    apiClient<{ results: BulkCreateResult[]; counts: { created: number; alreadyExists: number; errors: number } }>(
+      '/api/admin/users/bulk',
+      {
+        method: 'POST',
+        body: JSON.stringify({ users }),
+      }
+    ),
+  resetUserPassword: (id: string, password: string) =>
+    apiClient<{ success: true }>(`/api/admin/users/${id}/reset-password`, {
+      method: 'PUT',
+      body: JSON.stringify({ password }),
+    }),
+};
+
+// Password auth API (no auth token needed)
+export const passwordAuthApi = {
+  login: async (email: string, password: string) => {
+    const response = await fetch(`${API_BASE}/api/auth/password-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({ error: 'Login failed' }))) as ApiError;
+      throw new ApiRequestError(error.error || 'Login failed', response.status);
+    }
+    return response.json() as Promise<{
+      token: string;
+      user: { id: string; email: string; name: string | null; role: string };
+    }>;
+  },
+  forgotPassword: async (email: string) => {
+    const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({ error: 'Request failed' }))) as ApiError;
+      throw new ApiRequestError(error.error || 'Request failed', response.status);
+    }
+    return response.json() as Promise<{ message: string }>;
+  },
+  resetPassword: async (token: string, password: string) => {
+    const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password }),
+    });
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({ error: 'Request failed' }))) as ApiError;
+      throw new ApiRequestError(error.error || 'Request failed', response.status);
+    }
+    return response.json() as Promise<{ message: string }>;
+  },
 };

@@ -1,5 +1,5 @@
 {
-  "id": "758ea38f-d3f3-40f8-b42f-8e52e28d3fbc",
+  "id": "e7dda914-a20a-4334-b6c6-4fc54b90a0ca",
   "prevId": "6be1abd1-3a14-4712-9dfa-146148ac5527",
   "version": "7",
   "dialect": "postgresql",
@@ -521,19 +521,6 @@
           "notNull": true,
           "default": false
         },
-        "results_published": {
-          "name": "results_published",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "results_published_at": {
-          "name": "results_published_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by": {
           "name": "created_by",
           "type": "uuid",
@@ -905,24 +892,6 @@
           "primaryKey": false,
           "notNull": false,
           "default": false
-        },
-        "override_reason": {
-          "name": "override_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "previous_score": {
-          "name": "previous_score",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "overridden_at": {
-          "name": "overridden_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -1519,6 +1488,12 @@
         },
         "name": {
           "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "password_hash": {
+          "name": "password_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": false

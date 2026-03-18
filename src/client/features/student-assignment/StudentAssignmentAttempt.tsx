@@ -1,8 +1,9 @@
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useAssignmentData } from './hooks/useAssignmentData';
 import { useAnswerManagement } from './hooks/useAnswerManagement';
+import { useFocusMonitor } from './hooks/useFocusMonitor';
 import { AssignmentHeader } from './components/AssignmentHeader';
 import { QuestionCard } from './components/QuestionCard';
 import { Timer } from './components/Timer';
@@ -40,6 +41,20 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     submit,
     updateAnswer,
   } = useAnswerManagement(submission, questionsById, isPastDue);
+
+  const handleFocusAutoSubmit = useCallback(() => {
+    if (!submitted && submission) {
+      submit();
+    }
+  }, [submitted, submission, submit]);
+
+  const { showWarning: showFocusWarning, dismissWarning: dismissFocusWarning } = useFocusMonitor({
+    submissionId: submission?.id,
+    monitorFocus: assignment?.monitorFocus ?? false,
+    maxTabSwitches: assignment?.maxTabSwitches ?? null,
+    isSubmitted: submitted,
+    onAutoSubmit: handleFocusAutoSubmit,
+  });
 
   const hasDirtyAnswers = useRef(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -232,6 +247,30 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
             timeLimitMinutes={assignment.timeLimit}
             onTimeUp={handleTimeUp}
           />
+        </div>
+      )}
+
+      {/* Focus monitoring warning toast */}
+      {showFocusWarning && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm animate-in slide-in-from-top">
+          <div className="bg-amber-50 border border-amber-300 rounded-lg shadow-lg p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-amber-600 text-lg flex-shrink-0">!</span>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-800">Your activity is being monitored</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Leaving this tab is being recorded and will be visible to your instructor.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={dismissFocusWarning}
+                className="text-amber-600 hover:text-amber-800 text-sm flex-shrink-0"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

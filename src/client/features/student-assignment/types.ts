@@ -22,6 +22,8 @@ export type AssignmentDetails = {
   dueDate: string | null;
   timeLimit: number | null;
   mcqPenaltyPerWrongSelection: number;
+  monitorFocus: boolean;
+  maxTabSwitches: number | null;
   questionCount: number;
   questionTypeCounts: QuestionTypeCounts;
   questions: AssignmentQuestion[];
@@ -33,6 +35,7 @@ export type Submission = {
   userId: string;
   status: 'draft' | 'submitted' | 'late' | 'grading' | 'graded';
   startedAt: string;
+  questionOrder?: string[] | null;
   answers?: Answer[];
 };
 

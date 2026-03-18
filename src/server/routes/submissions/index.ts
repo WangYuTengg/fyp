@@ -9,6 +9,7 @@ import gradeSubmissionRoute from './grade-submission.js';
 import uploadFileRoute from './upload-file.js';
 import fileHistoryRoute from './file-history.js';
 import resultsRoute from './results.js';
+import focusEventRoute from './focus-event.js';
 
 const submissions = new Hono<AuthContext>();
 
@@ -21,5 +22,6 @@ submissions.route('/', gradeSubmissionRoute);
 submissions.route('/', uploadFileRoute);
 submissions.route('/', fileHistoryRoute);
 submissions.route('/', resultsRoute);
+submissions.route('/', focusEventRoute);
 
 export default submissions;

@@ -17,10 +17,12 @@ import autoGradeRoutes from './routes/auto-grade/index.js';
 import notificationsRoutes from './routes/notifications/index.js';
 import settingsRoutes from './routes/settings/index.js';
 import usersRoutes from './routes/users/index.js';
+import adminRoutes from './routes/admin/index.js';
 import { authMiddleware, type AuthContext } from './middleware/auth.js';
 import { initializeWorker, shutdownWorker } from './lib/worker.js';
 import autoGradeWritten, { type AutoGradeWrittenPayload } from './jobs/auto-grade-written.js';
 import autoGradeUML, { type AutoGradeUMLPayload } from './jobs/auto-grade-uml.js';
+import autoSubmitExpired from './jobs/auto-submit-expired.js';
 import { RATE_LIMIT_CONFIG } from './config/constants.js';
 
 const app = new Hono<AuthContext>();
@@ -61,6 +63,7 @@ app.route('/api/auto-grade', autoGradeRoutes);
 app.route('/api/notifications', notificationsRoutes);
 app.route('/api/settings', settingsRoutes);
 app.route('/api/users', usersRoutes);
+app.route('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (c) => {
@@ -90,6 +93,7 @@ const taskList: TaskList = {
   'auto-grade-written': (payload, helpers) =>
     autoGradeWritten(payload as AutoGradeWrittenPayload, helpers),
   'auto-grade-uml': (payload, helpers) => autoGradeUML(payload as AutoGradeUMLPayload, helpers),
+  'auto-submit-expired': (payload, helpers) => autoSubmitExpired(payload, helpers),
 };
 
 initializeWorker(taskList)

@@ -3,6 +3,7 @@ import { db } from '../../../db/index.js';
 import { answers, assignmentQuestions, assignments, marks, questions, submissions } from '../../../db/schema.js';
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
 import { and, eq, inArray } from 'drizzle-orm';
+import { applyLatePenalty, getEffectiveDueDate, type LatePenaltyConfig } from '../../lib/grading-utils.js';
 
 type McqOption = {
   id?: string;
@@ -210,6 +211,38 @@ submitSubmissionRoute.post('/:submissionId/submit', requireAuth, async (c) => {
     )
     .limit(1);
 
+  // Calculate late penalty if applicable
+  let latePenaltyApplied: string | null = null;
+  let latePenaltyDetails: Record<string, unknown> | null = null;
+
+  if (status === 'late' && assignment) {
+    const penaltyConfig: LatePenaltyConfig = {
+      type: (assignment.latePenaltyType as LatePenaltyConfig['type']) ?? 'none',
+      value: assignment.latePenaltyValue ? Number(assignment.latePenaltyValue) : 0,
+      cap: assignment.latePenaltyCap ? Number(assignment.latePenaltyCap) : null,
+    };
+
+    if (penaltyConfig.type !== 'none') {
+      const effectiveDueDate = getEffectiveDueDate(
+        assignment.dueDate,
+        submission.startedAt,
+        assignment.timeLimit,
+      );
+
+      if (effectiveDueDate) {
+        const penaltyResult = applyLatePenalty(100, now, effectiveDueDate, penaltyConfig);
+        latePenaltyApplied = String(penaltyResult.penaltyPercent);
+        latePenaltyDetails = {
+          type: penaltyConfig.type,
+          value: penaltyConfig.value,
+          cap: penaltyConfig.cap,
+          minutesLate: penaltyResult.minutesLate,
+          penaltyPercent: penaltyResult.penaltyPercent,
+        };
+      }
+    }
+  }
+
   const shouldAutoCompleteGrading = !nonMcqQuestion;
   const [updated] = await db
     .update(submissions)
@@ -217,6 +250,8 @@ submitSubmissionRoute.post('/:submissionId/submit', requireAuth, async (c) => {
       status: shouldAutoCompleteGrading ? 'graded' : status,
       submittedAt: now,
       gradedAt: shouldAutoCompleteGrading ? now : null,
+      latePenaltyApplied,
+      latePenaltyDetails,
       updatedAt: now,
     })
     .where(eq(submissions.id, submissionId))
