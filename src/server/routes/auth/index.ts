@@ -5,6 +5,9 @@ import sendMagicLinkRoute from './send-magic-link.js';
 import signInRoute from './signin.js';
 import signOutRoute from './signout.js';
 import signUpRoute from './signup.js';
+import passwordLoginRoute from './password-login.js';
+import forgotPasswordRoute from './forgot-password.js';
+import resetPasswordRoute from './reset-password.js';
 
 const auth = new Hono<AuthContext>();
 
@@ -13,5 +16,8 @@ auth.route('/', sendMagicLinkRoute);
 auth.route('/', signUpRoute);
 auth.route('/', signInRoute);
 auth.route('/', signOutRoute);
+auth.route('/', passwordLoginRoute);
+auth.route('/', forgotPasswordRoute);
+auth.route('/', resetPasswordRoute);
 
 export default auth;

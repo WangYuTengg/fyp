@@ -53,13 +53,21 @@ function getAccessToken(): Promise<string | null> {
 /**
  * API client with automatic auth token injection
  */
-export async function apiClient<TResponse = unknown>(endpoint: string, options: RequestInit = {}): Promise<TResponse> {
-  const token = await getAccessToken();
+const CUSTOM_TOKEN_KEY = 'uml-platform.customToken';
 
+export async function apiClient<TResponse = unknown>(endpoint: string, options: RequestInit = {}): Promise<TResponse> {
   const headers = new Headers(options.headers);
 
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+  // Try custom JWT token first (password-based login)
+  const customToken = typeof window !== 'undefined' ? localStorage.getItem(CUSTOM_TOKEN_KEY) : null;
+  if (customToken) {
+    headers.set('Authorization', `Bearer ${customToken}`);
+  } else {
+    // Fallback to Supabase session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers.set('Authorization', `Bearer ${session.access_token}`);
+    }
   }
 
   headers.set('Content-Type', 'application/json');
@@ -311,4 +319,121 @@ export const questionsApi = {
 
 export const tagsApi = {
   listByCourse: (courseId: string) => apiClient<string[]>(`/api/tags/course/${courseId}`),
+};
+
+// Admin user management API
+export type AdminUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: 'admin' | 'staff' | 'student';
+  deactivatedAt: string | null;
+  createdAt: string;
+};
+
+export type AdminUserListResponse = {
+  users: AdminUser[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export type BulkCreateUserInput = {
+  email: string;
+  name: string;
+  role: 'admin' | 'staff' | 'student';
+  password: string;
+};
+
+export type BulkCreateResult = {
+  email: string;
+  status: 'created' | 'already_exists' | 'error';
+  userId?: string;
+  error?: string;
+};
+
+export const adminApi = {
+  listUsers: (params?: { q?: string; role?: string; status?: string; page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.q) searchParams.set('q', params.q);
+    if (params?.role) searchParams.set('role', params.role);
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const query = searchParams.toString();
+    return apiClient<AdminUserListResponse>(`/api/admin/users${query ? `?${query}` : ''}`);
+  },
+  createUser: (data: { email: string; name: string; role: string; password: string }) =>
+    apiClient<AdminUser>('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateUser: (id: string, data: { name?: string; role?: string; isActive?: boolean }) =>
+    apiClient<AdminUser>(`/api/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteUser: (id: string) =>
+    apiClient<{ success: true }>(`/api/admin/users/${id}`, {
+      method: 'DELETE',
+    }),
+  bulkCreateUsers: (users: BulkCreateUserInput[]) =>
+    apiClient<{ results: BulkCreateResult[]; counts: { created: number; alreadyExists: number; errors: number } }>(
+      '/api/admin/users/bulk',
+      {
+        method: 'POST',
+        body: JSON.stringify({ users }),
+      }
+    ),
+  resetUserPassword: (id: string, password: string) =>
+    apiClient<{ success: true }>(`/api/admin/users/${id}/reset-password`, {
+      method: 'PUT',
+      body: JSON.stringify({ password }),
+    }),
+};
+
+// Password auth API (no auth token needed)
+export const passwordAuthApi = {
+  login: async (email: string, password: string) => {
+    const response = await fetch(`${API_BASE}/api/auth/password-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({ error: 'Login failed' }))) as ApiError;
+      throw new ApiRequestError(error.error || 'Login failed', response.status);
+    }
+    return response.json() as Promise<{
+      token: string;
+      user: { id: string; email: string; name: string | null; role: string };
+    }>;
+  },
+  forgotPassword: async (email: string) => {
+    const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({ error: 'Request failed' }))) as ApiError;
+      throw new ApiRequestError(error.error || 'Request failed', response.status);
+    }
+    return response.json() as Promise<{ message: string }>;
+  },
+  resetPassword: async (token: string, password: string) => {
+    const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password }),
+    });
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({ error: 'Request failed' }))) as ApiError;
+      throw new ApiRequestError(error.error || 'Request failed', response.status);
+    }
+    return response.json() as Promise<{ message: string }>;
+  },
 };

@@ -6,6 +6,7 @@ import { AuthContext } from './auth-context';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 const ADMIN_VIEW_AS_KEY = 'uml-platform.adminViewAs';
+const CUSTOM_TOKEN_KEY = 'uml-platform.customToken';
 
 export type DbUser = {
   id: string;
@@ -51,14 +52,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Check for custom JWT token first (password-based login)
+    const customToken = localStorage.getItem(CUSTOM_TOKEN_KEY);
+    if (customToken) {
+      fetchDbUser(customToken).finally(() => setLoading(false));
+      // Still listen for Supabase auth changes below
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      if (session?.access_token) {
+
+      if (!customToken && session?.access_token) {
         fetchDbUser(session.access_token).finally(() => setLoading(false));
-      } else {
+      } else if (!customToken) {
         setLoading(false);
       }
     });
@@ -93,12 +101,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setCustomToken = (token: string, customDbUser: NonNullable<DbUser>) => {
+    localStorage.setItem(CUSTOM_TOKEN_KEY, token);
+    setDbUser(customDbUser);
+    setLoading(false);
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setDbUser(null);
     setAdminViewAsState(null);
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(ADMIN_VIEW_AS_KEY);
+      window.localStorage.removeItem(CUSTOM_TOKEN_KEY);
     }
   };
 
@@ -130,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     effectiveRole,
     adminViewAs,
     setAdminViewAs,
+    setCustomToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

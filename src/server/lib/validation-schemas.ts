@@ -116,6 +116,43 @@ export const singleAutoGradeSchema = z.object({
   forceRegrade: z.boolean().optional().default(false), // Allow re-grading even if already graded
 });
 
+// Admin user management schemas
+export const createUserSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  name: z.string().min(1, 'Name is required'),
+  role: z.enum(['admin', 'staff', 'student']),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+export const updateUserSchema = z.object({
+  name: z.string().min(1).optional(),
+  role: z.enum(['admin', 'staff', 'student']).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const adminResetPasswordSchema = z.object({
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+export const bulkCreateUsersSchema = z.object({
+  users: z.array(z.object({
+    email: z.string().email('Invalid email address'),
+    name: z.string().min(1, 'Name is required'),
+    role: z.enum(['admin', 'staff', 'student']),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+  })).min(1, 'At least one user is required').max(500, 'Maximum 500 users per batch'),
+});
+
+// Password reset schemas
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
 // Tag schemas
 export const createTagSchema = z.object({
   courseId: z.string().uuid('Invalid course ID'),

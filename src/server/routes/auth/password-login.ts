@@ -3,40 +3,47 @@ import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import { db } from '../../../db/index.js';
 import { users } from '../../../db/schema.js';
-import { eq } from 'drizzle-orm';
 import type { AuthContext } from '../../middleware/auth.js';
+import { safeValidateBody, loginSchema } from '../../lib/validation-schemas.js';
+import { eq } from 'drizzle-orm';
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fallback-dev-secret-change-me'
+  process.env.JWT_SECRET || 'dev-jwt-secret-change-in-production'
 );
+const JWT_EXPIRY = '7d';
 
 const passwordLoginRoute = new Hono<AuthContext>();
 
 passwordLoginRoute.post('/password-login', async (c) => {
-  const { email, password } = await c.req.json();
+  const body = await c.req.json();
+  const validation = safeValidateBody(loginSchema, body);
 
-  if (!email || !password) {
-    return c.json({ error: 'Email and password are required' }, 400);
+  if (!validation.success) {
+    return c.json({ error: validation.error }, 400);
   }
 
-  // Look up user in local DB
+  const { email, password } = validation.data;
+
   const [user] = await db
     .select()
     .from(users)
-    .where(eq(users.email, email))
+    .where(eq(users.email, email.toLowerCase()))
     .limit(1);
 
   if (!user || !user.passwordHash) {
     return c.json({ error: 'Invalid email or password' }, 401);
   }
 
-  // Verify password
+  if (user.deactivatedAt) {
+    return c.json({ error: 'Account deactivated' }, 401);
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     return c.json({ error: 'Invalid email or password' }, 401);
   }
 
-  // Issue a custom JWT
+  // Issue JWT
   const token = await new SignJWT({
     sub: user.id,
     email: user.email,
@@ -44,7 +51,7 @@ passwordLoginRoute.post('/password-login', async (c) => {
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('7d')
+    .setExpirationTime(JWT_EXPIRY)
     .sign(JWT_SECRET);
 
   return c.json({

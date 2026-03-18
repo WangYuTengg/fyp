@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudentRouteImport } from './routes/student'
 import { Route as StaffRouteImport } from './routes/staff'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudentIndexRouteImport } from './routes/student/index'
 import { Route as StaffIndexRouteImport } from './routes/staff/index'
@@ -24,6 +26,7 @@ import { Route as StudentSubmissionsSubmissionIdRouteImport } from './routes/stu
 import { Route as StudentCoursesCourseIdRouteImport } from './routes/student/courses/$courseId'
 import { Route as StudentAssignmentsAssignmentIdRouteImport } from './routes/student/assignments/$assignmentId'
 import { Route as StaffCoursesCourseIdRouteImport } from './routes/staff/courses/$courseId'
+import { Route as StaffAdminUsersRouteImport } from './routes/staff/admin/users'
 
 const StudentRoute = StudentRouteImport.update({
   id: '/student',
@@ -35,9 +38,19 @@ const StaffRoute = StaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -103,10 +116,17 @@ const StaffCoursesCourseIdRoute = StaffCoursesCourseIdRouteImport.update({
   path: '/courses/$courseId',
   getParentRoute: () => StaffRoute,
 } as any)
+const StaffAdminUsersRoute = StaffAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => StaffRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/staff/analytics': typeof StaffAnalyticsRoute
@@ -116,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/staff/settings': typeof StaffSettingsRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
+  '/staff/admin/users': typeof StaffAdminUsersRoute
   '/staff/courses/$courseId': typeof StaffCoursesCourseIdRoute
   '/student/assignments/$assignmentId': typeof StudentAssignmentsAssignmentIdRoute
   '/student/courses/$courseId': typeof StudentCoursesCourseIdRoute
@@ -123,7 +144,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/staff/analytics': typeof StaffAnalyticsRoute
   '/staff/assignment-analytics': typeof StaffAssignmentAnalyticsRoute
   '/staff/grading': typeof StaffGradingRoute
@@ -131,6 +154,7 @@ export interface FileRoutesByTo {
   '/staff/settings': typeof StaffSettingsRoute
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
+  '/staff/admin/users': typeof StaffAdminUsersRoute
   '/staff/courses/$courseId': typeof StaffCoursesCourseIdRoute
   '/student/assignments/$assignmentId': typeof StudentAssignmentsAssignmentIdRoute
   '/student/courses/$courseId': typeof StudentCoursesCourseIdRoute
@@ -139,7 +163,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/staff/analytics': typeof StaffAnalyticsRoute
@@ -149,6 +175,7 @@ export interface FileRoutesById {
   '/staff/settings': typeof StaffSettingsRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
+  '/staff/admin/users': typeof StaffAdminUsersRoute
   '/staff/courses/$courseId': typeof StaffCoursesCourseIdRoute
   '/student/assignments/$assignmentId': typeof StudentAssignmentsAssignmentIdRoute
   '/student/courses/$courseId': typeof StudentCoursesCourseIdRoute
@@ -158,7 +185,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/staff'
     | '/student'
     | '/staff/analytics'
@@ -168,6 +197,7 @@ export interface FileRouteTypes {
     | '/staff/settings'
     | '/staff/'
     | '/student/'
+    | '/staff/admin/users'
     | '/staff/courses/$courseId'
     | '/student/assignments/$assignmentId'
     | '/student/courses/$courseId'
@@ -175,7 +205,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/staff/analytics'
     | '/staff/assignment-analytics'
     | '/staff/grading'
@@ -183,6 +215,7 @@ export interface FileRouteTypes {
     | '/staff/settings'
     | '/staff'
     | '/student'
+    | '/staff/admin/users'
     | '/staff/courses/$courseId'
     | '/student/assignments/$assignmentId'
     | '/student/courses/$courseId'
@@ -190,7 +223,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/staff'
     | '/student'
     | '/staff/analytics'
@@ -200,6 +235,7 @@ export interface FileRouteTypes {
     | '/staff/settings'
     | '/staff/'
     | '/student/'
+    | '/staff/admin/users'
     | '/staff/courses/$courseId'
     | '/student/assignments/$assignmentId'
     | '/student/courses/$courseId'
@@ -208,7 +244,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   StaffRoute: typeof StaffRouteWithChildren
   StudentRoute: typeof StudentRouteWithChildren
 }
@@ -229,11 +267,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -320,6 +372,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffCoursesCourseIdRouteImport
       parentRoute: typeof StaffRoute
     }
+    '/staff/admin/users': {
+      id: '/staff/admin/users'
+      path: '/admin/users'
+      fullPath: '/staff/admin/users'
+      preLoaderRoute: typeof StaffAdminUsersRouteImport
+      parentRoute: typeof StaffRoute
+    }
   }
 }
 
@@ -330,6 +389,7 @@ interface StaffRouteChildren {
   StaffNotificationsRoute: typeof StaffNotificationsRoute
   StaffSettingsRoute: typeof StaffSettingsRoute
   StaffIndexRoute: typeof StaffIndexRoute
+  StaffAdminUsersRoute: typeof StaffAdminUsersRoute
   StaffCoursesCourseIdRoute: typeof StaffCoursesCourseIdRoute
 }
 
@@ -340,6 +400,7 @@ const StaffRouteChildren: StaffRouteChildren = {
   StaffNotificationsRoute: StaffNotificationsRoute,
   StaffSettingsRoute: StaffSettingsRoute,
   StaffIndexRoute: StaffIndexRoute,
+  StaffAdminUsersRoute: StaffAdminUsersRoute,
   StaffCoursesCourseIdRoute: StaffCoursesCourseIdRoute,
 }
 
@@ -364,7 +425,9 @@ const StudentRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   StaffRoute: StaffRouteWithChildren,
   StudentRoute: StudentRouteWithChildren,
 }

@@ -17,8 +17,19 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash'),
   role: userRoleEnum('role').default('student').notNull(),
   supabaseId: text('supabase_id').unique(),
+  deactivatedAt: timestamp('deactivated_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Password reset tokens
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  usedAt: timestamp('used_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Courses table
@@ -304,4 +315,8 @@ export const aiGradingJobsRelations = relations(aiGradingJobs, ({ one }) => ({
 
 export const staffNotificationsRelations = relations(staffNotifications, ({ one }) => ({
   user: one(users, { fields: [staffNotifications.userId], references: [users.id] }),
+}));
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, { fields: [passwordResetTokens.userId], references: [users.id] }),
 }));
