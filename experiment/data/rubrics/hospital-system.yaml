@@ -1,0 +1,72 @@
+# Rubric: Hospital Management System Class Diagram
+specification: |
+  Design a class diagram for a Hospital Management System with the following requirements:
+  - The Hospital has Departments, each with a name and head doctor
+  - Doctors work in Departments and can work in multiple departments
+  - Patients are admitted and assigned to a Doctor
+  - An Appointment links a Patient and Doctor with a date, time, and status
+  - Patients have medical records containing diagnosis and treatment history
+  - Doctors have a name, specialization, and license number
+  - Patients have a name, date of birth, and contact information
+  - Prescriptions are issued by Doctors for Patients with medication details
+
+reference_solution: |
+  @startuml
+  class Hospital {
+    - name: String
+    - address: String
+  }
+
+  class Department {
+    - name: String
+    + getHeadDoctor(): Doctor
+  }
+
+  class Doctor {
+    - name: String
+    - specialization: String
+    - licenseNumber: String
+    + createAppointment(patient: Patient, date: Date): Appointment
+    + issuePrescription(patient: Patient): Prescription
+  }
+
+  class Patient {
+    - name: String
+    - dateOfBirth: Date
+    - contactInfo: String
+    + getAppointments(): List<Appointment>
+    + getMedicalRecords(): List<MedicalRecord>
+  }
+
+  class Appointment {
+    - date: Date
+    - time: Time
+    - status: String
+    + reschedule(newDate: Date): void
+    + cancel(): void
+  }
+
+  class MedicalRecord {
+    - diagnosis: String
+    - treatment: String
+    - recordDate: Date
+  }
+
+  class Prescription {
+    - medication: String
+    - dosage: String
+    - duration: String
+    - issueDate: Date
+  }
+
+  Hospital "1" -- "*" Department : has
+  Department "1" -- "*" Doctor : staffed by
+  Doctor "*" -- "*" Department : works in
+  Doctor "1" -- "*" Appointment : attends
+  Patient "1" -- "*" Appointment : schedules
+  Patient "1" -- "*" MedicalRecord : has
+  Doctor "1" -- "*" Prescription : issues
+  Patient "1" -- "*" Prescription : receives
+  @enduml
+
+diagram_type: "class"
