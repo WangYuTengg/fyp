@@ -43,6 +43,22 @@ export function useAssignmentForm(courseId: string) {
     },
   });
 
+  const cloneMutation = useMutation({
+    mutationFn: (data: { assignmentId: string; targetCourseId?: string; newTitle?: string; newDueDate?: string | null }) =>
+      assignmentsApi.clone(data.assignmentId, {
+        targetCourseId: data.targetCourseId,
+        newTitle: data.newTitle,
+        newDueDate: data.newDueDate,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      alert('Failed to clone assignment: ' + message);
+    },
+  });
+
   const createAssignment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -59,6 +75,11 @@ export function useAssignmentForm(courseId: string) {
       ? Math.max(1, Math.floor(timeLimitRaw))
       : null;
 
+    const latePenaltyType = String(formData.get('latePenaltyType') || 'none');
+    const latePenaltyValueRaw = Number(formData.get('latePenaltyValue'));
+    const latePenaltyCapRaw = Number(formData.get('latePenaltyCap'));
+    const attemptScoringMethod = String(formData.get('attemptScoringMethod') || 'latest');
+
     createMutation.mutate({
       courseId,
       title: String(formData.get('title') || '').trim(),
@@ -68,12 +89,26 @@ export function useAssignmentForm(courseId: string) {
       maxAttempts,
       mcqPenaltyPerWrongSelection,
       timeLimit,
+      shuffleQuestions: formData.get('shuffleQuestions') === '1',
+      latePenaltyType,
+      latePenaltyValue: latePenaltyType !== 'none' && Number.isFinite(latePenaltyValueRaw) ? latePenaltyValueRaw : undefined,
+      latePenaltyCap: latePenaltyType !== 'none' && String(formData.get('latePenaltyCap') || '').trim().length > 0 && Number.isFinite(latePenaltyCapRaw) ? latePenaltyCapRaw : undefined,
+      attemptScoringMethod,
       questionIds: selectedQuestionIds,
     });
   };
 
   const togglePublish = (assignmentId: string, nextIsPublished: boolean) => {
     publishMutation.mutate({ assignmentId, nextIsPublished });
+  };
+
+  const cloneAssignment = (assignmentId: string, options?: { newTitle?: string; newDueDate?: string | null }) => {
+    cloneMutation.mutate({
+      assignmentId,
+      targetCourseId: courseId,
+      newTitle: options?.newTitle,
+      newDueDate: options?.newDueDate,
+    });
   };
 
   return {
@@ -84,6 +119,8 @@ export function useAssignmentForm(courseId: string) {
     createAssignment,
     togglePublish,
     deleteAssignment: (assignmentId: string) => deleteMutation.mutate(assignmentId),
+    cloneAssignment,
     isCreating: createMutation.isPending,
+    isCloning: cloneMutation.isPending,
   };
 }

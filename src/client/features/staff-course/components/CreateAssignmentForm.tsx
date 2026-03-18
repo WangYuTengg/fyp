@@ -102,6 +102,12 @@ export function CreateAssignmentForm({
   const [hasTimeLimit, setHasTimeLimit] = useState(false);
   const [timeLimit, setTimeLimit] = useState(DEFAULT_TIME_LIMIT_MINUTES);
   const [mcqPenaltyPerWrongSelection, setMcqPenaltyPerWrongSelection] = useState(1);
+  const [shuffleQuestions, setShuffleQuestions] = useState(false);
+  const [latePenaltyType, setLatePenaltyType] = useState<'none' | 'fixed' | 'per_day' | 'per_hour'>('none');
+  const [latePenaltyValue, setLatePenaltyValue] = useState(10);
+  const [latePenaltyCap, setLatePenaltyCap] = useState(50);
+  const [enableLatePenaltyCap, setEnableLatePenaltyCap] = useState(false);
+  const [attemptScoringMethod, setAttemptScoringMethod] = useState<'latest' | 'highest'>('latest');
   const [questionSearch, setQuestionSearch] = useState('');
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [questionPageSize, setQuestionPageSize] = useState<number>(20);
@@ -342,6 +348,11 @@ export function CreateAssignmentForm({
       <input type="hidden" name="maxAttempts" value={String(maxAttempts)} />
       <input type="hidden" name="mcqPenaltyPerWrongSelection" value={String(mcqPenaltyPerWrongSelection)} />
       <input type="hidden" name="timeLimit" value={hasTimeLimit ? String(timeLimit) : ''} />
+      <input type="hidden" name="shuffleQuestions" value={shuffleQuestions ? '1' : '0'} />
+      <input type="hidden" name="latePenaltyType" value={latePenaltyType} />
+      <input type="hidden" name="latePenaltyValue" value={latePenaltyType !== 'none' ? String(latePenaltyValue) : ''} />
+      <input type="hidden" name="latePenaltyCap" value={latePenaltyType !== 'none' && enableLatePenaltyCap ? String(latePenaltyCap) : ''} />
+      <input type="hidden" name="attemptScoringMethod" value={attemptScoringMethod} />
 
       <div className="rounded-xl border border-gray-200 bg-gradient-to-r from-slate-50 to-blue-50 p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -594,6 +605,123 @@ export function CreateAssignmentForm({
                   </div>
                 )}
               </div>
+
+              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={shuffleQuestions}
+                    onChange={(e) => setShuffleQuestions(e.target.checked)}
+                  />
+                  Randomize question order
+                </label>
+                <p className="mt-1 text-xs text-gray-500">
+                  Each student sees questions in a unique random order, reducing the chance of copying in a lab setting.
+                </p>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+                <div>
+                  <label htmlFor="create-assignment-penalty-type" className="block text-sm font-medium text-gray-700">
+                    Late submission penalty
+                  </label>
+                  <select
+                    id="create-assignment-penalty-type"
+                    value={latePenaltyType}
+                    onChange={(e) => setLatePenaltyType(e.target.value as typeof latePenaltyType)}
+                    className="form-input-block mt-1"
+                  >
+                    <option value="none">No penalty</option>
+                    <option value="fixed">Fixed deduction</option>
+                    <option value="per_hour">Per hour late</option>
+                    <option value="per_day">Per day late</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Automatically deduct marks when students submit after the due date or timer expiry.
+                  </p>
+                </div>
+
+                {latePenaltyType !== 'none' && (
+                  <div className="space-y-3 border-t border-gray-200 pt-3">
+                    <div className="max-w-xs">
+                      <label htmlFor="create-assignment-penalty-value" className="block text-sm font-medium text-gray-700">
+                        Penalty (%)
+                      </label>
+                      <input
+                        id="create-assignment-penalty-value"
+                        type="number"
+                        value={latePenaltyValue}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setLatePenaltyValue(Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0);
+                        }}
+                        min={0}
+                        max={100}
+                        step={1}
+                        className="form-input-block"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        {latePenaltyType === 'fixed'
+                          ? 'Flat percentage deducted from the total score.'
+                          : latePenaltyType === 'per_hour'
+                            ? 'Percentage deducted for each hour past the deadline.'
+                            : 'Percentage deducted for each calendar day past the deadline.'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={enableLatePenaltyCap}
+                          onChange={(e) => setEnableLatePenaltyCap(e.target.checked)}
+                        />
+                        Cap maximum penalty
+                      </label>
+                      {enableLatePenaltyCap && (
+                        <div className="mt-2 max-w-xs">
+                          <input
+                            id="create-assignment-penalty-cap"
+                            type="number"
+                            value={latePenaltyCap}
+                            onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setLatePenaltyCap(Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0);
+                            }}
+                            min={0}
+                            max={100}
+                            step={1}
+                            className="form-input-block"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">
+                            Maximum penalty percentage. Prevents excessive deductions for very late submissions.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {maxAttempts > 1 && (
+                <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <label htmlFor="create-assignment-scoring-method" className="block text-sm font-medium text-gray-700">
+                    Attempt scoring method
+                  </label>
+                  <select
+                    id="create-assignment-scoring-method"
+                    value={attemptScoringMethod}
+                    onChange={(e) => setAttemptScoringMethod(e.target.value as typeof attemptScoringMethod)}
+                    className="form-input-block mt-1"
+                  >
+                    <option value="latest">Use latest attempt</option>
+                    <option value="highest">Use highest score</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Determines which attempt counts towards the student&apos;s final grade when multiple attempts are allowed.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -946,6 +1074,10 @@ export function CreateAssignmentForm({
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Multi-answer penalty</p>
                   <p className="mt-1 text-sm text-gray-900">{mcqPenaltyPerWrongSelection} per wrong option</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Question order</p>
+                  <p className="mt-1 text-sm text-gray-900">{shuffleQuestions ? 'Randomized per student' : 'Fixed order'}</p>
                 </div>
               </div>
 

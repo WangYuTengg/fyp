@@ -54,7 +54,7 @@ export type AiGradingSuggestion = {
   criteriaScores?: GradingCriterionScore[] | null;
 };
 
-export type NotificationType = 'grading_failed' | 'grading_completed' | 'batch_completed';
+export type NotificationType = 'grading_failed' | 'grading_completed' | 'batch_completed' | 'auto_submitted';
 
 export type GradingFailedNotificationData = {
   answerId?: string;
