@@ -9,14 +9,36 @@ dotenv.config();
  * Server environment validation — fail-fast on missing/invalid config.
  * Called at startup before any routes or workers initialize.
  * Subsumes S1 (JWT_SECRET crash) into comprehensive env validation.
+ *
+ * In test environments (NODE_ENV=test or VITEST=true), missing required vars
+ * get safe defaults so unit tests can import server modules without a .env file.
  */
 
+const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
+// In test mode, provide safe defaults for required vars so tests don't need a .env file.
+// In production/development, these must be explicitly set or the server refuses to start.
+const required = (msg: string, testDefault?: string) =>
+  isTest && testDefault !== undefined
+    ? z.string().default(testDefault)
+    : z.string().min(1, msg);
+
+const requiredUrl = (msg: string, testDefault?: string) =>
+  isTest && testDefault !== undefined
+    ? z.string().url().default(testDefault)
+    : z.string().url(msg);
+
+const requiredMinLen = (len: number, msg: string, testDefault?: string) =>
+  isTest && testDefault !== undefined
+    ? z.string().default(testDefault)
+    : z.string().min(len, msg);
+
 const envSchema = z.object({
-  // Required — server will not start without these
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters (use a strong random value)'),
-  VITE_SUPABASE_URL: z.string().url('VITE_SUPABASE_URL must be a valid URL'),
-  VITE_SUPABASE_ANON_KEY: z.string().min(1, 'VITE_SUPABASE_ANON_KEY is required'),
+  // Required in production/development
+  DATABASE_URL: required('DATABASE_URL is required', 'postgres://test:test@localhost:5432/test'),
+  JWT_SECRET: requiredMinLen(32, 'JWT_SECRET must be at least 32 characters (use a strong random value)', 'test-jwt-secret-at-least-32-characters-long!!'),
+  VITE_SUPABASE_URL: requiredUrl('VITE_SUPABASE_URL must be a valid URL', 'https://test.supabase.co'),
+  VITE_SUPABASE_ANON_KEY: required('VITE_SUPABASE_ANON_KEY is required', 'test-anon-key'),
 
   // Optional with sensible defaults
   PORT: z
