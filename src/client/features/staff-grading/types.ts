@@ -42,7 +42,6 @@ export type GradingAnswer = {
   submissionId: string;
   questionId: string;
   content: Record<string, unknown>;
-  fileUrl: string | null;
   createdAt: string;
   updatedAt: string;
   aiGradingSuggestion?: Record<string, unknown> | string | null;

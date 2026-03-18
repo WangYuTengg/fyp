@@ -6,8 +6,6 @@ import startSubmissionRoute from './start-submission.js';
 import saveAnswerRoute from './save-answer.js';
 import submitSubmissionRoute from './submit-submission.js';
 import gradeSubmissionRoute from './grade-submission.js';
-import uploadFileRoute from './upload-file.js';
-import fileHistoryRoute from './file-history.js';
 import resultsRoute from './results.js';
 import focusEventRoute from './focus-event.js';
 
@@ -19,8 +17,6 @@ submissions.route('/', startSubmissionRoute);
 submissions.route('/', saveAnswerRoute);
 submissions.route('/', submitSubmissionRoute);
 submissions.route('/', gradeSubmissionRoute);
-submissions.route('/', uploadFileRoute);
-submissions.route('/', fileHistoryRoute);
 submissions.route('/', resultsRoute);
 submissions.route('/', focusEventRoute);
 

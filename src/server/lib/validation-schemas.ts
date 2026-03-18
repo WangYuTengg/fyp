@@ -83,7 +83,6 @@ export const startSubmissionSchema = z.object({
 export const saveAnswerSchema = z.object({
   questionId: z.string().uuid('Invalid question ID'),
   content: z.record(z.string(), z.unknown()),
-  fileUrl: z.string().optional(),
 });
 
 export const gradeSchema = z.object({

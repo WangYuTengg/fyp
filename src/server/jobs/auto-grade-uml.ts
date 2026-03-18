@@ -4,20 +4,17 @@ import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { answers, aiGradingJobs, aiUsageStats, questions } from '../../db/schema.js';
 import type { RubricCriterion } from '../../lib/assessment.js';
-import { generateAIObject, generateAIVision } from '../lib/ai.js';
+import { generateAIObject } from '../lib/ai.js';
 import { getPrompt } from '../config/prompts.js';
 import { calculateCost } from '../config/pricing.js';
-import { getSignedUrl } from '../lib/storage.js';
 import { getAnswerContent, getQuestionContent, getRubricCriteria } from '../lib/content-utils.js';
 import { getErrorMessage, getErrorStack } from '../lib/error-utils.js';
 import { checkBatchCompletion, notifyGradingFailed } from '../lib/notifications.js';
 
 /**
  * Graphile Worker task: auto-grade-uml
- * 
- * Grades a UML answer by:
- * 1. Text path: Compare PlantUML code strings
- * 2. Image path: Extract PlantUML from image using vision model, then compare
+ *
+ * Grades a UML answer by comparing PlantUML code strings using LLM
  */
 
 export interface AutoGradeUMLPayload {
@@ -35,7 +32,6 @@ const UMLGradingResponseSchema = z.object({
   points: z.number().min(0).describe('Points awarded (0 to maxPoints)'),
   reasoning: z.string().min(10).describe('Detailed explanation comparing diagrams'),
   confidence: z.number().min(0).max(100).describe('Confidence level (0-100)'),
-  extractedUml: z.string().optional().describe('PlantUML code extracted from image'),
   criteriaScores: z.array(
     z.object({
       criterion: z.string(),
@@ -98,53 +94,17 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
 
     const answerContent = getAnswerContent(answerData.content);
     const studentUmlText = answerContent.umlText;
-    const fileUrl = answerData.fileUrl;
 
-    // Determine grading path: text or image
-    let studentUml: string;
-    let extractedUml: string | undefined;
     let totalTokens = 0;
     const provider = process.env.LLM_PROVIDER || 'openai';
     const model = process.env.LLM_MODEL || 'gpt-4o';
 
-    if (studentUmlText && studentUmlText.trim().length > 0) {
-      // Path 1: Compare PlantUML code directly
-      helpers.logger.info('Using text comparison path (PlantUML code)');
-      studentUml = studentUmlText;
-    } else if (fileUrl) {
-      // Path 2: Extract PlantUML from image using vision model
-      helpers.logger.info('Using vision extraction path (image)');
-      
-      // Get signed URL for image
-      const signedUrl = await getSignedUrl(fileUrl);
-
-      // Extract PlantUML using vision model
-      const extractionPrompt = `Analyze this UML diagram image and extract the complete diagram as PlantUML syntax code.
-
-Output ONLY the PlantUML code starting with @startuml and ending with @enduml. Include all classes, relationships, attributes, and methods visible in the diagram.
-
-Be precise with:
-- Class names and stereotypes
-- Relationship types (inheritance, composition, aggregation, association)
-- Multiplicity indicators
-- Attribute and method signatures
-- Visibility modifiers (+, -, #, ~)`;
-
-      // Use vision-capable model for image analysis
-      const extractionResult = await generateAIVision(
-        signedUrl,
-        extractionPrompt,
-        'You are a UML diagram analysis expert. Extract PlantUML code from diagram images with high precision.'
-      );
-
-      extractedUml = extractionResult.text;
-      studentUml = extractedUml;
-      totalTokens += extractionResult.tokensUsed;
-
-      helpers.logger.info(`Extracted ${extractedUml.length} characters of PlantUML code using vision model`);
-    } else {
-      throw new Error('No UML text or file URL provided in answer');
+    if (!studentUmlText || studentUmlText.trim().length === 0) {
+      throw new Error('No UML text provided in answer');
     }
+
+    helpers.logger.info('Using text comparison path (PlantUML code)');
+    const studentUml = studentUmlText;
 
     // 3. Get prompt template
     const promptTemplate = getPrompt('uml');
@@ -178,12 +138,7 @@ Be precise with:
       result.points = maxPoints;
     }
 
-    // Add extractedUml to result if we used vision path
-    if (extractedUml) {
-      result.extractedUml = extractedUml;
-    }
-
-    // 5. Calculate cost (vision adds ~2-3x cost)
+    // 5. Calculate cost
     const cost = calculateCost(provider, model, totalTokens, 0);
 
     // 6. Update answer with AI grading suggestion
@@ -198,7 +153,6 @@ Be precise with:
           cost,
           promptVersion,
           gradedAt: new Date().toISOString(),
-          extractedUml: result.extractedUml || null,
           criteriaScores: result.criteriaScores || null,
         },
         updatedAt: new Date(),
@@ -220,7 +174,7 @@ Be precise with:
     // 8. Update usage stats
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const [existingStats] = await db
       .select()
       .from(aiUsageStats)

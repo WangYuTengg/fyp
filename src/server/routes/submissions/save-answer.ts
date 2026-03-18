@@ -28,7 +28,7 @@ saveAnswerRoute.post('/:submissionId/answers', requireAuth, async (c) => {
     );
   }
 
-  const { questionId, content, fileUrl } = validation.data;
+  const { questionId, content } = validation.data;
 
   // Verify ownership
   const [submission] = await db
@@ -97,7 +97,7 @@ saveAnswerRoute.post('/:submissionId/answers', requireAuth, async (c) => {
   if (existingAnswer) {
     const [updated] = await db
       .update(answers)
-      .set({ content, fileUrl, updatedAt: new Date() })
+      .set({ content, updatedAt: new Date() })
       .where(eq(answers.id, existingAnswer.id))
       .returning();
 
@@ -110,7 +110,6 @@ saveAnswerRoute.post('/:submissionId/answers', requireAuth, async (c) => {
       submissionId,
       questionId,
       content,
-      fileUrl,
     })
     .returning();
 

@@ -49,7 +49,6 @@ export type Answer = {
     umlText?: string;
     editorState?: ClassDiagramState;
   };
-  fileUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 };

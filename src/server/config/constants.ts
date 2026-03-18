@@ -3,20 +3,6 @@
  * Centralize magic numbers and configuration values
  */
 
-// File storage
-export const STORAGE_CONFIG = {
-  MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
-  SIGNED_URL_EXPIRY: 24 * 60 * 60, // 24 hours (in seconds)
-  BUCKET_NAME: 'submissions',
-  ALLOWED_MIME_TYPES: [
-    'image/png',
-    'image/jpeg',
-    'image/svg+xml',
-    'text/plain', // for .puml files
-  ],
-  ALLOWED_EXTENSIONS: ['.png', '.jpg', '.jpeg', '.svg', '.puml'],
-} as const;
-
 // Auto-save
 export const AUTO_SAVE_CONFIG = {
   INTERVAL_MS: 30000, // 30 seconds

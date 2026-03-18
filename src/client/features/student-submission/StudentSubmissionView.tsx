@@ -34,7 +34,6 @@ type AnswerWithMark = {
     selectedOptionIds?: string[];
     umlText?: string;
   };
-  fileUrl?: string | null;
   aiGradingSuggestion?: {
     points: number;
     reasoning: string;
@@ -184,7 +183,7 @@ export function StudentSubmissionView({ submissionId }: { submissionId: string }
       {/* Answers & Feedback */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Your Answers</h2>
-        
+
         {submission.answers.map((answer, idx) => (
           <div key={answer.id} className="bg-white shadow rounded-lg overflow-hidden">
             {/* Question Header */}
@@ -247,13 +246,6 @@ export function StudentSubmissionView({ submissionId }: { submissionId: string }
                 )}
                 {answer.question.type === 'uml' && (
                   <div>
-                    {answer.fileUrl && (
-                      <img
-                        src={answer.fileUrl}
-                        alt="UML Diagram"
-                        className="max-w-full h-auto border rounded mb-2"
-                      />
-                    )}
                     {answer.content.umlText && (
                       <pre className="bg-gray-800 text-gray-100 p-4 rounded text-sm overflow-x-auto">
                         {answer.content.umlText}

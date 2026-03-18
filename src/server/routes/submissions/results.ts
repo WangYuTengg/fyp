@@ -3,13 +3,12 @@ import { db } from '../../../db/index.js';
 import { submissions, assignments, answers, marks, questions } from '../../../db/schema.js';
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
 import { eq } from 'drizzle-orm';
-import { getSignedUrl } from '../../lib/storage.js';
 
 const resultsRoute = new Hono<AuthContext>();
 
 /**
  * GET /api/submissions/:submissionId/results
- * 
+ *
  * Get submission results with grades and feedback for student view.
  * Includes answers, marks, AI grading suggestions, and course/assignment info.
  */
@@ -73,7 +72,6 @@ resultsRoute.get('/:submissionId/results', requireAuth, async (c) => {
       id: answers.id,
       questionId: answers.questionId,
       content: answers.content,
-      fileUrl: answers.fileUrl,
       aiGradingSuggestion: answers.aiGradingSuggestion,
       question: {
         id: questions.id,
@@ -87,7 +85,7 @@ resultsRoute.get('/:submissionId/results', requireAuth, async (c) => {
     .innerJoin(questions, eq(answers.questionId, questions.id))
     .where(eq(answers.submissionId, submissionId));
 
-  // Generate signed URLs and attach marks
+  // Attach marks
   const submissionMarks = await db
     .select()
     .from(marks)
@@ -97,24 +95,10 @@ resultsRoute.get('/:submissionId/results', requireAuth, async (c) => {
     submissionMarks.map((m) => [m.answerId, m])
   );
 
-  const answersWithDetails = await Promise.all(
-    submissionAnswers.map(async (answer) => {
-      let fileUrl = answer.fileUrl;
-      if (fileUrl) {
-        try {
-          fileUrl = await getSignedUrl(fileUrl);
-        } catch {
-          // Keep original path if signed URL fails
-        }
-      }
-
-      return {
-        ...answer,
-        fileUrl,
-        mark: marksByAnswerId.get(answer.id) || null,
-      };
-    })
-  );
+  const answersWithDetails = submissionAnswers.map((answer) => ({
+    ...answer,
+    mark: marksByAnswerId.get(answer.id) || null,
+  }));
 
   // Fetch penalty info from the full submission record
   const [fullSubmission] = await db

@@ -202,29 +202,6 @@ export const submissionsApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  uploadFile: async (submissionId: string, questionId: string, file: File) => {
-    const token = await getAccessToken();
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('questionId', questionId);
-
-    const response = await fetch(`${API_BASE}/api/submissions/${submissionId}/upload`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData, // Don't set Content-Type, let browser set it with boundary
-    });
-
-    if (!response.ok) {
-      const error = await response.json() as ApiError;
-      throw new ApiRequestError(error.error || 'Upload failed', response.status);
-    }
-
-    return response.json();
-  },
-  getFileHistory: (answerId: string) => apiClient<unknown[]>(`/api/submissions/answer/${answerId}/file-history`),
   reportFocusEvent: (submissionId: string, data: { leftAt: string; returnedAt: string; durationMs: number }) =>
     apiClient<{ success: boolean; data: { tabSwitchCount: number; maxTabSwitches: number | null; shouldAutoSubmit: boolean } }>(
       `/api/submissions/${submissionId}/focus-event`,
@@ -242,7 +219,7 @@ export const questionsApi = {
     if (filters?.search) params.set('search', filters.search);
     if (filters?.tags?.length) params.set('tags', filters.tags.join(','));
     if (filters?.types?.length) params.set('types', filters.types.join(','));
-    
+
     const query = params.toString();
     return apiClient<Question[]>(`/api/questions/course/${courseId}${query ? `?${query}` : ''}`);
   },

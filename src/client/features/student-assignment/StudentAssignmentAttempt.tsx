@@ -7,7 +7,6 @@ import { useFocusMonitor } from './hooks/useFocusMonitor';
 import { AssignmentHeader } from './components/AssignmentHeader';
 import { QuestionCard } from './components/QuestionCard';
 import { Timer } from './components/Timer';
-import { submissionsApi } from '../../lib/api';
 import { Modal } from '../../components/Modal';
 import type { Answer } from './types';
 
@@ -28,7 +27,6 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     questionsById,
     dueDate,
     isPastDue,
-    refreshSubmission,
   } = useAssignmentData(assignmentId);
 
   const {
@@ -112,7 +110,7 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
       }
 
       if (answer?.type === 'uml') {
-        return answer.umlText.trim().length === 0 && !savedAnswer?.fileUrl;
+        return answer.umlText.trim().length === 0;
       }
 
       if (savedAnswer?.content.text !== undefined) {
@@ -123,8 +121,8 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
         return savedAnswer.content.selectedOptionIds.length === 0;
       }
 
-      if (savedAnswer?.content.umlText !== undefined || savedAnswer?.fileUrl) {
-        return (savedAnswer.content.umlText ?? '').trim().length === 0 && !savedAnswer.fileUrl;
+      if (savedAnswer?.content.umlText !== undefined) {
+        return (savedAnswer.content.umlText ?? '').trim().length === 0;
       }
 
       return true;
@@ -166,18 +164,6 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
       alert('⏰ Time is up! Submitting your assignment...');
       submit();
     }
-  };
-
-  // Handle file upload for UML questions
-  const handleFileUpload = async (questionId: string, file: File) => {
-    if (!submission) {
-      throw new Error('No active submission');
-    }
-
-    await submissionsApi.uploadFile(submission.id, questionId, file);
-    
-    // Refresh submission data to get updated file URL
-    await refreshSubmission();
   };
 
   if (loading) {
@@ -323,11 +309,9 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
               answer={answers[currentQuestion.question.id]}
               onUpdateAnswer={updateAnswer}
               onSave={saveAnswer}
-              onFileUpload={handleFileUpload}
               isSaving={saving[currentQuestion.question.id] ?? false}
               isSubmitted={submitted}
               isPastDue={isPastDue}
-              currentFileUrl={submission?.answers?.find((a) => a.questionId === currentQuestion.question.id)?.fileUrl}
             />
           )
         )}

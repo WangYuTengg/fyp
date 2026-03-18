@@ -139,26 +139,11 @@ export const answers = pgTable('answers', {
   submissionId: uuid('submission_id').notNull().references(() => submissions.id, { onDelete: 'cascade' }),
   questionId: uuid('question_id').notNull().references(() => questions.id),
   content: jsonb('content').notNull(), // Student's answer data
-  fileUrl: text('file_url'), // For UML diagrams or code files
   aiGradingSuggestion: jsonb('ai_grading_suggestion'), // LLM output for stretch goal
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   uniqueSubmissionQuestion: unique().on(table.submissionId, table.questionId),
-}));
-
-// File upload history for version tracking
-export const fileUploads = pgTable('file_uploads', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  answerId: uuid('answer_id').notNull().references(() => answers.id, { onDelete: 'cascade' }),
-  fileUrl: text('file_url').notNull(),
-  filePath: text('file_path').notNull(), // Storage path
-  fileName: text('file_name').notNull(),
-  fileSize: integer('file_size').notNull(), // in bytes
-  mimeType: text('mime_type').notNull(),
-  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
-}, (table) => ({
-  answerIdIdx: index('file_uploads_answer_id_idx').on(table.answerId),
 }));
 
 // Marks/grades for submissions

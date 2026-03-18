@@ -1,20 +1,16 @@
-import { useState } from 'react';
 import type { AnswerState, AssignmentQuestion } from '../types';
 import { getPrompt, getMcqAllowMultiple, getMcqOptions } from '../utils/questionHelpers';
 import { UMLEditor } from '../../../components/UMLEditor';
 import { UMLViewer } from '../../../components/UMLViewer';
-import { FileUpload } from '../../../components/FileUpload';
 
 type QuestionCardProps = {
   assignmentQuestion: AssignmentQuestion;
   answer: AnswerState | undefined;
   onUpdateAnswer: (questionId: string, answer: AnswerState) => void;
   onSave: (questionId: string) => void;
-  onFileUpload?: (questionId: string, file: File) => Promise<void>;
   isSaving: boolean;
   isSubmitted: boolean;
   isPastDue: boolean;
-  currentFileUrl?: string | null;
 };
 
 function hasReferenceDiagram(content: unknown): content is { referenceDiagram: string } {
@@ -32,33 +28,12 @@ export function QuestionCard({
   answer,
   onUpdateAnswer,
   onSave,
-  onFileUpload,
   isSaving,
   isSubmitted,
   isPastDue,
-  currentFileUrl,
 }: QuestionCardProps) {
   const { question, order, points } = assignmentQuestion;
-  const [uploadMode, setUploadMode] = useState<'editor' | 'file'>('editor');
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const allowMultiple = getMcqAllowMultiple(question.content);
-
-  const handleFileSelect = async (file: File) => {
-    if (!onFileUpload) return;
-
-    setUploading(true);
-    setUploadError(null);
-
-    try {
-      await onFileUpload(question.id, file);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setUploadError(message);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   return (
     <div className="bg-white shadow rounded-lg p-6 space-y-3">
@@ -141,70 +116,22 @@ export function QuestionCard({
       {question.type === 'uml' && (
         <div className="space-y-4">
           {hasReferenceDiagram(question.content) && (
-            <UMLViewer 
+            <UMLViewer
               umlText={question.content.referenceDiagram}
               title="Reference Diagram"
             />
           )}
 
-          {/* Toggle between editor and file upload */}
-          <div className="flex gap-2 border-b border-gray-200">
-            <button
-              type="button"
-              onClick={() => setUploadMode('editor')}
-              disabled={isSubmitted}
-              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                uploadMode === 'editor'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              PlantUML Editor
-            </button>
-            <button
-              type="button"
-              onClick={() => setUploadMode('file')}
-              disabled={isSubmitted}
-              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                uploadMode === 'file'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Upload Diagram
-            </button>
-          </div>
-
-          {uploadMode === 'editor' ? (
-            <UMLEditor
-              key={question.id}
-              initialValue={answer?.type === 'uml' ? answer.umlText : ''}
-              initialDiagramState={answer?.type === 'uml' ? answer.editorState : undefined}
-              onChange={(value, editorState) => {
-                onUpdateAnswer(question.id, { type: 'uml', umlText: value, editorState });
-              }}
-              readOnly={isSubmitted}
-              height="350px"
-            />
-          ) : (
-            <div>
-              <FileUpload
-                onFileSelect={handleFileSelect}
-                currentFileUrl={currentFileUrl}
-                disabled={isSubmitted || isPastDue || uploading}
-                accept=".png,.jpg,.jpeg,.svg,.puml"
-                maxSizeMB={5}
-              />
-              {uploading && (
-                <div className="mt-2 text-sm text-blue-600">Uploading...</div>
-              )}
-              {uploadError && (
-                <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
-                  Upload failed: {uploadError}
-                </div>
-              )}
-            </div>
-          )}
+          <UMLEditor
+            key={question.id}
+            initialValue={answer?.type === 'uml' ? answer.umlText : ''}
+            initialDiagramState={answer?.type === 'uml' ? answer.editorState : undefined}
+            onChange={(value, editorState) => {
+              onUpdateAnswer(question.id, { type: 'uml', umlText: value, editorState });
+            }}
+            readOnly={isSubmitted}
+            height="350px"
+          />
         </div>
       )}
 

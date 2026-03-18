@@ -3,7 +3,6 @@ import { db } from '../../../db/index.js';
 import { submissions, answers, marks, questions, users, assignments } from '../../../db/schema.js';
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
 import { eq, and, desc } from 'drizzle-orm';
-import { getSignedUrl } from '../../lib/storage.js';
 import { omitTeacherOnlyFields, toStudentSafeMcqContent } from '../../lib/content-utils.js';
 import { resolveScoringSubmission } from '../../lib/grading-utils.js';
 
@@ -39,7 +38,6 @@ getSubmissionRoute.get('/:submissionId', requireAuth, async (c) => {
       submissionId: answers.submissionId,
       questionId: answers.questionId,
       content: answers.content,
-      fileUrl: answers.fileUrl,
       createdAt: answers.createdAt,
       updatedAt: answers.updatedAt,
       question: {
@@ -54,26 +52,9 @@ getSubmissionRoute.get('/:submissionId', requireAuth, async (c) => {
     .innerJoin(questions, eq(answers.questionId, questions.id))
     .where(eq(answers.submissionId, submissionId));
 
-  // Generate signed URLs for file paths
-  const answersWithSignedUrls = await Promise.all(
-    submissionAnswers.map(async (answer) => {
-      if (answer.fileUrl) {
-        try {
-          const signedUrl = await getSignedUrl(answer.fileUrl);
-          return { ...answer, fileUrl: signedUrl };
-        } catch (err) {
-          console.error('Error generating signed URL:', err);
-          // If signed URL generation fails, keep the path
-          return answer;
-        }
-      }
-      return answer;
-    })
-  );
-
   // If a student is viewing their own submission, do not leak model answers / keys via question.content.
   const sanitizedAnswers = !isStaff
-    ? answersWithSignedUrls.map((answer) => {
+    ? submissionAnswers.map((answer) => {
         const q = answer.question;
 
         if (!q) return answer;
@@ -94,7 +75,7 @@ getSubmissionRoute.get('/:submissionId', requireAuth, async (c) => {
 
         return answer;
       })
-    : answersWithSignedUrls;
+    : submissionAnswers;
 
   // Load marks
   const submissionMarks = await db

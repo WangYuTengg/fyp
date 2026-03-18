@@ -333,25 +333,6 @@ export function QuestionGradeCard({
                   readOnly={isReadOnly}
                 />
               </>
-            ) : answer.fileUrl ? (
-              <div className="border rounded-lg overflow-hidden relative">
-                <img src={answer.fileUrl} alt="UML Diagram" className="w-full h-auto" />
-                <UMLAnnotationOverlay
-                  annotations={annotations}
-                  onAnnotationsChange={isReadOnly ? undefined : handleAnnotationsChange}
-                  readOnly={isReadOnly}
-                />
-                <div className="p-2 bg-gray-50 text-xs text-gray-600">
-                  <a
-                    href={answer.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    View full size
-                  </a>
-                </div>
-              </div>
             ) : (
               <em className="text-gray-400">No diagram submitted</em>
             )}

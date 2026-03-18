@@ -14,7 +14,6 @@ type ReviewAnswer = {
   submissionId: string;
   questionId: string;
   content: Record<string, unknown>;
-  fileUrl: string | null;
   aiGradingSuggestion: {
     points?: number;
     reasoning?: string;
@@ -125,7 +124,6 @@ export function BulkReviewWorkflow() {
               submissionId: string;
               questionId: string;
               content: Record<string, unknown>;
-              fileUrl: string | null;
               aiGradingSuggestion: unknown;
               question: { id: string; title: string; type: string; content: Record<string, unknown>; points: number };
             }>;
