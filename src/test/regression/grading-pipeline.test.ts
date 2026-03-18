@@ -114,9 +114,11 @@ vi.mock('../../server/lib/notifications.js', () => ({
   notifyGradingFailed: (...args: unknown[]) => mockNotifyGradingFailed(...args),
 }));
 
+import { Hono } from 'hono';
 import autoGradeWritten from '../../server/jobs/auto-grade-written.js';
 import autoGradeUML from '../../server/jobs/auto-grade-uml.js';
-import { checkBatchCompletion, notifyGradingFailed } from '../../server/lib/notifications.js';
+import acceptRoute from '../../server/routes/auto-grade/accept.js';
+import rejectRoute from '../../server/routes/auto-grade/reject.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -189,9 +191,11 @@ describe('T12: Written answer grading', () => {
       [], // update job → processing
       [{ id: 'ans-1', content: { text: 'Student answer' } }],
       [{ id: 'q-1', content: { modelAnswer: 'Model answer' }, points: 10, rubric: null }],
+      // LLM call throws here
       [], // update job → failed
       [], // usage stats check → none
       [], // insert failure stats
+      [], // notify grading failed
     );
 
     await expect(autoGradeWritten(basePayload, helpers)).rejects.toThrow('Zod validation failed');
@@ -426,17 +430,21 @@ describe('T12: UML grading', () => {
 // T12: Accept/Reject regression
 // ---------------------------------------------------------------------------
 describe('T12: Accept/Reject AI suggestions', () => {
-  it('accepting AI grade creates mark with correct fields', async () => {
-    // This tests the data flow through the accept endpoint
-    const { Hono } = await import('hono');
+  const staffUser = { id: 'staff-1', email: 'prof@staff.main.ntu.edu.sg', role: 'staff', supabaseId: 'sup-1' };
+
+  function createStaffApp() {
     const app = new Hono();
     app.use('*', async (c, next) => {
-      c.set('user', { id: 'staff-1', email: 'prof@staff.main.ntu.edu.sg', role: 'staff', supabaseId: 'sup-1' });
+      c.set('user', staffUser);
       return next();
     });
-
-    const { default: acceptRoute } = await import('../../server/routes/auto-grade/accept.js');
     app.route('/', acceptRoute);
+    app.route('/', rejectRoute);
+    return app;
+  }
+
+  it('accepting AI grade creates mark with correct fields', async () => {
+    const app = createStaffApp();
 
     queryResults.push(
       [{ id: 'ans-1', submissionId: 'sub-1', aiGradingSuggestion: { points: 8, reasoning: 'Good answer' }, maxPoints: 10 }],
@@ -456,15 +464,7 @@ describe('T12: Accept/Reject AI suggestions', () => {
   });
 
   it('rejecting AI grade preserves manual override', async () => {
-    const { Hono } = await import('hono');
-    const app = new Hono();
-    app.use('*', async (c, next) => {
-      c.set('user', { id: 'staff-1', email: 'prof@staff.main.ntu.edu.sg', role: 'staff', supabaseId: 'sup-1' });
-      return next();
-    });
-
-    const { default: rejectRoute } = await import('../../server/routes/auto-grade/reject.js');
-    app.route('/', rejectRoute);
+    const app = createStaffApp();
 
     queryResults.push(
       [{ id: 'ans-1', submissionId: 'sub-1', maxPoints: 10 }],
@@ -484,18 +484,10 @@ describe('T12: Accept/Reject AI suggestions', () => {
   });
 
   it('accept with no AI suggestion returns 400', async () => {
-    const { Hono } = await import('hono');
-    const app = new Hono();
-    app.use('*', async (c, next) => {
-      c.set('user', { id: 'staff-1', email: 'prof@staff.main.ntu.edu.sg', role: 'staff', supabaseId: 'sup-1' });
-      return next();
-    });
+    const app = createStaffApp();
 
     const { getAiGradingSuggestion } = await import('../../server/lib/content-utils.js');
     vi.mocked(getAiGradingSuggestion).mockReturnValueOnce(null);
-
-    const { default: acceptRoute } = await import('../../server/routes/auto-grade/accept.js');
-    app.route('/', acceptRoute);
 
     queryResults.push(
       [{ id: 'ans-1', submissionId: 'sub-1', aiGradingSuggestion: null, maxPoints: 10 }],
