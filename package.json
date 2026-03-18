@@ -19,7 +19,10 @@
     "db:studio": "drizzle-kit studio",
     "db:seed-passwords": "tsx src/db/seed-passwords.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:stress": "vitest run src/test/stress/",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.23",
@@ -55,6 +58,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -64,6 +68,7 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/coverage-v8": "^4.1.0",
     "autoprefixer": "^10.4.23",
     "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
