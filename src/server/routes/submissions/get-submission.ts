@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 import { db } from '../../../db/index.js';
-import { submissions, answers, marks, questions, users } from '../../../db/schema.js';
+import { submissions, answers, marks, questions, users, assignments } from '../../../db/schema.js';
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
-import { eq } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { getSignedUrl } from '../../lib/storage.js';
 import { omitTeacherOnlyFields, toStudentSafeMcqContent } from '../../lib/content-utils.js';
+import { resolveScoringSubmission } from '../../lib/grading-utils.js';
 
 const getSubmissionRoute = new Hono<AuthContext>();
 
@@ -116,11 +117,70 @@ getSubmissionRoute.get('/:submissionId', requireAuth, async (c) => {
     userInfo = submitter;
   }
 
+  // Load all attempts for this student+assignment to determine scoring attempt
+  const allAttempts = await db
+    .select({
+      id: submissions.id,
+      attemptNumber: submissions.attemptNumber,
+      status: submissions.status,
+      startedAt: submissions.startedAt,
+      submittedAt: submissions.submittedAt,
+      gradedAt: submissions.gradedAt,
+      autoSubmitted: submissions.autoSubmitted,
+      latePenaltyApplied: submissions.latePenaltyApplied,
+    })
+    .from(submissions)
+    .where(
+      and(
+        eq(submissions.assignmentId, submission.assignmentId),
+        eq(submissions.userId, submission.userId)
+      )
+    )
+    .orderBy(desc(submissions.attemptNumber));
+
+  // Determine which attempt is the scoring attempt
+  const [assignment] = await db
+    .select({ attemptScoringMethod: assignments.attemptScoringMethod })
+    .from(assignments)
+    .where(eq(assignments.id, submission.assignmentId))
+    .limit(1);
+
+  const scoringMethod = (assignment?.attemptScoringMethod as 'latest' | 'highest') ?? 'latest';
+
+  // For 'highest' method, we need total scores per attempt
+  let scoringAttemptId = submission.id;
+  if (allAttempts.length > 1) {
+    if (scoringMethod === 'highest') {
+      // Load marks for all attempts to compare total scores
+      const attemptScores = await Promise.all(
+        allAttempts.map(async (attempt) => {
+          const attemptMarks = await db
+            .select({ points: marks.points })
+            .from(marks)
+            .where(eq(marks.submissionId, attempt.id));
+          const totalScore = attemptMarks.reduce((sum, m) => sum + m.points, 0);
+          return { ...attempt, totalScore };
+        })
+      );
+      const scoring = resolveScoringSubmission(attemptScores, 'highest');
+      scoringAttemptId = scoring?.id ?? submission.id;
+    } else {
+      const scoring = resolveScoringSubmission(
+        allAttempts.map((a) => ({ ...a, totalScore: 0 })),
+        'latest',
+      );
+      scoringAttemptId = scoring?.id ?? submission.id;
+    }
+  }
+
   return c.json({
     ...submission,
     answers: sanitizedAnswers,
     marks: submissionMarks,
     user: userInfo,
+    isScoringAttempt: submission.id === scoringAttemptId,
+    scoringMethod,
+    allAttempts,
   });
 });
 

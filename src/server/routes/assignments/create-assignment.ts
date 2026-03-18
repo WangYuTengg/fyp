@@ -33,6 +33,11 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     maxAttempts,
     mcqPenaltyPerWrongSelection,
     timeLimit,
+    latePenaltyType,
+    latePenaltyValue,
+    latePenaltyCap,
+    attemptScoringMethod,
+    shuffleQuestions,
     questionIds,
   } = body as {
     courseId?: string;
@@ -43,6 +48,11 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
     maxAttempts?: number | null;
     mcqPenaltyPerWrongSelection?: number | null;
     timeLimit?: number | null;
+    latePenaltyType?: string | null;
+    latePenaltyValue?: number | null;
+    latePenaltyCap?: number | null;
+    attemptScoringMethod?: string | null;
+    shuffleQuestions?: boolean;
     questionIds?: string[];
   };
 
@@ -72,6 +82,25 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
   if (timeLimit !== undefined && timeLimit !== null && (!Number.isInteger(timeLimit) || timeLimit < 1)) {
     return c.json({ error: 'timeLimit must be an integer >= 1' }, 400);
   }
+
+  const validPenaltyTypes = ['none', 'fixed', 'per_day', 'per_hour'] as const;
+  const penaltyType = latePenaltyType && validPenaltyTypes.includes(latePenaltyType as typeof validPenaltyTypes[number])
+    ? (latePenaltyType as typeof validPenaltyTypes[number])
+    : 'none';
+
+  if (penaltyType !== 'none') {
+    if (latePenaltyValue === undefined || latePenaltyValue === null || latePenaltyValue < 0 || latePenaltyValue > 100) {
+      return c.json({ error: 'latePenaltyValue must be between 0 and 100 when penalty is enabled' }, 400);
+    }
+    if (latePenaltyCap !== undefined && latePenaltyCap !== null && (latePenaltyCap < 0 || latePenaltyCap > 100)) {
+      return c.json({ error: 'latePenaltyCap must be between 0 and 100' }, 400);
+    }
+  }
+
+  const validScoringMethods = ['latest', 'highest'] as const;
+  const scoringMethod = attemptScoringMethod && validScoringMethods.includes(attemptScoringMethod as typeof validScoringMethods[number])
+    ? (attemptScoringMethod as typeof validScoringMethods[number])
+    : 'latest';
 
   const dueDateValue = parseOptionalDate(dueDate);
   const openDateValue = parseOptionalDate(openDate);
@@ -124,6 +153,11 @@ createAssignmentRoute.post('/', requireAuth, async (c) => {
       maxAttempts: maxAttemptsValue,
       mcqPenaltyPerWrongSelection: mcqPenaltyValue,
       timeLimit: timeLimit ?? null,
+      shuffleQuestions: shuffleQuestions === true,
+      latePenaltyType: penaltyType,
+      latePenaltyValue: penaltyType !== 'none' && latePenaltyValue != null ? String(latePenaltyValue) : null,
+      latePenaltyCap: penaltyType !== 'none' && latePenaltyCap != null ? String(latePenaltyCap) : null,
+      attemptScoringMethod: scoringMethod,
       isPublished: false,
       createdBy: user.id,
     })
