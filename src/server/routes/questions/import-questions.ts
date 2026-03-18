@@ -71,7 +71,7 @@ importQuestionsRoute.post('/course/:courseId/import', requireAuth, async (c) => 
   const courseId = c.req.param('courseId');
   const contentType = c.req.header('content-type') || '';
 
-  let questionsToImport: ImportQuestionRow[] = [];
+  const questionsToImport: ImportQuestionRow[] = [];
   const errors: Array<{ row: number; error: string }> = [];
 
   if (contentType.includes('multipart/form-data')) {

@@ -55,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for custom JWT token first (password-based login)
     const customToken = localStorage.getItem(CUSTOM_TOKEN_KEY);
     if (customToken) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchDbUser(customToken).finally(() => setLoading(false));
       // Still listen for Supabase auth changes below
     }

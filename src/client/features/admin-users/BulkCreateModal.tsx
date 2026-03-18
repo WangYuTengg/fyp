@@ -100,7 +100,8 @@ export function BulkCreateModal({ isOpen, onClose }: Props) {
   const handleImport = () => {
     if (!parsed?.rows.length) return;
     setError('');
-    mutation.mutate(parsed.rows.map(({ lineNumber: _, ...rest }) => rest));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    mutation.mutate(parsed.rows.map(({ lineNumber, ...rest }) => rest));
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

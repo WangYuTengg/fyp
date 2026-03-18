@@ -12,8 +12,8 @@ vi.mock('../../db/index.js', () => ({
   db: {
     insert: (...args: unknown[]) => mockInsert(...args),
     select: () => ({
-      from: (table: unknown) => ({
-        where: (condition: unknown) => mockSelectWhere(),
+      from: () => ({
+        where: () => mockSelectWhere(),
       }),
     }),
   },
