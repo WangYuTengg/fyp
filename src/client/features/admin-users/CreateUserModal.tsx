@@ -89,11 +89,11 @@ export function CreateUserModal({ isOpen, onClose }: Props) {
           <input
             type="password"
             required
-            minLength={6}
+            minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="form-input-block"
-            placeholder="Min 6 characters"
+            placeholder="Min 8 chars, uppercase, lowercase, number"
           />
         </div>
 

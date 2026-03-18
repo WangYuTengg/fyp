@@ -55,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for custom JWT token first (password-based login)
     const customToken = localStorage.getItem(CUSTOM_TOKEN_KEY);
     if (customToken) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchDbUser(customToken).finally(() => setLoading(false));
       // Still listen for Supabase auth changes below
     }
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(ADMIN_VIEW_AS_KEY);
       window.localStorage.removeItem(CUSTOM_TOKEN_KEY);
+      window.localStorage.removeItem('uml-platform.refreshToken'); // S9: clear refresh token
     }
   };
 

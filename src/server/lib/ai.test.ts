@@ -8,9 +8,9 @@ const mockDbLimit = vi.fn();
 vi.mock('../../db/index.js', () => ({
   db: {
     select: () => ({
-      from: (table: unknown) => ({
-        where: (condition: unknown) => ({
-          limit: (n: number) => mockDbLimit(),
+      from: () => ({
+        where: () => ({
+          limit: () => mockDbLimit(),
         }),
       }),
     }),

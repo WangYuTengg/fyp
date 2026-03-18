@@ -32,6 +32,19 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// S9: Refresh tokens for JWT rotation
+export const refreshTokens = pgTable('refresh_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  usedAt: timestamp('used_at'), // Single-use: set when token is consumed
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('refresh_tokens_user_id_idx').on(table.userId),
+  tokenIdx: index('refresh_tokens_token_idx').on(table.token),
+}));
+
 // Courses table
 export const courses = pgTable('courses', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -309,4 +322,8 @@ export const staffNotificationsRelations = relations(staffNotifications, ({ one 
 
 export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
   user: one(users, { fields: [passwordResetTokens.userId], references: [users.id] }),
+}));
+
+export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
+  user: one(users, { fields: [refreshTokens.userId], references: [users.id] }),
 }));

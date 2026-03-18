@@ -89,6 +89,49 @@ export function QuestionGradeCard({
     [grade, answer.id, answer.questionId, question?.points, onGradeChange]
   );
 
+  // B2: Split view toggle
+  const [splitView, setSplitView] = useState(true);
+
+  // B3: UML Annotations
+  const [annotations, setAnnotations] = useState<AnnotationPin[]>(() => {
+    // Parse existing annotations from feedback JSONB
+    if (existingMark?.feedback) {
+      try {
+        const parsed = JSON.parse(existingMark.feedback);
+        if (parsed && Array.isArray(parsed.annotations)) {
+          return parsed.annotations as AnnotationPin[];
+        }
+      } catch {
+        // Not JSON feedback, that's fine
+      }
+    }
+    return [];
+  });
+
+  const handleAnnotationsChange = useCallback(
+    (newAnnotations: AnnotationPin[]) => {
+      setAnnotations(newAnnotations);
+      // Store annotations in feedback as JSON
+      const currentGradeForCallback =
+        grade ?? {
+          answerId: answer.id,
+          questionId: answer.questionId,
+          points: 0,
+          maxPoints: question?.points ?? 0,
+          feedback: '',
+        };
+      const feedbackObj = {
+        text: currentGradeForCallback?.feedback || '',
+        annotations: newAnnotations,
+      };
+      onGradeChange({
+        ...currentGradeForCallback,
+        feedback: JSON.stringify(feedbackObj),
+      });
+    },
+    [grade, answer.id, answer.questionId, question?.points, onGradeChange]
+  );
+
   if (!question) {
     return null;
   }
@@ -171,47 +214,6 @@ export function QuestionGradeCard({
       </span>
     );
   };
-
-  // B2: Split view toggle
-  const [splitView, setSplitView] = useState(true);
-
-  // B3: UML Annotations
-  const [annotations, setAnnotations] = useState<AnnotationPin[]>(() => {
-    // Parse existing annotations from feedback JSONB
-    if (existingMark?.feedback) {
-      try {
-        const parsed = JSON.parse(existingMark.feedback);
-        if (parsed && Array.isArray(parsed.annotations)) {
-          return parsed.annotations as AnnotationPin[];
-        }
-      } catch {
-        // Not JSON feedback, that's fine
-      }
-    }
-    return [];
-  });
-
-  const handleAnnotationsChange = useCallback(
-    (newAnnotations: AnnotationPin[]) => {
-      setAnnotations(newAnnotations);
-      // Store annotations in feedback as JSON
-      const feedbackObj = {
-        text: currentGrade?.feedback || '',
-        annotations: newAnnotations,
-      };
-      onGradeChange({
-        ...(currentGrade ?? {
-          answerId: answer.id,
-          questionId: answer.questionId,
-          points: 0,
-          maxPoints: question?.points ?? 0,
-          feedback: '',
-        }),
-        feedback: JSON.stringify(feedbackObj),
-      });
-    },
-    [currentGrade, answer.id, answer.questionId, question?.points, onGradeChange]
-  );
 
   // Extract content based on question type.
   const renderAnswer = () => {

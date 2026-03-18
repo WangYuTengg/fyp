@@ -66,7 +66,7 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
       };
     case 'SET_FILTER':
       return { ...state, filter: action.filter, currentIndex: 0 };
-    case 'ACCEPT_ALL_REMAINING':
+    case 'ACCEPT_ALL_REMAINING': {
       const newDecisions = { ...state.decisions };
       state.answers.forEach((a) => {
         if (!newDecisions[a.id]) {
@@ -74,6 +74,7 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
         }
       });
       return { ...state, decisions: newDecisions };
+    }
     default:
       return state;
   }
@@ -114,7 +115,7 @@ export function BulkReviewWorkflow() {
           `/api/auto-grade/review-queue?assignmentId=${assignmentId}`
         );
         dispatch({ type: 'SET_ANSWERS', answers: data.answers || [] });
-      } catch (err: unknown) {
+      } catch {
         // Fallback: load all submissions and filter client-side
         try {
           const submissions = await apiClient<Array<{

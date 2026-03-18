@@ -34,9 +34,9 @@ function createChainProxy(): unknown {
 
 vi.mock('../../db/index.js', () => ({
   db: {
-    select: (..._args: unknown[]) => createChainProxy(),
-    insert: (..._args: unknown[]) => createChainProxy(),
-    update: (..._args: unknown[]) => createChainProxy(),
+    select: () => createChainProxy(),
+    insert: () => createChainProxy(),
+    update: () => createChainProxy(),
   },
 }));
 

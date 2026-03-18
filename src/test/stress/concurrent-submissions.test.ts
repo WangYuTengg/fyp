@@ -43,9 +43,9 @@ function createChainProxy(opType = 'select'): unknown {
 
 vi.mock('../../db/index.js', () => ({
   db: {
-    select: (..._args: unknown[]) => createChainProxy('select'),
-    insert: (..._args: unknown[]) => createChainProxy('insert'),
-    update: (..._args: unknown[]) => createChainProxy('update'),
+    select: () => createChainProxy('select'),
+    insert: () => createChainProxy('insert'),
+    update: () => createChainProxy('update'),
   },
 }));
 
@@ -68,7 +68,7 @@ vi.mock('../../db/schema.js', () => ({
 vi.mock('drizzle-orm', () => ({
   and: (...args: unknown[]) => args,
   eq: (a: unknown, b: unknown) => [a, b],
-  sql: (strings: TemplateStringsArray, ..._values: unknown[]) => strings.join(''),
+  sql: (strings: TemplateStringsArray) => strings.join(''),
   gte: (a: unknown, b: unknown) => [a, b],
   desc: (a: unknown) => a,
   asc: (a: unknown) => a,
@@ -128,7 +128,7 @@ vi.mock('../../server/middleware/auth.js', () => ({
     if (!ctx.get('user')) return ctx.json({ error: 'Unauthorized' }, 401);
     return next();
   }),
-  requireRole: vi.fn((..._roles: string[]) => {
+  requireRole: vi.fn(() => {
     return (_c: unknown, next: () => Promise<void>) => next();
   }),
 }));
@@ -212,7 +212,7 @@ describe('T15: Concurrent MCQ Auto-Grading', () => {
 
     // Each call returns a unique result based on index to verify no cross-contamination
     let callCount = 0;
-    mockGrade.mockImplementation((..._args: unknown[]) => {
+    mockGrade.mockImplementation(() => {
       callCount++;
       return { points: callCount, feedback: `Graded #${callCount}` } as unknown as ReturnType<typeof gradeMcqAnswer>;
     });

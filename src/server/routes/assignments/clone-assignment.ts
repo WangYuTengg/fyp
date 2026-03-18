@@ -50,7 +50,7 @@ cloneAssignmentRoute.post('/:id/clone', requireAuth, async (c) => {
 
   // If cloning to a different course, verify all questions exist in the target course
   // or copy them over
-  let questionIdMapping = new Map<string, string>(); // sourceQuestionId -> targetQuestionId
+  const questionIdMapping = new Map<string, string>(); // sourceQuestionId -> targetQuestionId
 
   if (courseId !== source.courseId && sourceQuestions.length > 0) {
     const sourceQuestionIds = sourceQuestions.map((q) => q.questionId);

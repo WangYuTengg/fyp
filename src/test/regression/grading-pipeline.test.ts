@@ -34,9 +34,9 @@ function createChainProxy(): unknown {
 
 vi.mock('../../db/index.js', () => ({
   db: {
-    select: (..._args: unknown[]) => createChainProxy(),
-    insert: (..._args: unknown[]) => createChainProxy(),
-    update: (..._args: unknown[]) => createChainProxy(),
+    select: () => createChainProxy(),
+    insert: () => createChainProxy(),
+    update: () => createChainProxy(),
   },
 }));
 
@@ -54,8 +54,8 @@ vi.mock('drizzle-orm', () => ({
   and: (...args: unknown[]) => args,
   isNotNull: (a: unknown) => a,
   sql: Object.assign(
-    (strings: TemplateStringsArray, ..._values: unknown[]) => strings.join(''),
-    { join: (..._args: unknown[]) => '' },
+    (strings: TemplateStringsArray) => strings.join(''),
+    { join: () => '' },
   ),
 }));
 
@@ -107,7 +107,7 @@ vi.mock('../../server/middleware/auth.js', () => ({
     if (!user) return ctx.json({ error: 'Unauthorized' }, 401);
     return next();
   }),
-  requireRole: vi.fn((..._roles: string[]) => {
+  requireRole: vi.fn(() => {
     return (_c: unknown, next: () => Promise<void>) => next();
   }),
 }));

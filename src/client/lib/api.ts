@@ -9,6 +9,8 @@ export type {
 } from '../../lib/assessment';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
+const CUSTOM_TOKEN_KEY = 'uml-platform.customToken';
+const REFRESH_TOKEN_KEY = 'uml-platform.refreshToken';
 
 export type ApiError = {
   error?: string;
@@ -51,36 +53,95 @@ function getAccessToken(): Promise<string | null> {
 }
 
 /**
- * API client with automatic auth token injection
+ * S9: Try refreshing the custom JWT using the stored refresh token.
+ * Returns true if refresh succeeded, false otherwise.
  */
-const CUSTOM_TOKEN_KEY = 'uml-platform.customToken';
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
 
-export async function apiClient<TResponse = unknown>(endpoint: string, options: RequestInit = {}): Promise<TResponse> {
-  const headers = new Headers(options.headers);
+async function tryRefreshToken(): Promise<boolean> {
+  // Deduplicate concurrent refresh attempts
+  if (isRefreshing && refreshPromise) return refreshPromise;
 
-  // Try custom JWT token first (password-based login)
-  const customToken = typeof window !== 'undefined' ? localStorage.getItem(CUSTOM_TOKEN_KEY) : null;
-  if (customToken) {
-    headers.set('Authorization', `Bearer ${customToken}`);
-  } else {
-    // Fallback to Supabase session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      headers.set('Authorization', `Bearer ${session.access_token}`);
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const storedRefresh = localStorage.getItem(REFRESH_TOKEN_KEY);
+      if (!storedRefresh) return false;
+
+      const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: storedRefresh }),
+      });
+
+      if (!response.ok) {
+        // Refresh failed — clear tokens and redirect to login
+        localStorage.removeItem(CUSTOM_TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        return false;
+      }
+
+      const data = await response.json() as { token: string; refreshToken: string };
+      localStorage.setItem(CUSTOM_TOKEN_KEY, data.token);
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
     }
-  }
+  })();
 
-  headers.set('Content-Type', 'application/json');
+  return refreshPromise;
+}
+
+/**
+ * API client with automatic auth token injection and 401 refresh retry
+ */
+export async function apiClient<TResponse = unknown>(endpoint: string, options: RequestInit = {}): Promise<TResponse> {
+  const makeRequest = async (): Promise<Response> => {
+    const headers = new Headers(options.headers);
+
+    // Try custom JWT token first (password-based login)
+    const customToken = typeof window !== 'undefined' ? localStorage.getItem(CUSTOM_TOKEN_KEY) : null;
+    if (customToken) {
+      headers.set('Authorization', `Bearer ${customToken}`);
+    } else {
+      // Fallback to Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers.set('Authorization', `Bearer ${session.access_token}`);
+      }
+    }
+
+    headers.set('Content-Type', 'application/json');
+
+    return fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  };
 
   let response: Response;
 
   try {
-    response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    response = await makeRequest();
   } catch (err) {
     throw err instanceof Error ? err : new Error('Network error');
+  }
+
+  // S9: On 401, try refresh token then retry once
+  if (response.status === 401 && localStorage.getItem(REFRESH_TOKEN_KEY)) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      try {
+        response = await makeRequest();
+      } catch (err) {
+        throw err instanceof Error ? err : new Error('Network error');
+      }
+    }
   }
 
   if (!response.ok) {
@@ -445,10 +506,16 @@ export const passwordAuthApi = {
       const error = (await response.json().catch(() => ({ error: 'Login failed' }))) as ApiError;
       throw new ApiRequestError(error.error || 'Login failed', response.status);
     }
-    return response.json() as Promise<{
+    const data = await response.json() as {
       token: string;
+      refreshToken: string;
       user: { id: string; email: string; name: string | null; role: string };
-    }>;
+    };
+    // S9: Store refresh token alongside JWT
+    if (data.refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+    }
+    return data;
   },
   forgotPassword: async (email: string) => {
     const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {

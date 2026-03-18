@@ -34,10 +34,10 @@ function createChainProxy(): unknown {
 
 vi.mock('../../db/index.js', () => ({
   db: {
-    select: (..._args: unknown[]) => createChainProxy(),
-    insert: (..._args: unknown[]) => createChainProxy(),
-    update: (..._args: unknown[]) => createChainProxy(),
-    delete: (..._args: unknown[]) => createChainProxy(),
+    select: () => createChainProxy(),
+    insert: () => createChainProxy(),
+    update: () => createChainProxy(),
+    delete: () => createChainProxy(),
   },
 }));
 
@@ -59,7 +59,7 @@ vi.mock('../../db/schema.js', () => ({
 vi.mock('drizzle-orm', () => ({
   and: (...args: unknown[]) => args,
   eq: (a: unknown, b: unknown) => [a, b],
-  sql: (strings: TemplateStringsArray, ...values: unknown[]) => strings.join(''),
+  sql: (strings: TemplateStringsArray) => strings.join(''),
   desc: (a: unknown) => a,
   asc: (a: unknown) => a,
   count: () => 'count',
