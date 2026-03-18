@@ -1,0 +1,102 @@
+# Experiment Configuration
+experiment:
+  name: "uml-llm-grading-benchmark"
+  runs_per_submission: 5  # For consistency measurement
+  max_retries: 3
+  timeout_seconds: 120
+
+# Models to benchmark
+models:
+  # Commercial APIs
+  - id: "gpt-4o"
+    provider: "openai"
+    model_name: "gpt-4o"
+    input_cost_per_1m: 2.50
+    output_cost_per_1m: 10.00
+
+  - id: "gpt-4o-mini"
+    provider: "openai"
+    model_name: "gpt-4o-mini"
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.60
+
+  - id: "gpt-4.1-mini"
+    provider: "openai"
+    model_name: "gpt-4.1-mini"
+    input_cost_per_1m: 0.40
+    output_cost_per_1m: 1.60
+
+  - id: "gpt-4.1-nano"
+    provider: "openai"
+    model_name: "gpt-4.1-nano"
+    input_cost_per_1m: 0.10
+    output_cost_per_1m: 0.40
+
+  - id: "o4-mini"
+    provider: "openai"
+    model_name: "o4-mini"
+    input_cost_per_1m: 1.10
+    output_cost_per_1m: 4.40
+
+  - id: "claude-sonnet-4"
+    provider: "anthropic"
+    model_name: "claude-sonnet-4-20250514"
+    input_cost_per_1m: 3.00
+    output_cost_per_1m: 15.00
+
+  - id: "claude-haiku-3.5"
+    provider: "anthropic"
+    model_name: "claude-3-5-haiku-20241022"
+    input_cost_per_1m: 0.80
+    output_cost_per_1m: 4.00
+
+  - id: "gemini-2.5-pro"
+    provider: "google"
+    model_name: "gemini-2.5-pro-preview-06-05"
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 10.00
+
+  - id: "gemini-2.5-flash"
+    provider: "google"
+    model_name: "gemini-2.5-flash-preview-05-20"
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.60
+
+  - id: "gemini-2.0-flash"
+    provider: "google"
+    model_name: "gemini-2.0-flash"
+    input_cost_per_1m: 0.10
+    output_cost_per_1m: 0.40
+
+  # Local models (via Ollama)
+  # - id: "deepseek-r1-32b"
+  #   provider: "ollama"
+  #   model_name: "deepseek-r1:32b"
+  #   input_cost_per_1m: 0.0
+  #   output_cost_per_1m: 0.0
+
+  # - id: "qwen2.5-coder-32b"
+  #   provider: "ollama"
+  #   model_name: "qwen2.5-coder:32b"
+  #   input_cost_per_1m: 0.0
+  #   output_cost_per_1m: 0.0
+
+# Rubric definition (10-point scale)
+rubric:
+  total_points: 10
+  criteria:
+    - name: "class_correctness"
+      max_points: 2
+      description: "Are all required classes/entities present and correctly named?"
+    - name: "relationship_accuracy"
+      max_points: 2
+      description: "Are relationships (association, inheritance, composition, etc.) correct?"
+    - name: "cardinality"
+      max_points: 2
+      description: "Are multiplicities/cardinalities correctly specified?"
+    - name: "naming_conventions"
+      max_points: 2
+      description: "Do classes, attributes, and methods follow proper naming conventions?"
+    - name: "completeness"
+      max_points: 2
+      description: "Does the diagram fully address the requirements/specification?"

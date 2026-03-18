@@ -1,0 +1,72 @@
+# Rubric: E-Commerce Platform Class Diagram
+specification: |
+  Design a class diagram for an E-Commerce Platform with the following requirements:
+  - Customers can browse and purchase Products
+  - Each Product has a name, price, description, and stock quantity
+  - Products belong to Categories
+  - Customers place Orders, each containing one or more OrderItems
+  - Each OrderItem references a Product and has a quantity
+  - Orders have a total amount, status (pending, confirmed, shipped, delivered), and order date
+  - Customers have a name, email, and shipping address
+  - A Payment is associated with each Order (amount, method, status)
+
+reference_solution: |
+  @startuml
+  class Customer {
+    - name: String
+    - email: String
+    - shippingAddress: String
+    + placeOrder(): Order
+    + viewOrders(): List<Order>
+  }
+
+  class Product {
+    - name: String
+    - price: double
+    - description: String
+    - stockQuantity: int
+    + isInStock(): boolean
+  }
+
+  class Category {
+    - name: String
+    - description: String
+  }
+
+  class Order {
+    - orderDate: Date
+    - totalAmount: double
+    - status: OrderStatus
+    + calculateTotal(): double
+    + updateStatus(status: OrderStatus): void
+  }
+
+  class OrderItem {
+    - quantity: int
+    - subtotal: double
+    + calculateSubtotal(): double
+  }
+
+  class Payment {
+    - amount: double
+    - method: String
+    - status: String
+    - paymentDate: Date
+    + processPayment(): boolean
+  }
+
+  enum OrderStatus {
+    PENDING
+    CONFIRMED
+    SHIPPED
+    DELIVERED
+  }
+
+  Customer "1" -- "*" Order : places
+  Order "1" -- "*" OrderItem : contains
+  OrderItem "*" -- "1" Product : references
+  Product "*" -- "1" Category : belongs to
+  Order "1" -- "1" Payment : paid via
+  @enduml
+
+diagram_type: "class"

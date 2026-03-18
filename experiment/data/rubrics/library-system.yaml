@@ -1,0 +1,66 @@
+# Rubric: Library Management System Class Diagram
+specification: |
+  Design a class diagram for a Library Management System with the following requirements:
+  - A Library has many Books and employs Librarians
+  - Each Book has a title, ISBN, author, and publication year
+  - Members can borrow Books (creating a Loan record)
+  - Each Loan tracks the borrow date, due date, and return date
+  - Members have a name, membership ID, and email
+  - Librarians can manage Books (add, remove, update)
+  - Books can have multiple copies, each with a unique copy number and availability status
+
+reference_solution: |
+  @startuml
+  class Library {
+    - name: String
+    - address: String
+    + addBook(book: Book): void
+    + removeBook(isbn: String): void
+  }
+
+  class Book {
+    - title: String
+    - isbn: String
+    - author: String
+    - publicationYear: int
+    + getDetails(): String
+  }
+
+  class BookCopy {
+    - copyNumber: int
+    - isAvailable: boolean
+    + checkout(): void
+    + returnCopy(): void
+  }
+
+  class Member {
+    - name: String
+    - membershipId: String
+    - email: String
+    + borrowBook(copy: BookCopy): Loan
+    + returnBook(loan: Loan): void
+  }
+
+  class Librarian {
+    - name: String
+    - employeeId: String
+    + addBook(book: Book): void
+    + removeBook(isbn: String): void
+    + updateBook(book: Book): void
+  }
+
+  class Loan {
+    - borrowDate: Date
+    - dueDate: Date
+    - returnDate: Date
+    + isOverdue(): boolean
+  }
+
+  Library "1" -- "*" Book : contains
+  Library "1" -- "*" Librarian : employs
+  Book "1" -- "*" BookCopy : has copies
+  Member "1" -- "*" Loan : borrows
+  BookCopy "1" -- "0..*" Loan : lent via
+  @enduml
+
+diagram_type: "class"
