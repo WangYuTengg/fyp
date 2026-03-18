@@ -22,6 +22,7 @@ import { Route as StaffAnalyticsRouteImport } from './routes/staff/analytics'
 import { Route as StudentSubmissionsSubmissionIdRouteImport } from './routes/student/submissions/$submissionId'
 import { Route as StudentCoursesCourseIdRouteImport } from './routes/student/courses/$courseId'
 import { Route as StudentAssignmentsAssignmentIdRouteImport } from './routes/student/assignments/$assignmentId'
+import { Route as StaffGradingReviewRouteImport } from './routes/staff/grading.review'
 import { Route as StaffCoursesCourseIdRouteImport } from './routes/staff/courses/$courseId'
 
 const StudentRoute = StudentRouteImport.update({
@@ -91,6 +92,11 @@ const StudentAssignmentsAssignmentIdRoute =
     path: '/assignments/$assignmentId',
     getParentRoute: () => StudentRoute,
   } as any)
+const StaffGradingReviewRoute = StaffGradingReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => StaffGradingRoute,
+} as any)
 const StaffCoursesCourseIdRoute = StaffCoursesCourseIdRouteImport.update({
   id: '/courses/$courseId',
   path: '/courses/$courseId',
@@ -103,12 +109,13 @@ export interface FileRoutesByFullPath {
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/staff/analytics': typeof StaffAnalyticsRoute
-  '/staff/grading': typeof StaffGradingRoute
+  '/staff/grading': typeof StaffGradingRouteWithChildren
   '/staff/notifications': typeof StaffNotificationsRoute
   '/staff/settings': typeof StaffSettingsRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/staff/courses/$courseId': typeof StaffCoursesCourseIdRoute
+  '/staff/grading/review': typeof StaffGradingReviewRoute
   '/student/assignments/$assignmentId': typeof StudentAssignmentsAssignmentIdRoute
   '/student/courses/$courseId': typeof StudentCoursesCourseIdRoute
   '/student/submissions/$submissionId': typeof StudentSubmissionsSubmissionIdRoute
@@ -117,12 +124,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/staff/analytics': typeof StaffAnalyticsRoute
-  '/staff/grading': typeof StaffGradingRoute
+  '/staff/grading': typeof StaffGradingRouteWithChildren
   '/staff/notifications': typeof StaffNotificationsRoute
   '/staff/settings': typeof StaffSettingsRoute
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
   '/staff/courses/$courseId': typeof StaffCoursesCourseIdRoute
+  '/staff/grading/review': typeof StaffGradingReviewRoute
   '/student/assignments/$assignmentId': typeof StudentAssignmentsAssignmentIdRoute
   '/student/courses/$courseId': typeof StudentCoursesCourseIdRoute
   '/student/submissions/$submissionId': typeof StudentSubmissionsSubmissionIdRoute
@@ -134,12 +142,13 @@ export interface FileRoutesById {
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/staff/analytics': typeof StaffAnalyticsRoute
-  '/staff/grading': typeof StaffGradingRoute
+  '/staff/grading': typeof StaffGradingRouteWithChildren
   '/staff/notifications': typeof StaffNotificationsRoute
   '/staff/settings': typeof StaffSettingsRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/staff/courses/$courseId': typeof StaffCoursesCourseIdRoute
+  '/staff/grading/review': typeof StaffGradingReviewRoute
   '/student/assignments/$assignmentId': typeof StudentAssignmentsAssignmentIdRoute
   '/student/courses/$courseId': typeof StudentCoursesCourseIdRoute
   '/student/submissions/$submissionId': typeof StudentSubmissionsSubmissionIdRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/staff/courses/$courseId'
+    | '/staff/grading/review'
     | '/student/assignments/$assignmentId'
     | '/student/courses/$courseId'
     | '/student/submissions/$submissionId'
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/staff/courses/$courseId'
+    | '/staff/grading/review'
     | '/student/assignments/$assignmentId'
     | '/student/courses/$courseId'
     | '/student/submissions/$submissionId'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/staff/courses/$courseId'
+    | '/staff/grading/review'
     | '/student/assignments/$assignmentId'
     | '/student/courses/$courseId'
     | '/student/submissions/$submissionId'
@@ -293,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentAssignmentsAssignmentIdRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/staff/grading/review': {
+      id: '/staff/grading/review'
+      path: '/review'
+      fullPath: '/staff/grading/review'
+      preLoaderRoute: typeof StaffGradingReviewRouteImport
+      parentRoute: typeof StaffGradingRoute
+    }
     '/staff/courses/$courseId': {
       id: '/staff/courses/$courseId'
       path: '/courses/$courseId'
@@ -303,9 +322,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface StaffGradingRouteChildren {
+  StaffGradingReviewRoute: typeof StaffGradingReviewRoute
+}
+
+const StaffGradingRouteChildren: StaffGradingRouteChildren = {
+  StaffGradingReviewRoute: StaffGradingReviewRoute,
+}
+
+const StaffGradingRouteWithChildren = StaffGradingRoute._addFileChildren(
+  StaffGradingRouteChildren,
+)
+
 interface StaffRouteChildren {
   StaffAnalyticsRoute: typeof StaffAnalyticsRoute
-  StaffGradingRoute: typeof StaffGradingRoute
+  StaffGradingRoute: typeof StaffGradingRouteWithChildren
   StaffNotificationsRoute: typeof StaffNotificationsRoute
   StaffSettingsRoute: typeof StaffSettingsRoute
   StaffIndexRoute: typeof StaffIndexRoute
@@ -314,7 +345,7 @@ interface StaffRouteChildren {
 
 const StaffRouteChildren: StaffRouteChildren = {
   StaffAnalyticsRoute: StaffAnalyticsRoute,
-  StaffGradingRoute: StaffGradingRoute,
+  StaffGradingRoute: StaffGradingRouteWithChildren,
   StaffNotificationsRoute: StaffNotificationsRoute,
   StaffSettingsRoute: StaffSettingsRoute,
   StaffIndexRoute: StaffIndexRoute,
