@@ -60,7 +60,7 @@ exportGradesRoute.get('/:id/export-grades', requireAuth, async (c) => {
       .orderBy(assignments.createdAt);
 
     if (courseAssignments.length === 0) {
-      const csv = `# Course: ${escapeCsv(course.code)} - ${escapeCsv(course.name)}, Exported: ${new Date().toISOString().split('T')[0]}\nStudent ID,Student Name,Student Email\n`;
+      const csv = `"# Course: ${course.code} - ${course.name} | Exported: ${new Date().toISOString().split('T')[0]}"\nStudent ID,Student Name,Student Email\n`;
       return csvResponse(course.code, csv);
     }
 
@@ -196,7 +196,7 @@ exportGradesRoute.get('/:id/export-grades', requireAuth, async (c) => {
       ].join(',');
     });
 
-    const metadataRow = `# Course: ${escapeCsv(course.code)} - ${escapeCsv(course.name)}, Assignments: ${courseAssignments.length}, Students: ${enrolledStudents.length}, Exported: ${new Date().toISOString().split('T')[0]}`;
+    const metadataRow = `"# Course: ${course.code} - ${course.name} | Assignments: ${courseAssignments.length} | Students: ${enrolledStudents.length} | Exported: ${new Date().toISOString().split('T')[0]}"`;
     const csv = [metadataRow, headerRow, ...dataRows].join('\n');
 
     return csvResponse(course.code, csv);

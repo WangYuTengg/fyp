@@ -16,7 +16,7 @@ import {
   CpuChipIcon,
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
-import { apiClient } from '../../../lib/api';
+import { apiClient, downloadFile } from '../../../lib/api';
 
 type QuestionMetrics = {
   questionId: string;
@@ -95,7 +95,9 @@ export function QuestionAnalytics({ assignmentId }: QuestionAnalyticsProps) {
   }, [assignmentId, threshold]);
 
   const handleExportCsv = () => {
-    window.open(`/api/assignments/${assignmentId}/export-grades`, '_blank');
+    downloadFile(`/api/assignments/${assignmentId}/export-grades`).catch((err) =>
+      alert(`Export failed: ${err instanceof Error ? err.message : String(err)}`)
+    );
   };
 
   if (loading) {

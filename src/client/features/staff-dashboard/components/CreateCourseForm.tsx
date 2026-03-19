@@ -8,12 +8,24 @@ type CreateCourseFormProps = {
 
 const STEP_TITLES = ['Course Code', 'Course Name', 'Academic Term', 'Description', 'Review'] as const;
 
+function getAcademicYearOptions(): string[] {
+  const currentYear = new Date().getFullYear();
+  const options: string[] = [];
+  for (let y = currentYear + 1; y >= currentYear - 4; y--) {
+    options.push(`${y}/${y + 1}`);
+  }
+  return options;
+}
+
+const ACADEMIC_YEAR_OPTIONS = getAcademicYearOptions();
+const DEFAULT_ACADEMIC_YEAR = ACADEMIC_YEAR_OPTIONS[1]; // current year / next year
+
 export function CreateCourseForm({ onSubmit, isSubmitting = false }: CreateCourseFormProps) {
   const [step, setStep] = useState(0);
   const [submitIntent, setSubmitIntent] = useState(false);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
-  const [academicYear, setAcademicYear] = useState('');
+  const [academicYear, setAcademicYear] = useState(DEFAULT_ACADEMIC_YEAR);
   const [semester, setSemester] = useState('');
   const [description, setDescription] = useState('');
 
@@ -101,15 +113,17 @@ export function CreateCourseForm({ onSubmit, isSubmitting = false }: CreateCours
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="create-course-academic-year" className="block text-sm font-medium text-gray-700">Academic Year</label>
-            <input
+            <select
               id="create-course-academic-year"
-              type="text"
               value={academicYear}
               onChange={(e) => setAcademicYear(e.target.value)}
-              className="form-input-block"
-              placeholder="2024/2025"
+              className="form-select-block"
               autoFocus
-            />
+            >
+              {ACADEMIC_YEAR_OPTIONS.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label htmlFor="create-course-semester" className="block text-sm font-medium text-gray-700">Semester</label>

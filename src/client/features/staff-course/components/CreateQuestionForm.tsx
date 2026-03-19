@@ -81,7 +81,6 @@ export function CreateQuestionForm({
   const [umlTemplateDiagramState, setUmlTemplateDiagramState] = useState<ClassDiagramState | undefined>(undefined);
   const [umlModelDiagramState, setUmlModelDiagramState] = useState<ClassDiagramState | undefined>(undefined);
   const [modelAnswer, setModelAnswer] = useState('');
-  const [showCorrectAnswers, setShowCorrectAnswers] = useState(false);
 
   const availableAssignments = useMemo(
     () => [...assignments].sort((a, b) => a.title.localeCompare(b.title)),
@@ -177,7 +176,6 @@ export function CreateQuestionForm({
       <input type="hidden" name="tags" value={JSON.stringify(selectedTags)} />
       <input type="hidden" name="umlTemplateDiagram" value={umlTemplateDiagram} />
       <input type="hidden" name="umlModelAnswer" value={umlModelAnswer} />
-      <input type="hidden" name="showCorrectAnswers" value={showCorrectAnswers ? 'on' : 'off'} />
       <input type="hidden" name="modelAnswer" value={modelAnswer} />
       <input type="hidden" name="mcqOptions" value={JSON.stringify(mcqOptions)} />
 
@@ -270,23 +268,11 @@ export function CreateQuestionForm({
         <div>
           {questionType === 'mcq' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="block text-sm font-medium text-gray-700">Options</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Use the <span className="font-medium">Mark Correct</span> toggle on each option to set answer keys.
-                  </p>
-                </div>
-                <label htmlFor="create-question-show-correct" className="flex items-center gap-2 text-sm">
-                  <input
-                    id="create-question-show-correct"
-                    type="checkbox"
-                    checked={showCorrectAnswers}
-                    onChange={(e) => setShowCorrectAnswers(e.target.checked)}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-gray-700">Show correct answers to students</span>
-                </label>
+              <div>
+                <p className="block text-sm font-medium text-gray-700">Options</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Use the <span className="font-medium">Mark Correct</span> toggle on each option to set answer keys.
+                </p>
               </div>
 
               {mcqOptions.map((option, index) => (

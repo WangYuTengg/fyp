@@ -82,7 +82,6 @@ export function useQuestionForm(courseId: string) {
     const tags = JSON.parse(tagsJson) as string[];
     const umlTemplateDiagram = String(formData.get('umlTemplateDiagram') || '');
     const umlModelAnswer = String(formData.get('umlModelAnswer') || '');
-    const showCorrectAnswers = formData.get('showCorrectAnswers') === 'on';
     const modelAnswer = String(formData.get('modelAnswer') || '').trim();
 
     if (questionType === 'mcq') {
@@ -115,7 +114,6 @@ export function useQuestionForm(courseId: string) {
         points,
         options: validOptions,
         allowMultiple: correctOptionsCount > 1,
-        showCorrectAnswers,
         assignmentId: selectedAssignmentId || undefined,
         tags: tags.length > 0 ? tags : undefined,
       } as Parameters<typeof questionsApi.create>[0]);

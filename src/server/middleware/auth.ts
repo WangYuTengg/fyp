@@ -25,7 +25,7 @@ export type AuthContext = {
  */
 function getRoleFromEmail(email: string): 'admin' | 'staff' | 'student' {
   // Check for admin
-  if (email === 'yrloke@ntu.edu.sg') {
+  if (email === 'yrloke@ntu.edu.sg' || email === 'ethan@voltade.com') {
     return 'admin';
   }
 

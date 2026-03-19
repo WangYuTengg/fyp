@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { HomeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { downloadFile } from '../../../lib/api';
 import type { StaffCourse } from '../types';
 
 type CourseHeaderProps = {
@@ -8,7 +9,9 @@ type CourseHeaderProps = {
 
 export function CourseHeader({ course }: CourseHeaderProps) {
   const handleExportCourseGrades = () => {
-    window.open(`/api/courses/${course.id}/export-grades`, '_blank');
+    downloadFile(`/api/courses/${course.id}/export-grades`).catch((err) =>
+      alert(`Export failed: ${err instanceof Error ? err.message : String(err)}`)
+    );
   };
 
   return (

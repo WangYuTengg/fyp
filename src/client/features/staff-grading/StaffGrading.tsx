@@ -1,6 +1,7 @@
 import { useNavigate, useSearch, Link } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDownTrayIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { downloadFile } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useGrading } from './hooks/useGrading';
 import { SubmissionList } from './components/SubmissionList';
@@ -145,7 +146,7 @@ export function StaffGrading() {
             </Link>
             <button
               type="button"
-              onClick={() => window.open(`/api/assignments/${assignmentId}/export-grades`, '_blank')}
+              onClick={() => downloadFile(`/api/assignments/${assignmentId}/export-grades`).catch((err) => alert(`Export failed: ${err instanceof Error ? err.message : String(err)}`))}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
             >
               <ArrowDownTrayIcon className="h-4 w-4" />

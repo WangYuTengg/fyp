@@ -22,7 +22,6 @@ type CreateQuestionBody = {
   assignmentId?: string;
   tags?: string[];
   referenceDiagram?: string;
-  showCorrectAnswers?: boolean;
   modelAnswer?: string;
 };
 
@@ -95,7 +94,6 @@ createQuestionRoute.post('/', requireAuth, async (c) => {
       prompt,
       options,
       allowMultiple,
-      showCorrectAnswers: body.showCorrectAnswers ?? false,
     };
   }
 

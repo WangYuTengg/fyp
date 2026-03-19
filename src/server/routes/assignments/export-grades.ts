@@ -147,7 +147,7 @@ exportGradesRoute.get('/:id/export-grades', requireAuth, async (c) => {
       ].join(',');
     });
 
-    const metadataRow = `# Assignment: ${escapeCsv(assignment.title)}, Due: ${assignment.dueDate ? new Date(assignment.dueDate).toISOString().split('T')[0] : 'N/A'}, Total Points: ${totalMaxPoints}, Exported: ${new Date().toISOString().split('T')[0]}`;
+    const metadataRow = `"# Assignment: ${assignment.title.replace(/"/g, '""')} | Due: ${assignment.dueDate ? new Date(assignment.dueDate).toISOString().split('T')[0] : 'N/A'} | Total Points: ${totalMaxPoints} | Exported: ${new Date().toISOString().split('T')[0]}"`;
 
     const csv = [metadataRow, headerRow, ...dataRows].join('\n');
     return csvResponse(assignment.title, csv);

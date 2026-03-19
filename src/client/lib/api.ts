@@ -98,6 +98,35 @@ async function tryRefreshToken(): Promise<boolean> {
 }
 
 /**
+ * Download a file from an authenticated API endpoint.
+ * Uses fetch with the auth token and triggers a browser download.
+ */
+export async function downloadFile(endpoint: string): Promise<void> {
+  const token = await getAccessToken();
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!res.ok) {
+    throw new Error(`Download failed: ${res.status}`);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match?.[1] ?? 'download.csv';
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/**
  * API client with automatic auth token injection and 401 refresh retry
  */
 export async function apiClient<TResponse = unknown>(endpoint: string, options: RequestInit = {}): Promise<TResponse> {
@@ -295,7 +324,7 @@ export const questionsApi = {
     assignmentId?: string;
     tags?: string[];
     referenceDiagram?: string;
-    showCorrectAnswers?: boolean;
+
     modelAnswer?: string;
   }) =>
     apiClient<Question>('/api/questions', {
@@ -311,7 +340,7 @@ export const questionsApi = {
     allowMultiple?: boolean;
     tags?: string[];
     referenceDiagram?: string;
-    showCorrectAnswers?: boolean;
+
     modelAnswer?: string;
   }) =>
     apiClient<Question>(`/api/questions/${id}`, {

@@ -20,7 +20,6 @@ export type McqContent = {
   prompt: string;
   options: McqOption[];
   allowMultiple?: boolean;
-  showCorrectAnswers?: boolean;
 };
 
 export type WrittenContent = {

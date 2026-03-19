@@ -28,11 +28,10 @@ const hasMeaningfulUmlContent = (value: string) =>
     .filter(Boolean)
     .some((line) => line !== '@startuml' && line !== '@enduml');
 
-function getContent(content: unknown): { 
-  prompt: string; 
+function getContent(content: unknown): {
+  prompt: string;
   options?: McqOption[];
   referenceDiagram?: string;
-  showCorrectAnswers?: boolean;
   modelAnswer?: string;
 } {
   if (typeof content !== 'object' || content === null) return { prompt: '' };
@@ -40,9 +39,8 @@ function getContent(content: unknown): {
   const prompt = typeof record.prompt === 'string' ? record.prompt : '';
   const options = Array.isArray(record.options) ? record.options as McqOption[] : undefined;
   const referenceDiagram = typeof record.referenceDiagram === 'string' ? record.referenceDiagram : undefined;
-  const showCorrectAnswers = typeof record.showCorrectAnswers === 'boolean' ? record.showCorrectAnswers : false;
   const modelAnswer = typeof record.modelAnswer === 'string' ? record.modelAnswer : '';
-  return { prompt, options, referenceDiagram, showCorrectAnswers, modelAnswer };
+  return { prompt, options, referenceDiagram, modelAnswer };
 }
 
 export function EditQuestionForm({
@@ -60,7 +58,6 @@ export function EditQuestionForm({
     content.options || []
   );
   const [referenceDiagram, setReferenceDiagram] = useState(content.referenceDiagram || '');
-  const [showCorrectAnswers, setShowCorrectAnswers] = useState(content.showCorrectAnswers || false);
   const [modelAnswer, setModelAnswer] = useState(content.modelAnswer || '');
   const [referenceDiagramState, setReferenceDiagramState] = useState<ClassDiagramState | undefined>(undefined);
   const [modelAnswerDiagramState, setModelAnswerDiagramState] = useState<ClassDiagramState | undefined>(undefined);
@@ -120,7 +117,6 @@ export function EditQuestionForm({
 
       updateData.options = options;
       updateData.allowMultiple = correctOptionsCount > 1;
-      updateData.showCorrectAnswers = showCorrectAnswers;
     } else if (question.type === 'written') {
       updateData.modelAnswer = modelAnswer;
     } else if (question.type === 'uml') {
@@ -243,18 +239,7 @@ export function EditQuestionForm({
         {/* MCQ Options */}
         {question.type === 'mcq' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-gray-700">Options</label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={showCorrectAnswers}
-                  onChange={(e) => setShowCorrectAnswers(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <span className="text-gray-700">Show correct answers to students</span>
-              </label>
-            </div>
+            <label className="block text-sm font-medium text-gray-700">Options</label>
             
             {mcqOptions.map((option, index) => (
               <div key={option.id} className="flex gap-3 items-start p-3 bg-gray-50 rounded-lg">

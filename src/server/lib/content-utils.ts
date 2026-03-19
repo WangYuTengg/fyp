@@ -91,7 +91,6 @@ export function toStudentSafeMcqContent(value: unknown): JsonRecord {
   return {
     ...content,
     options: getMcqOptions(content.options),
-    showCorrectAnswers: false,
   };
 }
 

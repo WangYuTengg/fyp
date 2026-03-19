@@ -20,7 +20,6 @@ type UpdateQuestionBody = {
   allowMultiple?: boolean;
   tags?: string[];
   referenceDiagram?: string;
-  showCorrectAnswers?: boolean;
   modelAnswer?: string;
 };
 
@@ -118,7 +117,7 @@ updateQuestionRoute.put('/:id', requireAuth, async (c) => {
       }))
       .filter((option) => option.text.length > 0);
 
-    if (prompt !== undefined || body.options || body.showCorrectAnswers !== undefined) {
+    if (prompt !== undefined || body.options) {
       if (!updatedPrompt) {
         return c.json({ error: 'Prompt is required' }, 400);
       }
@@ -153,7 +152,6 @@ updateQuestionRoute.put('/:id', requireAuth, async (c) => {
         prompt: updatedPrompt,
         options,
         allowMultiple,
-        showCorrectAnswers: body.showCorrectAnswers ?? (existingContent.showCorrectAnswers as boolean | undefined) ?? false,
       };
     }
   }

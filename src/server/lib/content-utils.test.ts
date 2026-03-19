@@ -190,17 +190,15 @@ describe('omitTeacherOnlyFields', () => {
 // toStudentSafeMcqContent
 // ---------------------------------------------------------------------------
 describe('toStudentSafeMcqContent', () => {
-  it('strips isCorrect from options and sets showCorrectAnswers to false', () => {
+  it('strips isCorrect from options', () => {
     const content = {
       prompt: 'Pick one',
       options: [
         { id: 'a', text: 'Option A', isCorrect: true },
         { id: 'b', text: 'Option B', isCorrect: false },
       ],
-      showCorrectAnswers: true,
     };
     const result = toStudentSafeMcqContent(content);
-    expect(result.showCorrectAnswers).toBe(false);
     expect(result.options).toEqual([
       { id: 'a', text: 'Option A' },
       { id: 'b', text: 'Option B' },

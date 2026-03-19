@@ -20,7 +20,7 @@ type QuestionPoolPanelProps = {
       allowMultiple?: boolean;
       tags?: string[];
       referenceDiagram?: string;
-      showCorrectAnswers?: boolean;
+
       modelAnswer?: string;
     }
   ) => void;
