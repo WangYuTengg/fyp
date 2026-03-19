@@ -32,6 +32,7 @@ export async function initializeWorker(taskList: TaskList): Promise<Runner> {
     pollInterval: WORKER_CONFIG.POLL_INTERVAL_MS,
     taskList,
     noHandleSignals: false, // Handle SIGTERM/SIGINT for graceful shutdown
+    noPreparedStatements: true, // Prevent "prepared statement does not exist" errors with Supabase PgBouncer pooled connections
     crontab: '* * * * * auto-submit-expired', // Every minute: auto-submit expired drafts
   });
 
