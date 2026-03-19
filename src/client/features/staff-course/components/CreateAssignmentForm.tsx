@@ -22,10 +22,10 @@ type CreateAssignmentFormProps = {
 
 const STEP_TITLES = ['Basics', 'Settings', 'Questions', 'Review'] as const;
 const STEP_DESCRIPTIONS = [
-  'Set the assignment name and framing.',
-  'Configure schedule, attempts, and grading rules.',
-  'Mix question types and set the question order.',
-  'Review the final assignment before creating it.',
+  'Name and describe the assignment.',
+  'Schedule, attempts, and grading rules.',
+  'Select and order questions.',
+  'Review before publishing.',
 ] as const;
 const QUESTION_PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 const DEFAULT_TIME_LIMIT_MINUTES = 60;
@@ -362,10 +362,9 @@ export function CreateAssignmentForm({
       <div className="rounded-xl border border-gray-200 bg-gradient-to-r from-slate-50 to-blue-50 p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-2xl">
-            <h3 className="text-lg font-semibold text-gray-900">Build a mixed-type assignment</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Create Assignment</h3>
             <p className="mt-1 text-sm text-gray-600">
-              Assignments can include any combination of the questions currently in your pool. The selected order here
-              becomes the student-facing order.
+              Pick questions from your pool and configure how students will see them.
             </p>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
@@ -464,11 +463,11 @@ export function CreateAssignmentForm({
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
-            <h3 className="text-base font-semibold text-gray-900">Writing tips</h3>
+            <h3 className="text-base font-semibold text-gray-900">Tips</h3>
             <div className="mt-4 space-y-3 text-sm text-gray-600">
-              <p>Keep the title task-focused so it is easy to scan in the course assignment list.</p>
-              <p>Use the description for expectations, submission guidance, or how the question mix should be approached.</p>
-              <p>Question-specific prompts stay inside each question, so avoid repeating them here.</p>
+              <p>Keep the title short and scannable.</p>
+              <p>Use the description for instructions or submission guidance.</p>
+              <p>Question-specific details belong in each question, not here.</p>
             </div>
           </div>
         </div>
