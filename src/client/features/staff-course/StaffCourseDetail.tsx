@@ -146,13 +146,21 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-semibold">Assignments</h2>
-                <button
-                  type="button"
-                  onClick={() => assignmentForm.setShowForm(true)}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
-                >
-                  Create Assignment
-                </button>
+                <div className="relative group">
+                  <button
+                    type="button"
+                    onClick={() => assignmentForm.setShowForm(true)}
+                    disabled={questions.length === 0}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-500"
+                  >
+                    Create Assignment
+                  </button>
+                  {questions.length === 0 && (
+                    <div className="absolute right-0 top-full mt-2 w-56 rounded-md bg-gray-900 px-3 py-2 text-xs text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                      Add questions to the Question Pool first
+                    </div>
+                  )}
+                </div>
               </div>
 
               <Modal
