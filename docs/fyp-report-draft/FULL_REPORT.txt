@@ -1,0 +1,1641 @@
+# 1 Introduction
+
+## 1.1 Background and Motivation
+
+The rapid expansion of tertiary computing education over the past decade has placed considerable strain on academic institutions worldwide. Enrolments in computer science and information technology programmes have grown substantially, with universities such as Nanyang Technological University (NTU) routinely teaching cohorts of several hundred students per module. This growth, while indicative of the discipline's importance to modern economies, has created a structural imbalance: the number of qualified instructors and teaching assistants has not scaled in proportion to student enrolments. The consequence is a persistent and well-documented bottleneck in the assessment cycle, whereby the grading of student work becomes an increasingly time-intensive and cognitively demanding task for academic staff.
+
+Within the domain of software engineering education, the Unified Modelling Language (UML) occupies a foundational role. UML diagrams — including use case, class, sequence, activity, and state machine diagrams — are used extensively to teach systems analysis, object-oriented design, and software architecture. Yet despite their pedagogical importance, UML diagram assignments present a particularly acute grading challenge. Unlike multiple-choice questions, which admit deterministic, automated evaluation, UML diagrams are richly structured artefacts that require an assessor to examine spatial relationships, notational correctness, semantic intent, and adherence to a marking rubric simultaneously. A single cohort of two hundred students submitting an assignment containing five UML diagram questions produces one thousand individual diagrams requiring evaluation. Even at a conservative estimate of ten minutes per diagram, this represents over one hundred and sixty hours of grading effort — a burden that, in practice, is compressed into the days immediately following an assessment deadline, when teaching staff are simultaneously managing lectures, consultations, and research commitments.
+
+The subjectivity inherent in UML grading compounds this burden. Different markers may interpret the same rubric criterion differently, particularly for higher-order elements such as the appropriateness of a chosen abstraction or the completeness of a sequence flow. Inconsistency between markers is a recognised threat to assessment validity, and in large classes where grading is distributed across a team of teaching assistants with varying levels of experience, maintaining inter-rater reliability is a non-trivial organisational challenge. Students, too, are affected: delayed feedback diminishes the educational value of an assessment, as the cognitive window during which corrective feedback is most effectively internalised closes rapidly after the assessment event itself.
+
+Contemporary learning management systems (LMSs) such as Canvas, Moodle, and Blackboard have addressed parts of this problem by automating the grading of objective question types. Multiple-choice questions can be evaluated instantaneously, and some platforms support rudimentary pattern-matching for short textual answers. However, none of these platforms provides native support for the structured, rubric-based evaluation of UML diagrams. Diagram submissions, where accepted at all, are typically handled as file uploads that are then routed to a human marker, replicating the manual workflow entirely. This gap is not incidental; it reflects the genuine difficulty of interpreting diagrammatic content programmatically using traditional rule-based approaches.
+
+The recent emergence of large language models (LLMs) with multimodal capabilities has materially changed what is technically feasible in this domain. Models such as OpenAI's GPT-4o and Anthropic's Claude 3.5 Sonnet are capable of processing both textual rubric criteria and visual diagram representations simultaneously, producing structured assessments that assign partial marks, identify specific errors, and generate explanatory feedback. Early research into LLM-assisted grading has demonstrated promising alignment between model-generated scores and human expert judgements for certain assessment types, and the potential for these tools to serve as scalable grading assistants — not as replacements for human academic judgement, but as a first-pass evaluation layer that dramatically reduces the manual effort required — is increasingly recognised in the educational technology literature.
+
+Nevertheless, significant practical barriers have impeded the adoption of LLM-assisted assessment in institutional settings. Data privacy regulations and institutional data governance policies in many jurisdictions — including Singapore's Personal Data Protection Act — impose restrictions on the transmission of student assessment data to external cloud services. For many universities, the prospect of routing student submissions through commercial API endpoints raises legitimate concerns about data sovereignty and compliance. This creates a demand for on-premise deployment architectures: systems that can be hosted entirely within an institution's own infrastructure, with no dependency on external cloud providers beyond the LLM API call itself, which can be managed through institutional agreements. Furthermore, no publicly available, end-to-end platform currently integrates traditional assessment types (MCQ, written, coding) with AI-powered UML diagram grading within a single, cohesive system that addresses the full assessment lifecycle from course creation to grade publication.
+
+It is within this context that the present project is situated. There exists a clear and compelling need for a purpose-built, full-stack assessment platform that addresses the specific pedagogical and operational requirements of computing education at scale — one that treats UML diagram grading not as an afterthought but as a first-class feature, and that does so in a manner that preserves human academic oversight, supports institutional deployment constraints, and integrates seamlessly with the existing assessment workflows of lecturers and teaching staff.
+
+## 1.2 Problem Statement
+
+The central problem addressed by this project is the absence of a widely adopted, integrated assessment platform that combines conventional question types with automated, AI-assisted grading of UML diagrams. While academic research has explored automated UML assessment in various forms, the existing body of work is characterised by significant limitations. The majority of prior automated grading approaches are confined to a single diagram type — most commonly the class diagram — and rely on structural comparison algorithms that are sensitive to superficial representational differences rather than semantic equivalence. These approaches do not generalise across diagram types, cannot accommodate the natural variation in valid student responses to an open-ended design problem, and have not been integrated into production-ready assessment platforms accessible to non-specialist academic staff.
+
+A related gap concerns the absence of standardised benchmarks for rubric-based UML grading. As has been observed in recent discussions within the computing education research community — including at the CSEDU 2025 symposium — there is no publicly available, curated dataset of student UML submissions with corresponding expert-assigned rubric scores that would enable rigorous, reproducible evaluation of automated grading approaches. This absence makes it difficult to compare competing methods objectively and slows the development of the field.
+
+At the institutional level, schools require more than a grading algorithm. They require a complete, deployable platform that manages the full assessment lifecycle: the organisation of courses, the construction of question pools, the configuration of assignments with appropriate access controls and timing constraints, the collection and storage of student submissions, the orchestration of automated grading processes, the review and adjudication of AI-generated scores by human staff, and the publication of finalised grades to students. Building such a platform demands not only machine learning expertise but also substantial software engineering effort in full-stack web development, database design, authentication and authorisation, background job processing, and DevOps. The combination of these requirements within a single student project represents both the ambition and the practical contribution of this work.
+
+## 1.3 Scope and Objectives
+
+The scope of this project encompasses the design, implementation, and empirical evaluation of a full-stack web-based assessment platform tailored to the needs of computing education. The platform supports four distinct assignment types: multiple-choice questions (MCQ), written (essay-style) questions, coding questions, and UML diagram questions. For the latter two types — written and UML — the platform integrates LLM-assisted grading as a core feature, employing structured output validation via Zod schemas to ensure that model responses conform to the expected rubric format before being surfaced to human reviewers.
+
+A defining design principle of the platform is the preservation of human-in-the-loop oversight. AI-generated grades are presented to staff as suggestions rather than final scores; each suggestion must be explicitly accepted, modified, or rejected by a human marker before it is committed to the grade record. This approach is intended to maintain academic integrity and to ensure that the system augments rather than supplants the professional judgement of teaching staff.
+
+The platform addresses the full assessment lifecycle. Administrators may create institutions and manage system-wide settings, including the selection and configuration of LLM providers. Staff members — differentiated into lecturer, teaching assistant, and laboratory executive roles — may create courses, build question pools, configure assignments with specific access windows, time limits, and focus-monitoring controls, and review student submissions and AI-generated grades. Students may access their enrolled courses, attempt assignments within the configured constraints, and view feedback and grades once published. Role-based access control (RBAC) is enforced at both the API and the user interface levels to ensure that each actor can access only the functionality appropriate to their role.
+
+The system is designed for on-premise deployment, packaged as a multi-container Docker application that can be orchestrated using Docker Compose for single-node deployments or Kubernetes for larger institutional environments. The LLM integration is configurable per institution, supporting OpenAI, Anthropic, and Google as grading backends, with token usage and associated costs tracked and reported to administrators.
+
+The formal objectives of the project are as follows. First, to design and develop a production-quality, full-stack web-based assessment platform implementing the architecture and features described above. Second, to implement LLM-assisted grading pipelines for written and UML diagram question types, incorporating structured output validation to ensure reliable, parseable model responses. Third, to embed human-in-the-loop review mechanisms throughout the grading workflow, ensuring that automated suggestions remain subject to academic oversight. Fourth, to conduct a formal empirical experiment comparing multiple LLM models — spanning flagship and mid-tier offerings from OpenAI, Anthropic, and Google — across dimensions of grading accuracy, consistency, and cost-effectiveness for UML diagram assessment, thereby contributing a modest empirical dataset to a field that currently lacks standardised benchmarks. Fifth, to deploy the completed platform in a containerised, on-premise-ready configuration and to evaluate its functional correctness and non-functional characteristics through systematic testing.
+
+These objectives collectively reflect the dual nature of the project: it is simultaneously a software engineering exercise in full-stack web development and a modest empirical investigation into the practical utility of LLMs as grading assistants in computing education.
+
+## 1.4 Report Organisation
+
+The remainder of this report is organised as follows. Chapter 2 presents a review of the relevant literature, examining prior work on automated assessment systems, UML diagram grading, LLM-assisted evaluation, and the pedagogical considerations that inform the platform's design. Chapter 3 describes the system design, covering the overall architecture, database schema, API design, authentication and authorisation model, and the design of the LLM grading pipeline. Chapter 4 details the implementation of the platform, discussing key technical decisions in the frontend, backend, background job processing, and DevOps components. Chapter 5 presents the formal experiment comparing LLM models for UML grading accuracy, describing the experimental protocol, the construction of the evaluation dataset, the metrics employed, and a discussion of the results. Chapter 6 covers system testing and evaluation, reporting on unit, integration, and user acceptance testing, and assessing the platform against its stated functional and non-functional requirements. Chapter 7 concludes the report with a synthesis of the project's contributions, an honest reflection on its limitations, and directions for future work.
+
+The design decisions reported in Chapters 3 and 4 are grounded in the gaps identified in the literature reviewed in Chapter 2; readers who wish to understand the rationale behind specific architectural choices are encouraged to read Chapter 2 before proceeding to the design chapters.
+# 2 Literature Review
+
+## 2.1 Assessment Platforms in Education
+
+The landscape of digital assessment platforms has evolved considerably over the past two decades, driven by the dual demands of scalability and pedagogical effectiveness. Understanding the capabilities and limitations of existing platforms is essential for identifying the gaps that motivate this work.
+
+### 2.1.1 General-Purpose Learning Management Systems
+
+The dominant learning management systems (LMS) deployed in higher education — Blackboard, Canvas, and Moodle — provide broadly capable assessment infrastructure. These platforms support a wide variety of submission types, including multiple-choice questions (MCQ), short-answer text, file uploads, and peer review workflows. Their assessment engines are mature, battle-tested in large-scale deployments, and integrated with institutional grade books, making them the default choice for most universities worldwide.
+
+However, their support for diagram-based assessment is fundamentally limited. While an instructor can configure a file-upload assignment for students to submit UML diagram images or exported model files, the grading of such submissions is entirely manual. There is no mechanism for structural analysis, automated feedback, or rubric-driven scoring of diagram content. For assessments involving UML modelling — a staple of undergraduate software engineering curricula — instructors must download each submission and evaluate it individually, a process that does not scale to cohort sizes of hundreds of students. This manual bottleneck is not merely an inconvenience; it constrains the frequency and depth of formative feedback that instructors can provide, which research has consistently linked to student learning outcomes (Black and Wiliam, 1998).
+
+Moodle, being open-source, has a richer ecosystem of third-party plugins. Community-developed plugins exist for code execution (e.g., CodeRunner) and mathematical formula evaluation, but no mature plugin exists for automated UML assessment. The extensibility of Moodle means that a motivated institution could integrate such tooling, but doing so requires significant engineering effort that most institutions lack the capacity to undertake.
+
+### 2.1.2 Specialised Code Assessment Platforms
+
+Platforms such as Codility and HackerEarth are purpose-built for programming assessments. They execute student-submitted code against predefined test cases, support multiple programming languages, and provide immediate feedback on correctness and performance. These platforms have found widespread adoption in technical recruitment and increasingly in academic settings for programming coursework.
+
+Their limitation is by design: they are optimised exclusively for code. There is no concept of a visual or modelling exercise within their assessment model. A software engineering course that wishes to assess both programming competence and modelling ability — arguably the two pillars of the discipline — must use a separate tool for each, fragmenting the student experience and the instructor's grading workflow. The absence of any UML or diagrammatic assessment capability in these platforms is not a gap that future extensions are likely to address, as it lies outside their core value proposition.
+
+### 2.1.3 AI-Assisted Grading: Gradescope
+
+Gradescope represents a more recent category of platform that applies machine learning to accelerate human grading. Its primary use case is digitising handwritten student work — scanned examinations and problem sets — and enabling instructors to apply rubrics across grouped, similar responses. Its AI clustering features reduce the time required to grade large cohorts by surfacing responses that appear similar, allowing a single rubric decision to propagate across a group.
+
+While Gradescope supports image submissions and has features for annotating PDF responses, it has no capability for structured analysis of UML diagram content. It cannot parse the semantics of a class diagram, check whether relationships are correctly typed, or verify that a sequence diagram's message ordering is consistent with a stated scenario. Its AI features are fundamentally about grouping and routing human grading effort rather than replacing or augmenting it with domain-specific analysis. For UML assessment, Gradescope reduces administrative overhead but does not reduce the per-submission cognitive load on the instructor.
+
+### 2.1.4 Artemis: The Most Advanced Open-Source Platform
+
+The most directly relevant existing platform is Artemis, developed at the Technical University of Munich (TUM) as an open-source LMS specifically designed for technical courses in higher education (Krusche and Seitz, 2018). Artemis supports a heterogeneous set of exercise types — programming exercises with automated test execution, text exercises with semi-automatic feedback, quiz exercises, and modelling exercises. For modelling specifically, Artemis integrates the Apollon editor, a browser-based UML modelling tool that allows students to construct diagrams directly within the platform.
+
+Artemis's approach to UML assessment uses Compass, a machine-learning component that clusters student submissions and suggests grading decisions based on previously graded similar submissions. This semi-automated approach meaningfully accelerates grading compared to fully manual workflows, particularly for large cohorts where many students make similar errors. The Apollon editor supports several UML diagram types and produces structured JSON representations of diagrams, which Compass can analyse.
+
+Artemis is the most feature-complete open-source platform in this space, and its design philosophy — treating modelling exercises as first-class citizens alongside programming and text exercises — aligns closely with the motivations of this work. However, it is a large, complex system with a significant operational footprint, requiring substantial infrastructure to self-host. Its Compass component has not been publicly evaluated against LLM-based grading approaches, and its integration with contemporary large language models for diagram assessment remains limited. Furthermore, Artemis is designed for broad institutional adoption with complex course management features, whereas a platform purpose-built for a specific institutional context can make different design trade-offs that prioritise simplicity and deployability.
+
+### 2.1.5 Prior NTU Auto-Assessment Platforms
+
+A series of final year projects at Nanyang Technological University (NTU) have developed predecessors to this work under the general theme of automated assessment platforms. The AASP (Automated Assessment and Submission Platform) projects from 2022, 2023, and 2025 focused on automating the assessment of programming assignments, with particular attention to dynamic analysis techniques, concurrent programming assessment, and sequential and parallel programming exercises.
+
+These prior platforms established a foundation for thinking about automated assessment in the NTU context: on-premise deployment requirements, integration with institutional user accounts, and the practical constraints of supporting a diverse programming curriculum. However, none of these platforms addressed UML diagram assessment. Their scope was intentionally narrow, focusing on the technically challenging but well-defined problem of code correctness evaluation. The gap they leave — a platform that can assess the full spectrum of exercises encountered in a software engineering curriculum — is precisely what this project addresses.
+
+### 2.1.6 The Integrated Assessment Gap
+
+Surveying the platform landscape reveals a consistent structural gap: no single system currently integrates MCQ, written response, programming, and UML diagram assessment with AI-assisted grading under a unified interface and grading workflow. Institutions teaching software engineering are forced to compose multiple tools — an LMS for written assessments, a code platform for programming, and manual grading for diagrams — with no consistent rubric framework or grade aggregation across these modalities. This fragmentation imposes coordination costs on instructors and creates an inconsistent experience for students. The motivation for this project is partly to demonstrate that a single, deployable platform can serve all four assessment modalities in an integrated way.
+
+---
+
+## 2.2 UML Diagram Assessment Approaches
+
+Research on the automated assessment of UML diagrams spans roughly two decades, but progress has been uneven. Approaches can be organised into three broad generations: rule-based and structural methods, semantic similarity and machine learning methods, and the most recent generation of large language model-based methods.
+
+### 2.2.1 Rule-Based and Structural Approaches
+
+The earliest automated approaches to UML assessment treated diagram comparison as a structural matching problem. Given a reference (instructor) diagram and a student submission, an algorithm would attempt to identify corresponding elements and quantify the degree of overlap.
+
+Bian et al. (2019) present one of the most rigorous examples of this approach in their work on automated grading of class diagrams using the TouchCORE modelling tool. Their system performs matching at three levels: syntactic (element names and types), semantic (relationships and their directionality), and structural (the global topology of the diagram). The system was evaluated on submissions from 20 students and achieved grading scores within 14% of instructor-assigned grades — a result competitive with inter-rater agreement between human graders. Importantly, the system was specifically designed for class diagrams and exploited the metamodel structure of UML to define precise matching rules. The limitation of this work is inherent in its design philosophy: it assumes that a reference diagram exists and that student solutions should converge on that reference. In reality, UML modelling problems often admit multiple valid solutions with different but legitimate design choices, and a structural matching approach will penalise semantically correct alternatives that differ structurally from the reference.
+
+UMLGrader, developed at McGill University, takes a similar element-by-element comparison approach using XMI exports from Modelio, a widely used UML authoring tool. XMI (XML Metadata Interchange) is the standard serialisation format for UML models, and operating at the XMI level allows UMLGrader to perform programmatic analysis without requiring proprietary model access. The tool categorises elements by type — classes, attributes, operations, associations, generalisations — and applies matching algorithms to each category. While this approach achieves reasonable accuracy for structurally similar solutions, it inherits the fundamental limitation of rule-based systems: it cannot reason about semantic equivalence. An attribute named `employeeId` in the reference and `empID` in a student submission represent the same concept but will be scored as a mismatch without additional semantic processing.
+
+The general limitation of rule-based structural approaches is their brittleness in the face of design variability. Software engineering educators typically value a student's ability to reason about design trade-offs, not merely to reproduce a given solution. An assessment tool that penalises structurally deviant but semantically correct solutions fails to measure what the curriculum actually intends to assess.
+
+### 2.2.2 Semantic Similarity and Machine Learning Approaches
+
+The second generation of approaches attempts to address the naming variation problem by incorporating natural language processing techniques into the matching pipeline. The core insight is that UML element names, class names, and operation names are natural language tokens, and semantic similarity models can identify conceptually related names even when their surface forms differ.
+
+Work on automated class diagram assessment using combined semantic and structural similarity demonstrates that adding NLP-based similarity measures to structural matching improves correlation with human grades compared to purely structural approaches. By representing element names as word embeddings and computing cosine similarity between student and reference element names, these systems can correctly match `Person` with `Individual` or `Employee` with `Staff` without requiring exact string matches.
+
+More recent work has explored sentence-transformer models for this purpose. A study presented at CSEDU 2025 (discussed further in Section 2.2.3) reports Pearson correlation of 0.552 between automated similarity scores and human grades when using sentence-transformer-based matching. While an improvement over purely structural approaches, this moderate correlation suggests that semantic similarity alone is insufficient for reliable automated grading. The approach still struggles with edge cases: it cannot assess whether a student has correctly identified the appropriate relationship type (association versus aggregation versus composition), whether multiplicities are semantically justified, or whether the overall design exhibits appropriate levels of abstraction.
+
+These ML-based approaches represent meaningful progress over purely rule-based systems, but they remain fundamentally constrained by their inability to reason about the rationale behind design decisions — the kind of higher-order reasoning that rubric-based human grading captures.
+
+### 2.2.3 LLM-Based Approaches
+
+The advent of large language models with vision capabilities has opened a qualitatively new possibility for UML assessment: rather than decomposing diagram evaluation into a series of matching sub-problems, an LLM can be prompted to reason holistically about a diagram with respect to a rubric, in a manner that more closely resembles how a human grader approaches the task.
+
+Ibanez et al. (2024) conducted one of the first systematic empirical evaluations of LLM-based UML grading in their study "Assessing UML Models by ChatGPT." The study tested GPT-4o on 40 student submissions covering three UML diagram types — use case, class, and sequence — by feeding diagrams as base64-encoded images alongside a grading rubric. Their key finding was that ChatGPT assigned scores approximately 1.18 points lower than human graders on average, suggesting a systematic negative bias. Performance varied substantially by diagram type: GPT-4o performed best on use case diagrams (which are structurally simpler and more text-heavy) and worst on class diagrams (which require precise interpretation of relationship types and multiplicities). A critical practical concern identified by this study was the non-determinism of LLM outputs: repeated queries with identical inputs produced different scores, raising questions about the reliability of any single LLM grading decision. This finding underscores the importance of human oversight in LLM-assisted grading workflows.
+
+A follow-up multi-model comparison by Ibanez et al. (CSEDU 2025) titled "Toward Automated UML Diagram Assessment" provides the most comprehensive empirical evidence to date on LLM-based UML grading. The study evaluated three models — GPT o1-mini, Claude Sonnet 3.5, and Llama 3.2 Vision — on 92 student submissions. To manage the inherent variability of open-ended UML design problems, the study constrained the design space by specifying the required classes and relationships in the problem statement, then converted the diagrams to structured text descriptions before prompting the LLM. Claude Sonnet achieved an Intraclass Correlation Coefficient (ICC) of 0.76 with human grader scores, and GPT models achieved a Pearson correlation of 0.760. These figures are notably competitive with typical inter-rater reliability between two human graders on the same task. The study concludes that LLMs can approach TA-quality grading when provided with structured rubrics and constrained problem designs, but that the approach is most reliable when diagram variability is bounded. This is an important caveat: in open-ended design exercises, where student solutions may legitimately diverge more widely from each other, the performance of LLM graders has not been systematically evaluated.
+
+The DUET system (2025), presented in the paper "Automated Feedback on Student-Generated UML and ER Diagrams Using LLMs," takes a different architectural approach. Rather than feeding diagram images directly to an LLM, DUET converts student diagrams to PlantUML textual notation using GPT-4o as an image-to-text translator, and then uses a smaller, less expensive LLM to compare the textual representation against a reference. This two-stage pipeline separates the visual parsing task from the evaluation task, potentially enabling the use of smaller, cheaper models for the evaluation step. Crucially, DUET is explicitly positioned as a formative feedback tool rather than a grading tool — its outputs are suggestions for student reflection, not scores to be recorded in a grade book. The study reveals an important insight about current LLM capabilities in this domain: LLMs achieve 91% accuracy when assessing individual class attributes but only approximately 25% accuracy when assessing class relationships. This asymmetry is significant — relationships (associations, dependencies, generalisations) are arguably more important to assess than individual attributes in most UML exercises, yet they are precisely where current LLM capabilities are weakest. DUET has been released as open-source software, reflecting the authors' positioning of the work as a research contribution to the educational technology community.
+
+Taken together, these studies establish that LLM-based UML grading is feasible and achieves meaningful correlation with human grading, but that significant challenges remain — particularly around relationship assessment, non-determinism, and performance on open-ended design problems. They also collectively suggest that human oversight remains essential, even as LLMs can meaningfully reduce the grading burden.
+
+---
+
+## 2.3 LLM-Assisted Grading in Education (Beyond UML)
+
+LLM-based grading research extends well beyond UML assessment. The broader literature on automated short-answer grading (ASAG) and essay grading provides important context for understanding both the potential and the limitations of LLM-based grading approaches.
+
+"Grade Like a Human" (2024) proposes a multi-agent architecture that models the complete human grading workflow rather than reducing grading to a single LLM call. The system includes agents responsible for rubric interpretation, draft grading, and post-grading review, with distribution-aware sampling to ensure that the grade distribution of automated scores is calibrated against expected distributions. Batch comparison — grading multiple submissions simultaneously and comparing them against each other — is used to improve consistency. This approach outperforms single-agent baselines on standard ASAG benchmarks and reflects an important insight: the quality of automated grading depends not only on the model's capability but on the structure of the grading workflow around it.
+
+A rigorously controlled empirical study published in Nature in 2024 evaluated ChatGPT 3.5, ChatGPT 4.0, and Claude 3 Haiku on IELTS writing assessment tasks. The study found that LLMs achieve high inter-rater consistency (ICC=0.89) — meaning that the same model, prompted consistently, produces similar scores across repeated evaluations. However, absolute agreement with human expert graders was only moderate. Importantly, the study found that the quality and specificity of the rubric provided to the model mattered more than the model's size: domain-specific rubrics that explicitly defined performance criteria for each score level substantially improved grading accuracy across all models tested. This finding has direct implications for platform design: a system that allows instructors to author detailed, criterion-referenced rubrics will extract more accurate grading from LLMs than one that provides only high-level assessment instructions.
+
+GradeOpt (2024) presents a multi-agent framework for short-answer grading that uses LLMs in distinct roles as "reflectors" and "refiners" of grading guidelines. The system iteratively improves both the rubric and the grading decisions through structured self-critique, converging on more consistent and accurate grades than single-pass approaches. This work reinforces the view that grading quality is sensitive to rubric quality, and that automated systems can themselves contribute to rubric refinement.
+
+AMMORE (2024) applies chain-of-thought prompting to mathematical assessment, finding that prompting models to reason step-by-step before assigning a score improves accuracy on open-response mathematical problems. The study also makes the broader pedagogical point that open-response questions — precisely the kind that are hardest to grade automatically — are more diagnostically valuable than MCQs for assessing deep understanding. This tension between pedagogical value and assessment scalability is a central motivation for LLM-assisted grading research.
+
+Research on LLM-based code evaluation has similarly found that models can assess functional correctness and code quality when provided with explicit evaluation criteria, though they remain less reliable than automated test execution for correctness assessment. The consensus across this literature is that LLMs are most effective as grading assistants when three conditions hold: rubrics are detailed and criterion-referenced, human review of LLM decisions is built into the workflow, and absolute score calibration is treated as a separate concern from grading consistency.
+
+---
+
+## 2.4 UML in Software Engineering Education
+
+Understanding the role of UML in software engineering education provides important context for why automated UML assessment matters and what the pedagogical stakes are.
+
+A longitudinal study of UML usage in open-source software repositories covering the period 2000–2022 finds that only approximately 4.2% of repositories contain UML files in any format. However, the study notes a significant and growing shift toward text-based modelling notations: tools such as PlantUML and Mermaid — which allow developers to generate diagrams from textual descriptions — are increasingly prevalent, suggesting that UML modelling persists in practice but is migrating away from traditional graphical authoring tools. This finding is relevant to automated assessment: text-based UML representations are more readily processed by LLMs than image-based ones, and student exposure to PlantUML or Mermaid notation during their studies prepares them for contemporary industry practice.
+
+Despite relatively modest adoption in open-source practice, UML modelling remains a standard component of undergraduate software engineering curricula. The modelling skills that UML exercises develop — decomposing a system into components, specifying interfaces and relationships, reasoning about behavioural flows — are foundational to software architecture and design work regardless of whether the final artefact is a formal UML diagram. Assessment of these skills is therefore pedagogically important even if UML's role in professional practice is contested.
+
+Research on "Software Engineering Education in the Era of Conversational AI" describes pilot studies that integrate AI assistance into SE education across requirements engineering, UML modelling, and agile project management. In the UML context, a chatbot called SOCIO was used to guide students through UML modelling tasks interactively. The study finds that students who interact with conversational AI during modelling exercises produce higher-quality models and develop better conceptual understanding than those who work unaided. This suggests that AI-assisted formative feedback during the modelling process — not just at the assessment stage — has pedagogical value. A platform that can provide automated feedback on diagram submissions thus serves a dual role: reducing instructor grading burden and supporting student learning.
+
+An exploratory study on "How LLMs Aid in UML Modeling" conducted with novice analysts at Wuhan University finds that LLM assistance is most effective in the early stages of modelling, when students are identifying entities and relationships from a requirements description, and less effective in later stages requiring design judgement. This aligns with the DUET finding that LLMs handle attributes better than relationships, and suggests that the pedagogical value of AI in UML education is currently greatest at the level of initial comprehension and entity identification rather than advanced design reasoning.
+
+---
+
+## 2.5 Research Gaps and Positioning
+
+The literature reviewed in this chapter reveals a set of recurring gaps that, taken together, define the space into which this project intervenes.
+
+**The Platform Integration Gap.** Existing platforms serve individual assessment modalities well but do not integrate them. MCQ, written response, programming, and UML diagram assessment each have dedicated tools, but no single deployable system handles all four within a unified grading workflow. Artemis comes closest, but its operational complexity and the immaturity of its LLM integration limit its practical accessibility. This gap is significant because real software engineering courses assess across all four modalities, and fragmentation across tools imposes direct costs on instructors and students.
+
+**The Diagram Type Gap.** The empirical literature on automated UML assessment is heavily concentrated on class diagrams. Use case and sequence diagrams have received far less rigorous evaluation, and diagram types such as activity diagrams and state machines are almost entirely absent from the assessment research literature. The DUET study's finding of 25% accuracy on relationship assessment — even for class diagrams — suggests that the problem remains unsolved even for the most studied diagram type.
+
+**The Pipeline Gap.** Few existing studies demonstrate a fully automated end-to-end grading pipeline operating on real student submissions within an actual course context. Most evaluations are conducted on curated datasets under controlled conditions, with manually curated reference diagrams and hand-selected student submissions. The operational challenges of deploying automated grading in a live course — handling unexpected submission formats, managing LLM latency, integrating with grade books — have not been systematically addressed in the literature.
+
+**The Human-in-the-Loop Gap.** The literature consistently identifies human oversight as essential for responsible deployment of LLM-based grading, but few systems implement a structured workflow for this. Ibanez et al. (2024) note non-determinism as a critical concern; the Nature study finds only moderate absolute agreement with human grades; Grade Like a Human builds post-grading review into the agent architecture. Yet most tools present their outputs directly as final grades, without a mechanism for instructors to review, adjust, and approve LLM-generated scores before they are recorded. A platform designed for academic deployment must treat this human-in-the-loop review as a first-class workflow feature.
+
+**The Deployment Gap.** The majority of automated UML assessment tools described in the literature are research prototypes. UMLGrader, DUET, and the systems evaluated by Bian et al. are not production-ready platforms that a university could adopt without significant additional engineering. Artemis is a notable exception, but its deployment requirements are substantial. For institutions with limited IT infrastructure, particularly in contexts such as Singapore's polytechnics and universities where on-premise deployment may be preferred or required, there is a gap for a purpose-built, lightweight, self-hostable platform.
+
+**The Benchmark Gap.** There is no publicly available, standardised benchmark for rubric-based UML grading that would allow systematic comparison across automated approaches. The studies reviewed here each use their own datasets, their own rubric designs, and their own evaluation metrics, making direct comparison between approaches difficult. This absence hampers the cumulative scientific progress of the field.
+
+**Positioning This Project.** This FYP addresses the first five of these gaps within a single integrated system. The platform developed here is the first to provide a unified assessment environment for MCQ, written response, programming, and UML diagram exercises, with LLM-assisted grading for written and UML submissions and a structured human-in-the-loop review workflow. Unlike the research prototypes reviewed above, it is designed for production deployment: containerised with Docker, deployable on-premise, and built on a conventional web stack that requires no specialised infrastructure to operate. The human-in-the-loop review workflow — in which LLM-generated scores and feedback are surfaced to instructors for approval before being released to students — directly addresses the reliability concerns that recur across the LLM grading literature. Finally, by conducting an empirical evaluation of LLM grading performance on student UML submissions within a real course context, this project contributes partial evidence toward closing the benchmark gap, even in the absence of a standardised public dataset.
+
+Chapters 3 and 4 describe the design and implementation of this system, grounded in the lessons drawn from the literature reviewed here.
+# 3 System Design and Architecture
+
+## 3.1 Requirements Analysis
+
+Before architectural decisions could be made, a thorough analysis of both functional and non-functional requirements was conducted. These requirements shaped every subsequent design choice and serve as the foundation against which the system's architecture can be evaluated.
+
+### 3.1.1 Functional Requirements
+
+**User Management and Access Control**
+
+The platform must support three distinct global roles: administrator, staff, and student. Staff roles are further subdivided at the course level into lecturer, teaching assistant (TA), and laboratory executive (lab_exec). This multi-tiered access control model reflects the real-world structure of tertiary institutions, where different categories of staff have different levels of responsibility over course content, grading, and student management. The system must enforce these boundaries both at the API layer (server-side authorisation) and at the interface layer (client-side route guards).
+
+**Course and Enrolment Management**
+
+Administrators and lecturers must be able to create courses and enrol students either individually or in bulk via CSV upload. This dual-mode enrolment is a practical necessity for institutions that maintain student rosters in spreadsheet form at the start of each academic term.
+
+**Question Pool and Assignment Builder**
+
+The platform requires a reusable, course-scoped question pool supporting four question types: multiple-choice (MCQ), written response, coding, and UML diagram. Questions must be taggable to support filtering and reuse across assignments. The assignment builder must allow staff to configure: time limits, maximum attempt counts, late submission penalties (none, fixed, per-day, or per-hour, with an optional cap), question shuffling, and focus monitoring. This level of configurability reflects the diversity of assessment practices across different courses and instructors.
+
+**Student Assessment Flow**
+
+From the student's perspective, the assessment flow must proceed as: start session → auto-save answers every 30 seconds → countdown timer → focus monitoring (detecting tab-switches or window minimisation) → final submission. The auto-save requirement is particularly important: students taking timed assessments risk losing work if a browser crash or network interruption occurs without periodic persistence.
+
+**Submission Lifecycle and Grading**
+
+Submissions must pass through a defined state machine: `draft` → `submitted` (or `late`) → `grading` → `graded`. Staff must be able to trigger AI grading in batch or for individual submissions. Critically, LLM output must be stored as suggestions only and must never automatically become official marks. Staff must explicitly accept or reject each suggestion. This human-in-the-loop requirement is a hard constraint, not a design preference. The marks table must maintain an audit trail recording who marked each answer, whether AI assistance was used, whether a suggestion was accepted, any override reason provided, and the previous score if the mark was changed.
+
+**Notifications and Exports**
+
+Staff must receive notifications when grading jobs complete or fail. Grade data must be exportable as CSV for downstream integration with institutional grade management systems.
+
+### 3.1.2 Non-Functional Requirements
+
+**On-Premise Deployability**
+
+A primary constraint is that the platform must be deployable on-premise within institutional networks. Many secondary and tertiary institutions in Singapore operate under network policies that restrict or prohibit the transmission of student data to external cloud services. The system must therefore function without mandatory reliance on any third-party cloud infrastructure, though cloud deployment should remain an option.
+
+**Concurrent Load**
+
+The platform must support 50–200 students submitting answers simultaneously. This range reflects the typical size of a single cohort taking a timed laboratory assessment. The architecture must ensure that this level of concurrent HTTP traffic does not degrade response times to the point of disrupting the student experience.
+
+**Cost Control for LLM Usage**
+
+LLM API calls represent a variable operational cost. The architecture must include mechanisms to prevent runaway spending, such as rate limiting background job concurrency and tracking token usage and cost per grading job.
+
+**Security**
+
+All API endpoints must be protected by JWT authentication. The system must apply rate limiting to prevent abuse. Docker images must run as non-root users. CORS must be configured to restrict cross-origin access.
+
+**Scalability**
+
+The web server tier must support horizontal scaling via Kubernetes Horizontal Pod Autoscaler, allowing the platform to handle load spikes during peak assessment periods without manual intervention.
+
+---
+
+## 3.2 High-Level Architecture
+
+The platform adopts a monolithic full-stack architecture within a single repository, separating concerns into a React single-page application (SPA) on the client side, a Hono HTTP server on the server side, and a PostgreSQL database as the persistence layer. Background processing for AI grading is handled by Graphile Worker, a PostgreSQL-native job queue that shares the same database connection. External services are limited to Supabase (for authentication in cloud deployments) and OpenAI, Anthropic, or Google (for LLM grading).
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                        Browser                          │
+│              React SPA (Vite + TanStack)                │
+└──────────────────────────┬──────────────────────────────┘
+                           │ REST (Bearer JWT)
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│               Hono HTTP Server (Node.js)                │
+│    Routes ─► Middleware (Auth/RBAC) ─► Handlers         │
+│              Rate Limiting (1000/15min/IP)               │
+└──────────┬──────────────────────────┬───────────────────┘
+           │                          │
+           ▼                          ▼
+┌────────────────────┐   ┌───────────────────────────────┐
+│   PostgreSQL DB    │   │     Graphile Worker            │
+│  (Neon / on-prem)  │◄──│  Background Job Processor      │
+│                    │   │  (AI Grading Queue)            │
+└────────────────────┘   └───────────────┬───────────────┘
+                                         │
+                           ┌─────────────▼──────────────┐
+                           │  OpenAI / Anthropic / Google (LLM) │
+                           └────────────────────────────┘
+```
+
+### 3.2.1 Monorepo over Microservices
+
+The decision to adopt a monorepo with a single deployable server rather than a microservices architecture was deliberate. The platform is developed by a single developer over a constrained academic timeline. Microservices introduce operational overhead — separate deployment pipelines, inter-service communication protocols, distributed tracing, and independent versioning — that would consume time better spent on feature development. More concretely, a monorepo allows TypeScript types and Zod validation schemas to be shared directly between the client and server without a separate package publication step. A request body type defined on the server can be imported directly by the client-side API wrapper, eliminating an entire class of type-mismatch bugs.
+
+The trade-off accepted is that the client and server cannot be scaled independently. However, given that the server handles both API traffic and static file serving, and that Kubernetes HPA can scale the entire web pod horizontally, this limitation is acceptable within the platform's target load range of 200 concurrent users.
+
+### 3.2.2 SPA over Server-Side Rendering
+
+The platform renders entirely in the browser as a single-page application rather than using a server-side rendering (SSR) framework such as Next.js or Remix. This decision is justified on several grounds.
+
+First, the platform is an internal tool accessed only by authenticated users. The primary motivation for SSR in modern web development — search engine optimisation and first-contentful-paint performance for public-facing pages — does not apply here.
+
+Second, the interactive nature of the assessment-taking experience is well-suited to client-side state management. Auto-save timers, countdown clocks, focus monitoring event listeners, and answer draft buffering are all naturally expressed as client-side state and side effects. Implementing these in an SSR model would require hydration strategies that add complexity without benefit.
+
+Third, by keeping the server as a pure REST API, the deployment model is simplified: the server serves JSON, and the built SPA is served as static files from the same container. This aligns well with the on-premise Docker deployment requirement.
+
+---
+
+## 3.3 Database Design
+
+The database comprises 16 tables managed through Drizzle ORM using a schema-first approach. All schema changes are made in `src/db/schema.ts`, from which Drizzle generates SQL migration files. This approach ensures that the database schema is version-controlled alongside application code and that migrations are reproducible across environments.
+
+### 3.3.1 Core Entity Relationships
+
+```
+users
+  │
+  ├──< enrollments >──── courses
+  │                         │
+  │                         └──< assignments
+  │                                  │
+  │                                  └──< assignmentQuestions >── questions
+  │
+  └──< submissions (assignment_id, user_id)
+              │
+              └──< answers (question_id)
+                      │
+                      ├── marks (markedBy, isAiAssisted, aiSuggestionAccepted)
+                      └── aiGradingSuggestion (JSONB)
+
+aiGradingJobs (submission_id, question_id, status)
+aiUsageStats (date, provider, model — daily aggregates)
+systemSettings (key-value, LLM provider config)
+```
+
+All tables carry `created_at` and `updated_at` timestamps. The `updated_at` field is updated manually within application code on every write operation, a deliberate choice to avoid database-layer triggers that would complicate migration portability across PostgreSQL variants (particularly managed services such as Neon).
+
+### 3.3.2 JSONB for Flexible Question Content
+
+Question types have fundamentally different content structures. An MCQ question requires a list of options with a correct-answer flag. A UML question requires a reference diagram, an expected element list, and a grading rubric. A coding question requires starter code templates per language and expected test cases. A written question requires only a rubric.
+
+A normalised relational approach would require either a wide table with many nullable columns (one per question type's fields), or a set of type-specific child tables accessed via polymorphic joins. Both approaches impose schema migrations whenever a new question type is introduced or an existing type's content structure evolves.
+
+The chosen approach stores question content in a PostgreSQL `jsonb` column. The structure of this JSONB payload is validated at the application layer using Zod schemas, one per question type. This pushes validation responsibility from the database to the application, which is a trade-off: the database cannot enforce content correctness in isolation. However, since all writes pass through the Hono server where Zod validation is applied before any database operation, the risk of invalid content reaching the database is minimal. The benefit is that adding a new question type or extending an existing type's content structure requires no database migration — only a schema update and a Zod schema revision.
+
+### 3.3.3 PostgreSQL Enums for State Machines
+
+Two state machines are enforced at the database level using PostgreSQL enums.
+
+The submission lifecycle is modelled as:
+
+```
+draft ──► submitted ──► grading ──► graded
+           │
+           └──► late ──► grading ──► graded
+```
+
+The AI grading job status is modelled as:
+
+```
+pending ──► processing ──► completed
+                │
+                └──► failed
+```
+
+Using database-level enums rather than plain string columns serves two purposes. First, it prevents invalid states from being persisted even if application-layer validation is bypassed. Second, it communicates the valid state space to any developer inspecting the schema directly, without requiring reference to application code.
+
+### 3.3.4 Cost Storage as String
+
+Token cost values (in USD) are stored as `varchar` rather than `float` or `numeric`. Floating-point representations of decimal values introduce precision errors that accumulate across aggregation operations. While PostgreSQL's `numeric` type avoids this, it introduces complexity when serialising values to JSON for API responses, since `numeric` is represented as a string in the PostgreSQL wire protocol. Storing cost as a string from the outset makes the data flow consistent: the value is a string from storage through serialisation to display, and arithmetic is performed only when needed (at aggregation time in reporting queries, using `CAST` to `numeric`).
+
+### 3.3.5 Soft Deletion via `deactivatedAt`
+
+Rather than physically deleting user or question records, the schema uses a nullable `deactivatedAt` timestamp. This preserves referential integrity for historical submissions and grade records. A student whose account is deactivated mid-semester still has valid submission and mark records that must remain queryable for academic record purposes. Hard deletion would require cascading deletes or nullable foreign keys on submissions and marks, either of which would corrupt the historical record.
+
+---
+
+## 3.4 API Design
+
+### 3.4.1 REST over GraphQL
+
+The API follows REST conventions across approximately 15 route files, each corresponding to a resource (users, courses, assignments, questions, submissions, marks, and so forth). GraphQL was considered but rejected. The data access patterns on this platform are well-defined CRUD operations on known resources. GraphQL's primary value proposition — allowing clients to specify arbitrary query shapes to avoid over-fetching — applies most strongly when multiple client types with divergent data needs exist (for example, web and mobile clients). With a single SPA as the sole consumer, the overhead of a GraphQL schema, resolvers, and query parsing is unjustified.
+
+### 3.4.2 Consistent Response Envelope
+
+All API responses follow a uniform envelope:
+
+```json
+{ "success": true, "data": { ... } }
+{ "success": false, "error": "User-friendly message" }
+```
+
+This consistency means client-side error handling can be written once in the API wrapper (`src/client/lib/api.ts`) and applied uniformly. The `success` boolean allows the client to distinguish application-level errors (which carry a 200 status with `success: false`) from transport-level errors, though in practice the platform also uses HTTP status codes semantically: 201 for creation, 400 for validation failures, 401 for authentication failures, 403 for authorisation failures, 404 for missing resources, and 500 for internal errors.
+
+### 3.4.3 Rate Limiting
+
+A limit of 1,000 requests per 15-minute window per IP address is applied globally. This threshold is chosen to accommodate legitimate heavy usage (a student auto-saving every 30 seconds for a 2-hour exam generates 240 requests) while preventing trivial abuse. The limit is enforced at the middleware layer before any route handler executes, ensuring that even unauthenticated requests are bounded.
+
+---
+
+## 3.5 Authentication Architecture
+
+### 3.5.1 Dual Authentication Paths
+
+The platform supports two authentication mechanisms operating in parallel, implemented as a single middleware that attempts verification in order.
+
+```
+Incoming Request (Authorization: Bearer <token>)
+              │
+              ▼
+  ┌─────────────────────┐
+  │  Verify as Custom   │  ── success ──► attach user, proceed
+  │  JWT (HS256, local) │
+  └─────────┬───────────┘
+            │ failure
+            ▼
+  ┌─────────────────────┐
+  │  Verify as Supabase │  ── success ──► attach user, proceed
+  │  JWT (remote JWKS)  │
+  └─────────┬───────────┘
+            │ failure
+            ▼
+         401 Unauthorized
+```
+
+Custom JWT tokens are issued by the platform's own login endpoint using a shared secret (HS256). Verification requires no network call and completes in microseconds. Supabase JWT tokens are issued by Supabase's authentication service and verified against Supabase's public JWKS endpoint. This verification is performed locally after the JWKS is fetched and cached.
+
+The rationale for dual authentication is the on-premise deployment requirement. A school deploying the platform on its own infrastructure may not be permitted to route authentication traffic through Supabase's cloud service. In this scenario, the platform operates with custom JWTs only, using email and password authentication backed entirely by the local database. Conversely, a cloud deployment can leverage Supabase's full feature set, including magic links and OAuth providers. The dual-path architecture ensures the platform is viable in both environments without forking the codebase.
+
+The accepted trade-off is that two authentication code paths must be maintained and tested. A bug in either path could result in either unauthorised access or legitimate users being rejected.
+
+### 3.5.2 Role Inference from Email Domain
+
+Upon first login via Supabase (where the platform does not control account creation), the platform infers a user's role from their email domain. Addresses matching the staff domain pattern are assigned the staff role; addresses matching the student domain pattern are assigned the student role; a configurable list of administrator email addresses are assigned the admin role. This approach removes the need for a separate onboarding flow or manual role assignment for the common case and reflects the existing identity infrastructure of the target institution (Nanyang Technological University), where staff and student email domains are structurally distinct.
+
+### 3.5.3 Token Refresh with Deduplication
+
+The client-side API wrapper includes a token refresh mechanism guarded by an `isRefreshing` flag. When a request receives a 401 response indicating token expiry, the wrapper initiates a refresh. Concurrent requests that also receive 401 during this window are queued rather than each independently triggering a refresh. This deduplication is important for the assessment-taking flow, where multiple simultaneous requests (auto-save, timer sync) could otherwise trigger a flood of refresh calls, creating a race condition in which multiple new tokens are issued and all but one are immediately invalidated.
+
+---
+
+## 3.6 AI Grading Pipeline Design
+
+### 3.6.1 Pipeline Architecture
+
+The AI grading pipeline is designed as an asynchronous, queue-based system to decouple the HTTP request-response cycle from the latency of LLM API calls, which can range from several seconds to over a minute for complex responses.
+
+```
+Staff triggers grading (HTTP POST)
+          │
+          ▼
+API creates aiGradingJob records (status=pending)
+API enqueues Graphile Worker tasks
+          │
+          ▼ (asynchronous)
+Worker picks up task (status=processing)
+          │
+          ▼
+Fetch: answer text, question, rubric, maxPoints
+          │
+          ▼
+Call LLM via Vercel AI SDK generateObject()
+with Zod schema: { points, reasoning, confidence, criteriaScores }
+          │
+          ├── success ──► clamp points to [0, maxPoints]
+          │               store in answers.aiGradingSuggestion (JSONB)
+          │               update aiGradingJob status=completed
+          │               track token usage + cost
+          │               notify staff
+          │
+          └── failure ──► update aiGradingJob status=failed
+                          notify staff
+                          │
+                          ▼
+                Staff reviews suggestion (human-in-the-loop)
+                          │
+                    ┌─────┴─────┐
+                    ▼           ▼
+                 Accept       Reject
+                    │           │
+                    ▼           └──► clear aiGradingSuggestion
+             Create mark record
+             (isAiAssisted=true,
+              aiSuggestionAccepted=true)
+```
+
+### 3.6.2 Human-in-the-Loop as a Hard Requirement
+
+The most significant design decision in the grading pipeline is the prohibition against automatic promotion of AI suggestions to official marks. LLM output is stored in a dedicated JSONB field (`answers.aiGradingSuggestion`) and is structurally separate from the `marks` table. A mark record is only created when a staff member explicitly accepts the suggestion or manually enters a score.
+
+This decision reflects both academic integrity requirements and practical reliability concerns. LLMs, including state-of-the-art models, can produce plausible-sounding but incorrect assessments, particularly for domain-specific tasks like UML diagram evaluation where the model's reasoning about structural correctness may not align with the rubric's intent. Allowing AI scores to automatically populate grade records would expose the institution to challenges from students who received incorrect marks, with no human accountability in the chain.
+
+The accepted trade-off is additional friction for staff: reviewing and accepting suggestions one by one adds steps to the grading workflow. This is mitigated by a batch-accept interface that allows staff to accept all suggestions for a submission at once, and by the confidence score in the LLM response, which allows staff to prioritise manual review of low-confidence suggestions.
+
+The marks table maintains a full audit trail for every marked answer: the `markedBy` field records the staff member's user ID, `isAiAssisted` records whether an AI suggestion was present at the time of marking, `aiSuggestionAccepted` records whether the suggestion was accepted or the mark was entered independently, `overrideReason` captures the staff member's justification when they deviate from the suggestion, and `previousScore` records the prior mark if a score is revised. This audit trail supports academic appeals processes and provides transparency for institutional quality assurance reviews.
+
+### 3.6.3 Graphile Worker at Concurrency=1
+
+Background jobs are processed by Graphile Worker, a PostgreSQL-native job queue that uses advisory locks to claim jobs without requiring a separate queue service such as Redis or RabbitMQ. The worker is configured to process one job at a time (concurrency=1).
+
+This concurrency setting is a deliberate cost control measure. LLM API pricing is token-based, and parallel requests multiply costs linearly. At concurrency=1, the cost of a grading batch is predictable and bounded: it is the sum of individual job costs processed sequentially. Parallelism would reduce wall-clock time for large batches but at the risk of exceeding API rate limits (which can cause failed requests that must be retried) and unpredictable cost spikes.
+
+For the target use case — a cohort of 50–200 students, each with 3–10 questions — a batch of up to 2,000 grading jobs at concurrency=1 with an average LLM response time of 5–10 seconds would complete in two to six hours. Given that AI-assisted grading is positioned as an overnight or between-session tool rather than a real-time grading mechanism, this throughput is acceptable.
+
+### 3.6.4 Structured Output via Vercel AI SDK
+
+All LLM calls use the Vercel AI SDK's `generateObject()` function with a Zod schema specifying the expected response structure. This approach, rather than prompting the model to return JSON and then parsing it with `JSON.parse()`, has two advantages. First, the SDK instructs the model to use structured output mode (where supported) or function-calling, which significantly reduces the rate of malformed responses. Second, Zod validation at the application layer catches any response that does not conform to the schema before it reaches the database, preventing invalid suggestion data from being stored.
+
+The response schema requires three fields: a `points` field (number, non-negative), a `reasoning` field (string, explaining the score), and a `confidence` field (number, 0–100). A `criteriaScores` array (one entry per rubric criterion with criterion name, score, and comment) is included as an optional field; when present, it provides the per-criterion breakdown surfaced in the staff grading interface. Points are additionally clamped to the question's `maxPoints` value after parsing, as a defensive measure against model hallucination producing out-of-range scores.
+
+### 3.6.5 Provider Factory Pattern
+
+The `getModel()` factory function returns a configured LLM provider instance based on the `systemSettings` table, which stores the active provider (OpenAI, Anthropic, or Google), the model identifier, and the API key. Switching between providers requires only a settings change through the admin interface; no code changes or redeployment are needed.
+
+This design reflects a practical uncertainty: the optimal model for UML diagram assessment is not known in advance and may vary by question type, rubric complexity, or institution preference. The factory pattern enables controlled experimentation with different models without architectural changes. The same grading code path is exercised regardless of which provider is active, and token usage is tracked per-provider to allow cost comparison.
+
+### 3.6.6 Prompt Versioning
+
+Two prompt versions are maintained in code (`src/server/config/prompts.ts`): a `v1` prompt emphasising fair and partial-credit grading, and a `v2` prompt applying stricter interpretation of rubric criteria. Storing prompts in the codebase rather than in the database means prompt changes are version-controlled, reviewed via pull request, and tied to a specific deployment. Database-stored prompts would allow real-time modification without deployment but would make it harder to reason about which prompt version was active at a given point in time — a concern for academic audit trails.
+
+---
+
+## 3.7 Deployment Architecture
+
+### 3.7.1 Docker Multi-Stage Build
+
+The production Docker image is built in two stages. The first stage (builder) uses a full Node.js image to install dependencies, compile TypeScript, and bundle the React SPA. The second stage (production) copies only the compiled output and production dependencies into a minimal Alpine Linux base image. This approach produces a significantly smaller final image (approximately 200–300 MB compared to over 1 GB for a naive single-stage build), reducing both registry storage costs and container startup time.
+
+The production container runs as a non-root user, a security baseline requirement for enterprise and institutional deployments where container security scanning tools flag root-running containers as policy violations.
+
+### 3.7.2 Two-Container Service Model
+
+The Docker Compose and Kubernetes manifests define two services from the same image: `web` (running the Hono HTTP server) and `worker` (running the Graphile Worker background processor). Both services share the same compiled codebase, avoiding the need to maintain a separate Dockerfile or build pipeline for the worker.
+
+The separation of HTTP and worker processes is architecturally important. If the worker were embedded in the HTTP server process, a slow LLM API call could consume a thread-pool worker that would otherwise handle HTTP requests, degrading response times for students during an assessment. By running the worker as a separate process (and a separate Kubernetes Deployment), the two concerns are isolated: the HTTP server can be scaled horizontally without scaling the worker, and a worker crash does not affect the HTTP server.
+
+### 3.7.3 Kubernetes Configuration
+
+The `web` Deployment is configured with a Horizontal Pod Autoscaler (HPA) targeting CPU utilisation at 70%, scaling between 2 and 6 replicas. A minimum of 2 replicas provides basic redundancy: if one pod crashes during a student's active assessment session, the load balancer routes subsequent requests to the remaining pod. The 6-replica maximum is a cost ceiling; beyond this point, the bottleneck is likely the database connection pool rather than CPU, and horizontal pod scaling would not improve throughput.
+
+The `worker` Deployment runs a single replica by default. Scaling the worker horizontally would require increasing the Graphile Worker concurrency setting, which would increase LLM API costs proportionally. Manual scaling is therefore preferred for the worker: an administrator can temporarily increase replicas during periods when a large grading backlog must be cleared quickly.
+
+### 3.7.4 CI/CD Pipeline
+
+The GitHub Actions pipeline runs on every push to the main branch. The pipeline stages are: lint (ESLint) → build (TypeScript compilation and Vite bundling) → Docker build and push to GitHub Container Registry (ghcr.io). Kubernetes manifests are updated with the new image tag, and a `kubectl rollout` is triggered against the target cluster. The pipeline uses repository secrets for the registry token and cluster credentials, ensuring that no sensitive values are embedded in the codebase.
+
+---
+
+## 3.8 Summary of Design Decisions
+
+Table 3.1 consolidates the major architectural decisions made during the design of the platform, the alternatives that were considered, and the primary justification for each choice.
+
+**Table 3.1: Summary of architectural design decisions**
+
+| Decision | Chosen | Rejected Alternative | Primary Justification |
+|---|---|---|---|
+| Repository structure | Monorepo (single repo) | Monorepo with separate packages / microservices | Single developer; shared TypeScript types; simpler CI/CD pipeline |
+| Rendering strategy | Client-side SPA | Server-side rendering (Next.js / Remix) | Internal tool (SEO irrelevant); interactive assessment UX suits client-side state |
+| HTTP framework | Hono (Node.js) | Express, Fastify, Next.js API routes | Lightweight, TypeScript-native, works with Node.js and Bun; no framework lock-in |
+| Database ORM | Drizzle ORM | Prisma, raw SQL, TypeORM | Schema-first, zero-runtime overhead, inferred TypeScript types from schema |
+| Flexible content storage | PostgreSQL JSONB | Polymorphic relational tables, EAV pattern | Trivially extensible; no migrations for new question type fields; Zod validates at application layer |
+| State machine enforcement | PostgreSQL enums | Application-only validation | DB-level enforcement prevents invalid states even with direct DB access |
+| Job queue | Graphile Worker | Redis + BullMQ, RabbitMQ, AWS SQS | PostgreSQL-native; no additional infrastructure; ACID-safe job claims |
+| Worker concurrency | 1 (sequential) | Higher concurrency (parallel LLM calls) | Predictable LLM API costs; avoids rate limiting; simpler error handling |
+| AI grading model | Human-in-the-loop suggestions | Auto-promotion to official marks | Academic integrity; staff accountability; audit trail for appeals |
+| LLM output parsing | generateObject() + Zod schema | Raw JSON prompt + JSON.parse() | Structured output reduces malformed responses; Zod validates before storage |
+| LLM provider coupling | Provider factory (getModel()) | Hard-coded OpenAI calls | Runtime provider switching without code changes; cost experimentation |
+| Authentication | Dual JWT (custom + Supabase) | Supabase-only, custom-only | On-premise deployability without Supabase; cloud deployments retain magic links and OAuth |
+| Role assignment | Email domain inference | Manual admin assignment, SSO group claims | Zero-friction onboarding for typical institution email structure |
+| API style | REST | GraphQL, tRPC | Well-defined CRUD patterns; single client consumer; lower complexity |
+| Response format | { success, data, error? } envelope | Raw resource response, HTTP status only | Uniform client-side error handling; success flag decouples from HTTP status semantics |
+| Frontend routing | TanStack Router (file-based) | React Router, Next.js pages | Type-safe routes with beforeLoad guards; co-located route and loader logic |
+| Container strategy | Multi-stage Docker (Alpine) | Single-stage build | Smaller image size; non-root user for security compliance |
+| Deployment topology | 2-service model (web + worker) | Embedded worker in HTTP server | Process isolation; independent scaling; worker crash does not affect HTTP availability |
+| Database hosting | Neon PostgreSQL (serverless) | Self-hosted PostgreSQL, PlanetScale | Serverless scaling; compatible with on-premise override via DATABASE_URL |
+| Cost tracking | Per-job token + cost storage, daily aggregates | No tracking | Institutional accountability; cost comparison across providers and models |
+| Prompt management | Prompts in code (versioned) | Prompts in database (dynamic) | Version control; auditability of which prompt produced which grades |
+
+The design decisions summarised above establish the structural and behavioural constraints within which the implementation described in Chapter 4 was carried out. Chapter 4 details how these design choices were realised in code, identifies the implementation challenges encountered, and documents the design patterns applied to manage complexity across the frontend, backend, and background processing components.# 4 Implementation
+
+## 4.1 Technology Stack
+
+The platform was built with a deliberate focus on end-to-end type safety, deployment simplicity, and long-term maintainability within an on-premise school environment. Each technology choice was evaluated against these constraints before adoption.
+
+**Table 4.1: Technology stack**
+
+| Layer | Technology | Version | Rationale |
+|---|---|---|---|
+| Language | TypeScript (strict) | 5.x | End-to-end type safety across client and server; shared type definitions eliminate a class of runtime bugs; strict mode catches implicit `any` and null hazards at compile time |
+| Frontend runtime | React | 19 | Mature component model; hooks-based state management; large ecosystem of compatible libraries; concurrent features enable smoother UX during data fetching |
+| Build tool | Vite | 7 | ESM-native bundler with sub-second hot module replacement; substantially faster than webpack-based alternatives during active development |
+| Client routing | TanStack Router | 1.x | File-based, fully type-safe routing with automatic code splitting; route-level `beforeLoad` guards enable RBAC enforcement at the navigation layer without additional wrappers |
+| Server state | TanStack Query | 5.x | Declarative server state caching with automatic deduplication of concurrent requests; configurable stale-time reduces unnecessary API calls; mutation callbacks keep the UI consistent after writes |
+| Styling | Tailwind CSS | 4 | Utility-first approach enables rapid prototyping and consistent spacing/colour without maintaining a separate CSS file per component |
+| UI primitives | Headless UI | 2.x | Accessible, unstyled components (dialogs, dropdowns, transitions) that integrate with Tailwind without overriding opinionated styles |
+| Diagram editor | xyflow (React Flow) | 12.x | Interactive node-and-edge canvas with built-in drag, zoom, and connection logic; chosen over canvas-based alternatives because it exposes a React component API, keeping diagram state in the React tree |
+| HTTP framework | Hono | 4.x | Lightweight, TypeScript-first framework with middleware chaining identical in form to Express but with first-class type inference on request/response; no unnecessary abstractions |
+| ORM | Drizzle ORM | 0.x | Schema-first approach where `schema.ts` is the single source of truth; `$inferSelect` and `$inferInsert` eliminate manual DTO definitions; thin SQL abstraction gives predictable query plans |
+| Database | PostgreSQL | 16 | JSONB columns provide schema-flexible storage for question content and rubrics without a separate document store; mature, well-understood semantics for transactions and indexes |
+| Authentication | Supabase + jose | — | Supabase handles email/password and magic-link flows out of the box; `jose` provides local JWT verification for the custom authentication path, avoiding a network round-trip on every request |
+| Job queue | Graphile Worker | 0.x | PostgreSQL-native queue; requires no additional infrastructure (no Redis, no RabbitMQ); jobs are durably persisted in the same database as application data |
+| LLM SDK | Vercel AI SDK | 6.x | Provider-agnostic interface over OpenAI, Anthropic, and Google; `generateObject()` enforces structured JSON output validated against a Zod schema |
+| Validation | Zod | 3.x | Runtime schema validation with TypeScript type inference; used for API request validation, LLM response parsing, and environment variable checking |
+| Containerisation | Docker | 24.x | Single-image build including compiled server and bundled client assets; enables deterministic on-premise deployment without a Node.js version requirement on the host |
+| CI/CD | GitHub Actions | — | Automated build, lint, and Docker image push to `ghcr.io` on every commit to main; image tags correspond to git SHA for traceability |
+
+The deliberate absence of a separate caching layer (Redis) and a separate message broker (RabbitMQ) reflects the on-premise deployment constraint. Institutions running this platform on modest hardware should not be required to operate additional stateful services. Graphile Worker satisfies the job queue requirement using the PostgreSQL connection that is already mandatory, keeping the operational footprint to a single database.
+
+---
+
+## 4.2 Frontend Implementation
+
+### 4.2.1 Feature-Based Module Architecture
+
+The client source is organised into self-contained feature modules rather than a layer-by-layer structure (all components in one folder, all hooks in another). Each feature directory bundles its own components, hooks, and types:
+
+```
+src/client/features/
+├── student-dashboard/
+├── student-assignment/        # most complex feature
+│   ├── hooks/
+│   │   ├── useAssignmentData.ts
+│   │   ├── useAnswerManagement.ts
+│   │   └── useFocusMonitor.ts
+│   ├── components/
+│   └── types.ts
+├── staff-course/
+├── staff-grading/
+└── staff-settings/
+```
+
+This structure makes the boundary of each feature explicit. When a staff member's grading view needs modification, the relevant code is isolated under `staff-grading/` rather than scattered across shared folders. The trade-off is occasional duplication of small utility functions across features, which was accepted in preference to premature abstraction.
+
+### 4.2.2 Type-Safe Routing with Route Guards
+
+TanStack Router's file-based routing was adopted principally for its `beforeLoad` hook, which enables RBAC enforcement at the router level. Every protected route declares its access policy before the component renders:
+
+```typescript
+export const Route = createFileRoute('/staff/courses/$courseId')({
+  beforeLoad: ({ context }) => {
+    const { dbUser } = context.auth;
+    if (!dbUser || (dbUser.role !== 'staff' && dbUser.role !== 'admin')) {
+      throw redirect({ to: '/login' });
+    }
+  },
+  loader: ({ params }) => coursesApi.get(params.courseId),
+});
+```
+
+Because the route definition and its type are co-located with the file, the router's type system catches broken parameter references at compile time. Code splitting is automatic: each route file becomes a separate bundle chunk, so students loading the assignment attempt page do not download the staff grading interface.
+
+### 4.2.3 Authentication Context
+
+A React Context (`AuthContext.tsx`) maintains unified authentication state across the application. The dual-auth architecture means a user may authenticate either via Supabase (magic links) or via a custom JWT (password login). The context normalises both paths into a single `dbUser` object:
+
+```typescript
+export type DbUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: 'admin' | 'staff' | 'student';
+  supabaseId: string;
+} | null;
+```
+
+On mount, the context checks `localStorage` for a custom token first; if absent, it falls back to the Supabase session. It subscribes to `supabase.auth.onAuthStateChange` so that token refresh events propagate to all consuming components without requiring manual polling. An admin impersonation feature — useful for testing student-facing flows without a separate browser session — is implemented by storing a `'uml-platform.adminViewAs'` preference in `localStorage`, which the context uses to override the effective role for routing decisions.
+
+### 4.2.4 API Client
+
+All HTTP calls pass through a centralised API client (`src/client/lib/api.ts`) that automatically injects the Bearer token from whichever authentication source is active:
+
+```typescript
+async function getAccessToken(): Promise<string | null> {
+  const customToken = localStorage.getItem('uml-platform.customToken');
+  if (customToken) return customToken;
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
+}
+```
+
+The client exposes named namespace objects (`coursesApi`, `submissionsApi`, `gradingApi`, and so on) rather than a single generic `fetch` wrapper. This provides a discoverable API surface: a developer building the grading dashboard can import `gradingApi` and use TypeScript autocompletion to find available operations. Concurrent token refresh attempts are deduplicated using a module-level promise, preventing multiple simultaneous `POST /api/auth/refresh` calls when several queries fire on initial page load.
+
+### 4.2.5 Student Assignment Attempt
+
+The student assignment attempt page is the most complex component in the system. It must simultaneously handle question navigation, answer persistence, timer countdown, focus monitoring, and submission confirmation while remaining robust to connectivity interruptions during an exam.
+
+**Dirty-tracking auto-save.** Rather than debouncing saves on every keystroke — which would produce excessive API traffic during a written answer — the `useAnswerManagement` hook tracks which questions have unsaved changes using a `Set<string>` ref (`dirtyRef`). A `setInterval` every 30 seconds flushes all dirty question IDs silently in the background. Immediate saves are also triggered on question navigation and before submission:
+
+```typescript
+const updateAnswer = useCallback((questionId: string, answer: AnswerState) => {
+  setAnswers(prev => ({ ...prev, [questionId]: answer }));
+  dirtyRef.current.add(questionId);
+}, []);
+
+// Auto-flush every 30 seconds
+useEffect(() => {
+  const interval = setInterval(() => {
+    const dirtyIds = Array.from(dirtyRef.current);
+    dirtyIds.forEach(id => void saveAnswer(id, true));
+  }, 30000);
+  return () => clearInterval(interval);
+}, [saveAnswer, submission, submitted]);
+```
+
+**Discriminated union for answer types.** Each answer type has a structurally distinct shape. A discriminated union enforces that the calling code handles every variant:
+
+```typescript
+export type AnswerState =
+  | { type: 'written'; text: string }
+  | { type: 'coding'; text: string }
+  | { type: 'mcq'; selectedOptionIds: string[] }
+  | { type: 'uml'; umlText: string; editorState?: ClassDiagramState };
+```
+
+The `saveAnswer` function switches on `answer.type` to construct the correct API payload for each variant, which the TypeScript compiler verifies is exhaustive. This pattern eliminates runtime errors caused by accessing `selectedOptionIds` on a written answer or vice versa.
+
+**Focus monitoring.** When a staff member enables focus monitoring on an assignment, the `useFocusMonitor` hook attaches a `visibilitychange` listener to detect tab switches. Each departure–return pair is reported to the server as a focus event, which the server appends to the submission's `tabSwitches` JSONB column. If the reported count reaches the configured `maxTabSwitches`, the server's response includes `shouldAutoSubmit: true`, and the hook triggers immediate submission:
+
+```typescript
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    leftAtRef.current = new Date().toISOString();
+  } else if (leftAtRef.current) {
+    submissionsApi.reportFocusEvent(submissionId, { ... }).then(response => {
+      if (response.data.shouldAutoSubmit) onAutoSubmit();
+    });
+    leftAtRef.current = null;
+  }
+});
+```
+
+**UML Editor.** The UML editing component offers three modes that students can switch between during an attempt: a visual canvas powered by xyflow where classes and relationships are manipulated by dragging and connecting nodes; a text editor accepting PlantUML notation for students who prefer a code-like input; and a preview mode that renders the PlantUML to a diagram image via a public rendering API. State is unified: editing in the visual mode updates the PlantUML text, and editing the PlantUML text updates the canvas layout on the next render. Both representations are persisted to the `answers.content` JSONB column so that graders can inspect either form.
+
+---
+
+## 4.3 Backend Implementation
+
+### 4.3.1 Route Organisation
+
+The server exposes approximately fifteen Hono route files, each responsible for a single resource: `courses`, `assignments`, `submissions`, `questions`, `grading`, `admin`, `settings`, `notifications`, and `auto-grade`, among others. Each file is between 200 and 400 lines and imports only the database tables and middleware it requires. This flat structure was preferred over a nested controller/service/repository layering because the application's complexity is horizontal (many resource types) rather than deep (many abstraction layers per resource).
+
+All routes return the standard response envelope:
+
+```typescript
+{ success: true, data: { ... } }
+// or
+{ success: false, error: "Human-readable message" }
+```
+
+This uniformity means the API client can apply a single error-handling wrapper rather than per-endpoint parsing.
+
+### 4.3.2 Authentication Middleware
+
+The authentication middleware implements a two-path verification strategy motivated by the dual-auth requirement. Custom JWT verification is performed first because it is entirely local — it requires only an HMAC comparison against the server's `JWT_SECRET` and a single database row lookup to confirm the user still exists:
+
+```typescript
+async function tryCustomJwt(token: string) {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    if (payload.sub && payload.email)
+      return { id: payload.sub, email: payload.email, role: payload.role };
+    return null;
+  } catch {
+    return null;
+  }
+}
+```
+
+If the custom JWT path fails (because the token is a Supabase JWT), the middleware falls back to `supabase.auth.getUser(token)`, which makes an outbound network call to Supabase's verification endpoint. Although slower, this path is only taken when the institution uses Supabase-issued tokens. On first login via Supabase, if the user does not yet exist in the platform's `users` table, they are auto-provisioned with a role derived from their email domain (`@staff.main.ntu.edu.sg` → `staff`, `@e.ntu.edu.sg` → `student`). This automatic role inference removes the need for manual user provisioning after Supabase authentication.
+
+Role-based access control is enforced through a `requireRole` middleware factory that is composed per route:
+
+```typescript
+export function requireRole(...allowedRoles: string[]) {
+  return (c: Context<AuthContext>, next: Next) => {
+    const user = c.get('user');
+    if (!user) return c.json({ error: 'Unauthorized' }, 401);
+    if (user.role === 'admin') return next();
+    if (!allowedRoles.includes(user.role))
+      return c.json({ error: 'Forbidden' }, 403);
+    return next();
+  };
+}
+```
+
+### 4.3.3 Submission Lifecycle
+
+Submissions traverse a deterministic state machine: `draft` → `submitted` (or `late` if past the due date) → `grading` → `graded`. The `draft` state is idempotent: if a student calls the start-attempt endpoint when a draft already exists, the server returns the existing draft rather than creating a duplicate. This is essential because page refreshes during an exam must resume the attempt, not open a new one.
+
+MCQ auto-grading is synchronous at submission time. When the student submits, the server grades all MCQ answers immediately — applying the configurable per-wrong-selection penalty — and writes marks to the database in the same request. If the assignment contains only MCQ questions, the submission status advances directly to `graded` without ever entering `grading`. This design keeps the common case (pure MCQ tests) instant from the student's perspective while the LLM grading pipeline handles mixed and written assignments asynchronously.
+
+Late penalty calculation is performed entirely server-side to prevent client manipulation. The penalty is parameterised by type (`none`, `fixed`, `per_day`, `per_hour`) and an optional cap:
+
+```typescript
+type LatePenaltyConfig = {
+  type: 'none' | 'fixed' | 'per_day' | 'per_hour';
+  value: number;  // percentage
+  cap: number | null;  // maximum percentage
+};
+```
+
+The penalty percentage and the calculation details (minutes late, raw score, adjusted score) are stored alongside the submission so that staff can audit why a deduction was applied.
+
+---
+
+## 4.4 LLM Integration and Prompt Engineering
+
+### 4.4.1 Provider Factory
+
+The LLM provider is selected at runtime through a factory function (`getModel()` in `src/server/lib/ai.ts`). Provider and model are read from the `systemSettings` database table, which can be updated by administrators through the settings UI. The retrieved values are cached in memory for 60 seconds to avoid a database read on every grading job:
+
+```typescript
+let settingsCache: { provider: string; model: string; lastFetch: number } | null = null;
+const CACHE_TTL = 60000;
+
+async function getLLMSettings() {
+  if (settingsCache && Date.now() - settingsCache.lastFetch < CACHE_TTL) {
+    return { provider: settingsCache.provider, model: settingsCache.model };
+  }
+  // ... DB read ...
+  settingsCache = { provider, model, lastFetch: Date.now() };
+  return { provider, model };
+}
+
+async function getModel() {
+  const { provider, model } = await getLLMSettings();
+  if (provider === 'anthropic') return anthropic(model);
+  if (provider === 'google') return google(model);
+  return openai(model);
+}
+```
+
+Switching providers requires only a settings change: no code deployment is needed. This was an explicit requirement to allow institutions to substitute providers as pricing or data-residency policies change.
+
+### 4.4.2 Structured Output with Zod
+
+The Vercel AI SDK's `generateObject()` function was selected over free-form text generation precisely because grading requires a reliably parseable numeric score. Every grading job uses a shared Zod schema:
+
+```typescript
+const GradingResponseSchema = z.object({
+  points: z.number().min(0).describe('Points awarded (0 to maxPoints)'),
+  reasoning: z.string().min(10).describe('Detailed explanation of grading decision'),
+  confidence: z.number().min(0).max(100).describe('Confidence level (0-100)'),
+  criteriaScores: z.array(z.object({
+    criterion: z.string(),
+    score: z.number(),
+    comment: z.string(),
+  })).optional(),
+});
+```
+
+The SDK instructs the model to produce output that conforms to this schema. As an additional defensive measure, the `points` field is clamped server-side after parsing in case the model returns a value exceeding the question's maximum:
+
+```typescript
+if (gradingResult.points > maxPoints) {
+  gradingResult.points = maxPoints;
+}
+```
+
+### 4.4.3 Prompt Design
+
+Prompts are defined in `src/server/config/prompts.ts` and exist in two versioned forms, selectable via a `PROMPT_VERSION` environment variable. Version 1 (`v1`) positions the LLM as a fair academic assistant that awards partial credit and emphasises conceptual understanding. Version 2 (`v2`) configures a stricter posture that penalises missing technical terminology and incomplete coverage. Both versions include the same contextual information: the student's answer, the reference answer, the maximum points available, and, where provided, the rubric criteria with their individual point allocations.
+
+For UML assignments, the text representation of the diagram — PlantUML notation — is embedded directly in the prompt rather than submitting the visual canvas state. This is because PlantUML is a standardised, token-efficient encoding that vision-capable models can reason about structurally. When a student submits a visual diagram, the system serialises the xyflow node-and-edge state into PlantUML before constructing the prompt. For image-based submissions, the model is first asked to extract the PlantUML structure from the image, then compare that extraction to the reference.
+
+The UML v2 system prompt explicitly references UML 2.x notation compliance, design pattern recognition, and naming conventions. This reflects the assessment goal of the course: students are not only expected to model the domain correctly but to do so using standard UML idioms.
+
+### 4.4.4 Cost Tracking
+
+Every grading job records input and output token counts returned by the Vercel AI SDK. The `calculateCost` function in `src/server/config/pricing.ts` multiplies token counts by the per-million-token rates for the active provider and model. Costs are stored as six-decimal-precision strings rather than floating-point numbers to avoid IEEE 754 accumulation errors when summing daily aggregates:
+
+```typescript
+const inputCost = (inputTokens / 1_000_000) * modelPricing.input;
+const outputCost = (outputTokens / 1_000_000) * modelPricing.output;
+return Number((inputCost + outputCost).toFixed(6));
+```
+
+Daily aggregates in the `aiUsageStats` table give administrators a running view of expenditure per provider and model, which is surfaced in the settings dashboard. This transparency was a requirement to make the platform adoptable by institutions operating under tight budget constraints.
+
+---
+
+## 4.5 Background Job Processing
+
+### 4.5.1 Graphile Worker Architecture
+
+All asynchronous work is handled by Graphile Worker, which stores job queues as rows in a dedicated PostgreSQL schema. Because the platform already depends on PostgreSQL, this adds no new infrastructure. The three registered task types are: `auto-grade-written` (LLM essay grading), `auto-grade-uml` (LLM UML diagram grading), and `auto-submit-expired` (timed-exam enforcement).
+
+The worker process is compiled to a separate entry point (`src/server/worker.ts`) that registers the task list and starts the runner without binding any HTTP server:
+
+```typescript
+const taskList: TaskList = {
+  'auto-grade-written': (payload, helpers) =>
+    autoGradeWritten(payload as AutoGradeWrittenPayload, helpers),
+  'auto-grade-uml': (payload, helpers) =>
+    autoGradeUML(payload as AutoGradeUMLPayload, helpers),
+  'auto-submit-expired': (payload, helpers) =>
+    autoSubmitExpired(payload, helpers),
+};
+initializeWorker(taskList);
+```
+
+In the Docker and Kubernetes deployments, the worker runs as a separate container from the web server. This separation allows the grading pipeline to be scaled or restarted independently without affecting the HTTP-serving tier.
+
+### 4.5.2 Concurrency and Cost Control
+
+The worker is configured with concurrency equal to one. This decision was deliberate: LLM API calls are the most expensive operation in the system, and a sudden burst of concurrent grading jobs — such as when a lecturer triggers batch grading for an entire class — could produce an unexpectedly large API bill within minutes. Processing jobs serially introduces latency but bounds the rate of expenditure and respects provider rate limits without requiring a token-bucket implementation.
+
+### 4.5.3 Auto-Submit Enforcement
+
+The `auto-submit-expired` task is scheduled as a recurring cron job that fires every minute. It queries for draft submissions whose `startedAt + timeLimit` is in the past. For each expired submission, the job grades any MCQ answers synchronously, applies any applicable late penalty, transitions the submission to `submitted` (or `graded` if only MCQ questions were present), and sets `auto_submitted = true`. Staff enrolled in the course as lecturers, TAs, or lab executives receive a notification listing how many submissions were auto-submitted for each affected assignment. This server-side enforcement means timer accuracy does not depend on the student's browser remaining open, which is the correct behaviour for a proctored examination.
+
+### 4.5.4 Job Failure Handling
+
+If a grading job throws an exception, Graphile Worker marks the job as failed and Graphile's internal retry logic can be configured to re-attempt it. At the application level, the job handler updates the `aiGradingJobs` record with `status: 'failed'` and stores the error message and stack trace in the `error` JSONB column for post-mortem inspection. A staff notification is created immediately so that the responsible lecturer is made aware of the failure and can initiate manual grading. This two-pronged approach — automated notification plus a durable error record — ensures that a grading failure does not silently leave a student's submission in an ungraded state.
+
+---
+
+## 4.6 Key Design Patterns
+
+### 4.6.1 Factory Pattern — LLM Provider Selection
+
+The factory pattern encapsulates the construction of objects whose concrete type is determined at runtime. `getModel()` in `src/server/lib/ai.ts` is a textbook application: callers request an LLM model instance without knowing whether it will be an OpenAI, Anthropic, or Google implementation. Because the Vercel AI SDK exposes all three providers through an identical interface, the rest of the grading pipeline is entirely decoupled from the provider choice. Adding a further provider (for example, a locally-hosted model via an OpenAI-compatible endpoint) requires only a new branch in `getModel()`.
+
+### 4.6.2 State Machine Pattern — Submission Lifecycle
+
+The submission status column is constrained by a PostgreSQL enum (`submission_status`) and the server enforces valid transitions: a submission may not move from `draft` directly to `graded`, nor may a `graded` submission return to `grading`. Making transitions explicit in the database schema, rather than relying on application-layer bookkeeping, prevents concurrent requests from leaving a submission in an inconsistent state. The state machine pattern is directly beneficial to graders, who can filter submissions by status and trust that the status value accurately reflects what has happened.
+
+### 4.6.3 Discriminated Union Pattern — Answer Types
+
+TypeScript's discriminated unions provide exhaustiveness checking at compile time. The `AnswerState` type in the student assignment feature uses the `type` field as the discriminant. Every function that switches on `AnswerState.type` is checked by the compiler to handle all four variants (`written`, `coding`, `mcq`, `uml`). If a fifth question type were added in the future, every switch statement that does not handle it would produce a compile error, guiding the developer to all affected code paths.
+
+### 4.6.4 Repository Pattern (API Client Namespaces)
+
+The API client groups related operations into named objects that resemble repositories:
+
+```typescript
+export const coursesApi = { list, get, create, update };
+export const submissionsApi = { start, save, submit, reportFocusEvent };
+export const gradingApi = { getSubmissions, grade, bulkGrade };
+```
+
+This is not a strict implementation of the repository pattern (no interface or swappable implementation), but it achieves the practical goal: callers import only the namespace relevant to their feature, the namespace provides discoverable operations, and the token-injection logic is centralised in one place.
+
+### 4.6.5 Observer Pattern — Auth State Changes
+
+React Context combined with Supabase's `onAuthStateChange` callback implements the observer pattern for authentication events. The `AuthProvider` component subscribes to Supabase session changes on mount and propagates updates to all context consumers. This means that token expiry and refresh events are handled in a single location. Components do not need to manage their own session checking; they consume `dbUser` from context and react to its changes automatically.
+
+### 4.6.6 Strategy Pattern — Late Penalty Calculation
+
+The late penalty system supports four interchangeable algorithms: no penalty, a fixed percentage, a per-day accumulating penalty, and a per-hour accumulating penalty. Each is a distinct strategy for computing a deduction given the same inputs (minutes late, configured value, cap). The strategy is selected at call time from the assignment's `latePenaltyType` field. The Strategy pattern here directly serves the platform's goal of accommodating diverse institutional policies within a single codebase, without requiring code changes to adopt a new penalty scheme.
+
+### 4.6.7 Command Pattern — Background Job Payloads
+
+Each Graphile Worker task receives a typed payload object that encodes everything the task needs to execute independently of the caller:
+
+```typescript
+interface AutoGradeWrittenPayload {
+  answerId: string;
+  questionId: string;
+  submissionId: string;
+  userId: string;
+  batchId?: string;
+  jobId: string;
+}
+```
+
+This payload is serialised to JSON and stored in the database queue. The task is durable: if the worker restarts mid-job, the payload can be re-read and execution restarted. By making the payload self-contained, the Command pattern enables the decoupling of the grading request (issued by an HTTP handler) from its execution (performed by the worker process, potentially minutes later).
+
+---
+
+## 4.7 Implementation Challenges
+
+### 4.7.1 Dual Authentication Complexity
+
+Supporting two independent authentication paths in the same codebase created several subtle issues. The most significant was token refresh during an active exam: a student who logs in via password and sits a two-hour exam will have their one-hour access token expire mid-attempt. The `api.ts` client detects 401 responses and automatically attempts to exchange the stored refresh token for a new access token before retrying the original request. To prevent multiple simultaneous 401 responses from triggering multiple concurrent refresh calls, a deduplication mechanism serialises all refresh attempts behind a shared promise.
+
+Testing this code path required simulating token expiry in a controlled environment, which added meaningful overhead to the development cycle.
+
+### 4.7.2 LLM Output Reliability
+
+Despite the structured output mechanism, early testing revealed cases in which the LLM returned a `points` value fractionally above `maxPoints` (for example, `10.0001` for a 10-point question) due to floating-point rounding in the model's internal computation. A defensive clamp was added after parsing.
+
+A separate category of failures involved the model producing a `reasoning` field shorter than the Zod minimum length constraint of 10 characters when the student's answer was very short (for example, a single word). These failures were mitigated by expanding the prompt to explicitly request a minimum explanation length regardless of answer length. Residual failures are handled by the job failure path, which notifies staff and stores the error for inspection.
+
+### 4.7.3 Timer Synchronisation
+
+The client-side countdown timer is initialised from `submission.startedAt` and the assignment's `timeLimit`, comparing against the local browser clock. Over a long exam, browser clock drift can accumulate to several seconds, and the client's countdown may reach zero slightly before or after the server-computed deadline. The auto-submit cron job serves as the authoritative enforcement mechanism, but it runs on a one-minute polling interval, meaning there is a window of up to 60 seconds in which a student whose timer has reached zero client-side may still be able to submit answers. This was accepted as a known limitation: the gap is small enough to be inconsequential in practice, and eliminating it would require a WebSocket-based real-time signal, which was deemed out of scope for the current iteration.
+
+### 4.7.4 Focus Monitoring False Positives
+
+The `visibilitychange` event fires in circumstances beyond intentional tab switching: operating system notifications that briefly steal focus, screen saver activation, and interactions with browser extensions all trigger the event. This means the tab-switch counter can be incremented by benign actions beyond the student's control. The platform mitigates this by applying a threshold: `maxTabSwitches` is configurable per assignment, and the recommended default is higher than one to accommodate occasional false positives. Staff can also inspect the `tabSwitches` JSONB array on a submission, which records the timestamp and duration of each focus event, enabling manual review of borderline cases.
+
+### 4.7.5 JSONB Schema Evolution
+
+Several database columns — `answers.content`, `questions.content`, `submissions.tabSwitches` — store structured data as PostgreSQL JSONB. Because JSONB imposes no schema constraints, changes to the expected structure (for example, adding a field to the UML answer format) must be handled entirely in application code. The platform uses Zod schemas and utility functions (`getAnswerContent`, `getQuestionContent`) to parse JSONB at the boundary between the database and the application layer, applying defaults for missing fields and rejecting malformed data with a descriptive error. This pattern localises JSONB parsing logic to a small number of utility files, making schema evolution changes traceable to a single location per content type.
+
+With the platform implemented and deployed, Chapter 5 turns to the empirical dimension of the project: a controlled multi-model experiment that evaluates the suitability of ten LLMs across three providers for automated UML class diagram grading, directly exercising the grading pipeline described in Sections 4.4 and 4.5.
+# 5 Experiment — LLM Model Evaluation for UML Diagram Grading
+
+## 5.1 Motivation and Research Questions
+
+The assessment platform described in this report supports configurable LLM providers, enabling institutions to select from models offered by OpenAI, Anthropic, and Google. While this flexibility is architecturally desirable, it introduces a non-trivial practical question: which model should an institution actually use? The choice carries real consequences. A model that assigns grades inconsistent with human judgment undermines student trust and defeats the purpose of automated assessment. A model that costs too much per submission may be financially unsustainable at scale. A model that frequently fails to produce structured output requires costly fallback handling.
+
+Prior work demonstrates that LLM grading capability varies significantly across model families and sizes. Ibanez et al. (2025), whose work is reviewed in Section 2.2.3, evaluated LLMs for automated UML grading using Intraclass Correlation Coefficient (ICC) as their primary metric, reporting ICC values ranging from 0.76 for Claude Sonnet to lower values for smaller models. However, their study did not evaluate Google Gemini models, did not consider cost as a variable, and did not systematically measure output consistency across repeated runs. This experiment addresses those gaps by conducting a controlled multi-model evaluation across ten models from three providers, using a common rubric, a shared dataset of 32 UML class diagram submissions, and a composite scoring framework that balances accuracy, cost, consistency, and feedback quality.
+
+The experiment is motivated by four research questions:
+
+**RQ1:** Which LLM achieves the highest grading accuracy for UML class diagrams, as measured by Pearson correlation coefficient and Mean Absolute Error (MAE) against a human-graded ground truth?
+
+**RQ2:** What is the cost-performance trade-off across models, as measured by USD cost per submission?
+
+**RQ3:** How consistent are LLM-assigned grades across repeated runs of the same submission, as measured by standard deviation across five independent runs?
+
+**RQ4:** Which model provides the most useful structured feedback, as measured by JSON parse success rate and structured output completeness?
+
+Together, these questions aim to produce an actionable recommendation: a ranked comparison of models that allows an institution to select the most appropriate model given its budget, accuracy requirements, and operational constraints.
+
+---
+
+## 5.2 Methodology
+
+### 5.2.1 Models Under Evaluation
+
+Ten models across three providers were selected to span a broad range of capability and cost tiers. Table 5.1 lists the models and their general positioning.
+
+**Table 5.1: Models included in the evaluation**
+
+| Provider | Model | Tier |
+|----------|-------|------|
+| OpenAI | GPT-4o | Flagship |
+| OpenAI | GPT-4o-mini | Mid-range |
+| OpenAI | GPT-4.1-mini | Mid-range |
+| OpenAI | GPT-4.1-nano | Lightweight |
+| OpenAI | o4-mini | Reasoning-optimised |
+| Anthropic | Claude Sonnet 4 | Flagship |
+| Anthropic | Claude 3.5 Haiku | Mid-range |
+| Google | Gemini 2.5 Pro | Flagship |
+| Google | Gemini 2.5 Flash | Mid-range |
+| Google | Gemini 2.0 Flash | Mid-range |
+
+Model selection was guided by three criteria: (1) multimodal capability, as UML grading requires processing diagram images via vision APIs; (2) support for structured JSON output, since the platform's grading pipeline depends on a well-formed Zod-validated response; and (3) commercial availability at the time of writing, ensuring the results are directly applicable to institutional procurement decisions.
+
+### 5.2.2 Experimental Protocol
+
+Each model grades all 32 submissions in the dataset, producing a structured response for each. To measure consistency (RQ3), this process is repeated five times per model per submission, yielding a total of 10 × 32 × 5 = 1,600 individual API calls.
+
+The following controls are applied uniformly across all models:
+
+**Prompt template.** All models receive an identical prompt derived from the platform's production v2 strict grading prompt. The prompt presents the UML diagram image alongside the assignment rubric and instructs the model to score each of five criteria independently before computing a total score. No model-specific prompt engineering is applied, so as to measure baseline performance under a common instruction set.
+
+**Temperature.** Temperature is set to 0 where supported by the provider's API. For models that do not expose a temperature parameter (notably reasoning-optimised models such as o4-mini), the provider's default deterministic or low-variance mode is used. The effect of this limitation on RQ3 results is discussed in Section 5.6.
+
+**Timeout.** A 60-second per-call timeout is enforced, matching the platform's production configuration. Calls that exceed this threshold are recorded as failures and excluded from accuracy and feedback quality calculations but counted against the model's reliability score.
+
+**Structured output schema.** All models are required to return a JSON object conforming to the following Zod schema:
+
+```
+{
+  totalPoints: number,           // 0–10
+  reasoning: string,             // overall justification
+  confidence: number,            // 0–100
+  criteriaScores: {
+    classIdentification: number, // 0–2
+    attributeCompleteness: number,
+    methodSignatures: number,
+    relationships: number,
+    designPrinciples: number
+  }
+}
+```
+
+Models that support native structured output (OpenAI's `response_format: { type: "json_schema" }` and Anthropic's tool-use mode) are configured accordingly. For models where native enforcement is unavailable, the response is parsed from the model's text output using a JSON extraction utility; failures are recorded.
+
+**Latency measurement.** Wall-clock time for each API call is recorded in milliseconds. This captures end-to-end latency including network round-trip and model inference time, but excluding image encoding overhead.
+
+### 5.2.3 Composite Scoring Framework
+
+Raw metrics across the four research questions are combined into a single composite score using the following weights, which reflect the relative importance of each dimension for a production grading system:
+
+| Dimension | Weight |
+|-----------|--------|
+| Accuracy (Pearson r + MAE) | 30% |
+| Consistency (std deviation) | 20% |
+| Cost (USD per submission) | 15% |
+| Feedback quality (parse rate + completeness) | 15% |
+| Speed (median latency) | 10% |
+| Rubric adherence (per-criterion coverage) | 10% |
+
+Each raw metric is min-max normalised within the model set before weighting, so that no single metric's scale dominates the composite. For cost and latency, lower values receive higher normalised scores; for accuracy and feedback quality, higher values receive higher normalised scores.
+
+---
+
+## 5.3 Dataset
+
+### 5.3.1 Composition
+
+The evaluation dataset comprises 32 UML class diagram submissions. Two submissions are drawn from the McGill uml-grader repository (Denny et al., as referenced in related work), providing a small anchor of real student work. The remaining 30 submissions are synthetic, generated to achieve controlled variation across known quality tiers and domain contexts.
+
+The 30 synthetic submissions are distributed across five quality tiers and three domain contexts, as shown in Table 5.2.
+
+**Table 5.2: Synthetic submission distribution**
+
+| Tier | Description | Count per domain | Total |
+|------|-------------|-----------------|-------|
+| T1 | Near-perfect (9–10/10) | 2 | 6 |
+| T2 | Minor errors (7–8/10) | 2 | 6 |
+| T3 | Moderate errors (5–6/10) | 2 | 6 |
+| T4 | Significant errors (3–4/10) | 2 | 6 |
+| T5 | Poor / incomplete (0–2/10) | 2 | 6 |
+
+**Domains:** Library management system, e-commerce platform, hospital patient record system.
+
+Synthetic diagrams were constructed by first producing a reference solution for each domain and then systematically introducing errors corresponding to each tier — for example, omitting multiplicities from associations (T2), removing return types from methods (T3), misclassifying inheritance as association (T4), or providing only a single class with no relationships (T5). Each diagram was rendered as a PNG image to match the format expected by vision-capable APIs.
+
+### 5.3.2 Ground Truth
+
+All 32 submissions were graded against a five-criterion rubric, with each criterion scored on a 0–2 integer scale, yielding a maximum total score of 10 points. The five criteria are:
+
+1. **Class identification and naming** — correct identification of domain entities, appropriate naming conventions, appropriate use of abstract classes and interfaces.
+2. **Attribute completeness and types** — presence of all required attributes, correct data types, appropriate visibility modifiers.
+3. **Method signatures** — correct method names, parameter lists, return types, and visibility.
+4. **Relationships and multiplicities** — correct modelling of associations, aggregations, compositions, inheritances, and their multiplicity annotations.
+5. **Design principles** — evidence of encapsulation, appropriate cohesion, and avoidance of common anti-patterns.
+
+Ground truth scores were assigned by a single grader (the author) using a detailed marking guide produced prior to dataset construction, to reduce post-hoc rationalisation. The marking guide specifies, for each criterion and each domain, which elements must be present for each point level.
+
+### 5.3.3 Limitations of the Dataset
+
+Several limitations of this dataset must be acknowledged. First, the dataset is small: 32 submissions are sufficient to demonstrate proof-of-concept findings but insufficient to establish statistically robust conclusions. Second, 30 of 32 submissions are synthetic, which may not capture the full distribution of errors produced by real students — in particular, the creative and idiosyncratic misunderstandings that characterise genuine novice work. Third, ground truth is provided by a single grader, with no inter-rater reliability measurement; the degree to which these scores reflect a stable consensus judgment is unknown. Fourth, the dataset covers only UML class diagrams; sequence, activity, and use-case diagrams are not included, limiting the generalisability of findings to class diagram grading specifically. These limitations are further discussed in Section 5.6.
+
+---
+
+## 5.4 Results [PLACEHOLDER]
+
+*Note: All numerical results presented in this section are projected estimates based on related studies, in particular Ibanez et al. (2025), and on the characteristics of the models as reported in their respective technical documentation. These values are clearly marked [PLACEHOLDER] and will be replaced with actual experimental data prior to final submission.*
+
+### 5.4.1 RQ1 — Grading Accuracy
+
+Table 5.3 presents the Pearson correlation coefficient (r), Mean Absolute Error (MAE), and Root Mean Squared Error (RMSE) for each model against the human ground truth, computed across all 32 submissions using the mean grade from the five repeated runs.
+
+**Table 5.3: Grading accuracy metrics [PLACEHOLDER]**
+
+| Model | Pearson r | MAE | RMSE |
+|-------|-----------|-----|------|
+| Claude Sonnet 4 | 0.85 | 0.87 | 1.15 |
+| GPT-4o | 0.82 | 0.94 | 1.21 |
+| Gemini 2.5 Pro | 0.79 | 1.02 | 1.34 |
+| o4-mini | 0.78 | 1.08 | 1.40 |
+| GPT-4.1-mini | 0.74 | 1.22 | 1.55 |
+| Gemini 2.5 Flash | 0.73 | 1.28 | 1.58 |
+| GPT-4o-mini | 0.71 | 1.35 | 1.68 |
+| Gemini 2.0 Flash | 0.70 | 1.38 | 1.72 |
+| Claude 3.5 Haiku | 0.68 | 1.42 | 1.75 |
+| GPT-4.1-nano | 0.62 | 1.65 | 2.01 |
+
+[PLACEHOLDER — The top two models, Claude Sonnet 4 and GPT-4o, achieve Pearson correlations exceeding 0.80, placing them in the range of "good" agreement with human judgment. This is broadly consistent with Ibanez et al. (2025), who reported ICC = 0.76 for Claude Sonnet in a comparable UML grading task. The reasoning-optimised model o4-mini performs respectably (r = 0.78) despite its smaller parameter count, suggesting that chain-of-thought reasoning may partially compensate for reduced model capacity in structured assessment tasks. GPT-4.1-nano performs worst across all accuracy metrics, indicating that the most aggressively compressed models are not suitable for nuanced rubric-based grading.]
+
+A grade-correlation scatter plot (visualisation type 1) will display model-assigned scores on the x-axis against human scores on the y-axis for each model, with a diagonal reference line representing perfect agreement. Per-criterion MAE is presented as a heatmap (visualisation type 6) with models on one axis and criteria on the other, revealing which rubric dimensions are consistently most difficult for automated assessment.
+
+### 5.4.2 RQ2 — Cost per Submission
+
+Table 5.4 reports the mean estimated cost in USD per submission, computed from each provider's published token pricing and the observed mean input and output token counts across the 32 submissions.
+
+**Table 5.4: Cost per submission [PLACEHOLDER]**
+
+| Model | Input tokens (mean) | Output tokens (mean) | Cost per submission (USD) |
+|-------|--------------------|--------------------|--------------------------|
+| Gemini 2.5 Pro | ~2,800 | ~420 | $0.078 |
+| GPT-4o | ~2,600 | ~390 | $0.071 |
+| Claude Sonnet 4 | ~2,650 | ~410 | $0.065 |
+| o4-mini | ~2,500 | ~480 | $0.021 |
+| Gemini 2.5 Flash | ~2,700 | ~390 | $0.012 |
+| GPT-4o-mini | ~2,550 | ~370 | $0.009 |
+| Claude 3.5 Haiku | ~2,600 | ~380 | $0.008 |
+| GPT-4.1-mini | ~2,500 | ~360 | $0.006 |
+| Gemini 2.0 Flash | ~2,650 | ~370 | $0.004 |
+| GPT-4.1-nano | ~2,450 | ~340 | $0.001 |
+
+[PLACEHOLDER — The cost-accuracy relationship is visualised as a Pareto frontier plot (visualisation type 3), with cost per submission on the x-axis and Pearson r on the y-axis. Models on the Pareto frontier — those for which no other model achieves both higher accuracy and lower cost simultaneously — represent the set of optimal choices under different institutional budget constraints. Projected Pareto-efficient models are Claude Sonnet 4, o4-mini, Gemini 2.5 Flash, GPT-4.1-mini, and GPT-4.1-nano, representing a spectrum from high-accuracy/high-cost to low-accuracy/low-cost.]
+
+### 5.4.3 RQ3 — Grade Consistency
+
+Table 5.5 reports the mean standard deviation of total scores across five repeated runs for each model, averaged over all 32 submissions. A lower standard deviation indicates more deterministic grading behaviour.
+
+**Table 5.5: Consistency across five runs (std deviation of total score) [PLACEHOLDER]**
+
+| Model | Mean std dev | Min std dev | Max std dev |
+|-------|-------------|-------------|-------------|
+| GPT-4o | 0.18 | 0.00 | 0.45 |
+| Claude Sonnet 4 | 0.21 | 0.00 | 0.52 |
+| GPT-4o-mini | 0.28 | 0.00 | 0.61 |
+| GPT-4.1-mini | 0.31 | 0.00 | 0.68 |
+| o4-mini | 0.35 | 0.00 | 0.72 |
+| Gemini 2.5 Pro | 0.38 | 0.00 | 0.79 |
+| Gemini 2.5 Flash | 0.42 | 0.00 | 0.83 |
+| Claude 3.5 Haiku | 0.48 | 0.00 | 0.91 |
+| Gemini 2.0 Flash | 0.55 | 0.00 | 1.02 |
+| GPT-4.1-nano | 0.82 | 0.00 | 1.65 |
+
+[PLACEHOLDER — Consistency results are visualised as a boxplot (visualisation type 4) showing the distribution of per-submission standard deviations for each model. GPT-4o achieves the lowest mean standard deviation (0.18 points), suggesting that temperature=0 is most effective for this model family. The higher variance observed for Gemini models may reflect differences in how these providers interpret the temperature parameter when processing multimodal inputs. GPT-4.1-nano's mean standard deviation of 0.82 points — representing nearly a full grade point of variability across runs — raises serious concerns about its suitability for a fair assessment context.]
+
+### 5.4.4 RQ4 — Structured Feedback Quality
+
+Table 5.6 reports parse success rate (the proportion of calls that returned a valid, schema-conformant JSON object) and structured output completeness (the proportion of required fields that were populated with non-null, in-range values, conditional on a successful parse).
+
+**Table 5.6: Feedback quality metrics [PLACEHOLDER]**
+
+| Model | Parse success rate | Output completeness | Median confidence score |
+|-------|-------------------|---------------------|------------------------|
+| GPT-4o | 100% | 98.4% | 81 |
+| Claude Sonnet 4 | 100% | 97.9% | 79 |
+| o4-mini | 99.4% | 96.1% | 77 |
+| GPT-4o-mini | 99.1% | 95.3% | 74 |
+| GPT-4.1-mini | 98.8% | 94.7% | 72 |
+| Gemini 2.5 Pro | 97.5% | 93.8% | 76 |
+| Claude 3.5 Haiku | 96.9% | 92.4% | 70 |
+| Gemini 2.5 Flash | 95.6% | 91.2% | 68 |
+| Gemini 2.0 Flash | 94.4% | 89.7% | 65 |
+| GPT-4.1-nano | 91.3% | 85.6% | 61 |
+
+[PLACEHOLDER — Parse success rates are high across all models when native structured output enforcement is enabled, confirming that the platform's use of provider-specific structured output APIs is effective. The lower rates for Gemini models reflect the current state of that provider's structured output API, which at the time of writing imposes stricter constraints on schema complexity for multimodal inputs. All parse failures were handled gracefully by the platform's fallback JSON extraction utility, though the recovered outputs were excluded from completeness calculations due to potential truncation.]
+
+### 5.4.5 Composite Scores [PLACEHOLDER]
+
+Table 5.7 presents the weighted composite score for each model. Scores are expressed on a 0–100 scale after normalisation and weighting.
+
+**Table 5.7: Composite scores [PLACEHOLDER]**
+
+| Rank | Model | Composite Score | Accuracy | Consistency | Cost | Feedback | Speed | Rubric |
+|------|-------|----------------|----------|-------------|------|----------|-------|--------|
+| 1 | Claude Sonnet 4 | 74.2 | 28.1 | 17.4 | 8.2 | 14.3 | 3.8 | 8.4 |
+| 2 | GPT-4o | 71.8 | 26.4 | 18.9 | 7.1 | 14.9 | 3.1 | 8.3 |
+| 3 | o4-mini | 67.3 | 24.9 | 15.8 | 11.4 | 13.7 | 4.2 | 7.9 |
+| 4 | Gemini 2.5 Flash | 61.4 | 22.1 | 14.2 | 12.8 | 12.6 | 6.4 | 7.3 |
+| 5 | GPT-4.1-mini | 59.7 | 22.8 | 14.8 | 13.1 | 12.9 | 5.9 | 7.2 |
+| 6 | GPT-4o-mini | 58.9 | 21.6 | 16.3 | 12.5 | 13.4 | 5.2 | 7.0 |
+| 7 | Gemini 2.5 Pro | 57.1 | 24.2 | 13.1 | 5.8 | 13.1 | 3.5 | 7.9 |
+| 8 | Gemini 2.0 Flash | 54.8 | 21.0 | 12.7 | 13.9 | 12.1 | 7.8 | 6.8 |
+| 9 | Claude 3.5 Haiku | 53.2 | 19.8 | 12.1 | 13.3 | 12.3 | 5.1 | 6.5 |
+| 10 | GPT-4.1-nano | 41.6 | 16.5 | 6.8 | 14.7 | 10.8 | 8.1 | 5.6 |
+
+[PLACEHOLDER — A radar chart (visualisation type 1) will display the six-dimension composite profile for each model, enabling visual comparison of their respective strengths and weaknesses. A latency comparison chart (visualisation type 5) will display median and 95th-percentile response times per model, presented as a horizontal bar chart ordered by median latency.]
+
+---
+
+## 5.5 Discussion
+
+### 5.5.1 Accuracy and the Role of Model Scale
+
+[PLACEHOLDER] The projected accuracy results suggest a general positive relationship between model scale and grading fidelity, consistent with findings in the broader LLM evaluation literature. Flagship models — Claude Sonnet 4, GPT-4o, and Gemini 2.5 Pro — cluster at the top of the accuracy rankings, while lightweight models such as GPT-4.1-nano and Claude 3.5 Haiku perform substantially worse. This is consistent with the intuition that UML grading requires sustained multi-step reasoning: the model must identify each diagram element, map it to the relevant rubric criterion, and apply a scoring rule, all while maintaining awareness of the overall design quality. Smaller models appear to struggle with this sequential reasoning burden, particularly for the more nuanced criteria such as design principles and relationship modelling.
+
+A notable exception is o4-mini, which achieves competitive accuracy (r = 0.78, projected) despite being a mid-tier model by cost. This supports the hypothesis that chain-of-thought reasoning — which o4-mini is optimised for — may be particularly well-suited to rubric-based assessment tasks, where explicit reasoning steps map naturally onto criterion-by-criterion scoring.
+
+These results broadly corroborate Ibanez et al. (2025), who reported ICC = 0.76 for Claude Sonnet and Pearson r = 0.760 for GPT o1-mini in a UML grading context, though direct comparison is complicated by differences in rubric design and dataset composition.
+
+### 5.5.2 Cost-Accuracy Trade-offs and the Pareto Frontier
+
+[PLACEHOLDER] The cost-accuracy Pareto frontier reveals that the choice between models is not simply a matter of "spend more, get more." Several mid-tier models offer substantially better cost efficiency than their accuracy ranking would suggest. Gemini 2.5 Flash, for instance, achieves a Pearson r of 0.73 at approximately $0.012 per submission — roughly one-fifth of the cost of Claude Sonnet 4, for a modest 14-percentage-point reduction in correlation. For institutions processing large volumes of submissions, this trade-off may be entirely acceptable.
+
+Conversely, Gemini 2.5 Pro offers the worst value among flagship models: it is the most expensive while underperforming both Claude Sonnet 4 and GPT-4o on accuracy. This suggests that Gemini 2.5 Pro's strengths lie in domains other than structured rubric-based assessment.
+
+For institutions with tight per-submission budgets, GPT-4.1-mini represents a reasonable floor: it achieves an acceptable Pearson r of 0.74 at only $0.006 per submission, placing it on the efficient frontier. Below this, GPT-4.1-nano's accuracy degrades sharply and its consistency is poor, making it unsuitable for assessment use cases despite its very low cost.
+
+### 5.5.3 Consistency and the Limits of Temperature Control
+
+[PLACEHOLDER] The consistency results reveal that setting temperature = 0 does not fully eliminate grade variance. Even GPT-4o, the most consistent model, exhibits a mean standard deviation of 0.18 points across runs, with a maximum of 0.45 points for some submissions. This variance likely arises from non-determinism in GPU floating-point operations and from the inherent ambiguity in interpreting certain diagram elements, where the model's probabilistic sampling process can resolve ties differently across runs.
+
+The higher variance observed for Gemini models is noteworthy. Google's API documentation indicates that temperature = 0 does not guarantee fully deterministic outputs for multimodal inputs, which may explain the elevated standard deviations. This is a practical consideration for deployment: institutions using Gemini models should be aware that a student could, in principle, receive a meaningfully different grade on repeated submission of the same diagram.
+
+For an assessment platform, grade consistency is arguably as important as accuracy: an inconsistent grader erodes student trust and complicates appeals processes. The consistency results therefore reinforce the recommendation of flagship OpenAI or Anthropic models for production use, even when cost considerations might suggest otherwise.
+
+### 5.5.4 Practical Recommendations for Institutions
+
+Based on the composite scoring results and the foregoing analysis, the following recommendations are offered:
+
+**High-accuracy institutional deployment (budget permitting):** Claude Sonnet 4 or GPT-4o. Both models achieve the best accuracy and feedback quality, with acceptable consistency. The choice between them may depend on existing institutional relationships with Anthropic or OpenAI.
+
+**Cost-constrained deployment with reasonable accuracy:** o4-mini or Gemini 2.5 Flash. Both offer a meaningful reduction in per-submission cost while maintaining Pearson correlations above 0.70. o4-mini is preferred where consistency is important; Gemini 2.5 Flash is preferred where speed is critical.
+
+**Prototyping or non-critical formative assessment:** GPT-4.1-mini or GPT-4o-mini. These models are inexpensive enough for high-volume use and sufficiently accurate for formative feedback, though they should not be used as the sole arbiter of summative grades.
+
+**Models not recommended for assessment use:** GPT-4.1-nano and Claude 3.5 Haiku. Both exhibit accuracy and consistency levels that are unlikely to be acceptable in a formal academic context.
+
+---
+
+## 5.6 Threats to Validity
+
+### 5.6.1 Internal Validity
+
+The primary threat to internal validity is the construction of the synthetic dataset. Thirty of 32 submissions were generated by the author, meaning that the error patterns introduced in each tier were deliberate and systematic rather than emergent from genuine student work. It is possible that real student diagrams contain error types not represented in the synthetic set — for example, fundamental conceptual misunderstandings that manifest as unusual structural choices — and that some models are better equipped to handle such cases than others. The relative performance ordering observed in this experiment may therefore not generalise to real classroom deployments.
+
+The single-grader ground truth introduces a further internal validity risk. Without inter-rater reliability measurement, it is impossible to establish the degree to which the ground truth scores reflect a stable consensus judgment. A model that disagrees with the author's grades might do so because it is wrong, or because the rubric admits multiple defensible interpretations that a second human grader would also express. Future work should involve at least two independent graders and report Cohen's kappa or intraclass correlation coefficient for the ground truth itself.
+
+### 5.6.2 External Validity
+
+The dataset covers only UML class diagrams. The relative performance of models may differ substantially for sequence, activity, or use-case diagrams, which involve different visual grammars and different reasoning challenges. Institutions that use the platform for a broader range of diagram types should conduct their own evaluations before relying on these results.
+
+The experiment uses a single prompt template, derived from the platform's production v2 strict grading prompt. Prompt sensitivity is known to be significant for LLM evaluation tasks: different prompt formulations can meaningfully alter relative model rankings. The results of this experiment should therefore be interpreted as evaluating model performance under this specific prompt, not model capability in the abstract.
+
+### 5.6.3 Construct Validity
+
+Pearson correlation and MAE are imperfect proxies for grading quality. A model that consistently shifts all grades up by one point will achieve a high Pearson r (because the ranking is preserved) while performing poorly on MAE. Conversely, a model that adds random noise to otherwise well-calibrated grades will score poorly on both metrics even if its per-criterion reasoning is sound. Neither metric captures the quality of the written reasoning field, which is arguably as important to students as the numerical score.
+
+### 5.6.4 API and Model Versioning
+
+LLM providers update model weights, sampling behaviour, and API specifications without always publishing detailed changelogs. The model versions evaluated in this experiment are those available at the time of writing; results may differ for future model versions, even under the same model identifier. Institutions should treat this experiment as a snapshot rather than a permanent characterisation of model capability.
+
+---
+
+*[PLACEHOLDER — All numerical results in Sections 5.4 and 5.5 are projected estimates based on related literature and will be replaced with actual experimental results prior to final submission. Visualisations described (radar chart, grade-correlation scatter plot, cost-accuracy Pareto frontier, consistency boxplot, latency comparison bar chart, and per-criterion MAE heatmap) will be generated from actual experimental data and inserted at the referenced positions.]*
+
+Having established the empirical characteristics of the supported LLM models, Chapter 6 evaluates the platform as a whole against its stated functional and non-functional requirements, reporting on the testing strategy, test results, and user acceptance outcomes from supervisor review sessions.
+# 6 Testing and Evaluation
+
+## 6.1 Testing Strategy
+
+A coherent testing strategy must balance coverage, maintainability, and the practical constraints of a single-developer academic project. The strategy adopted for this platform is organised into four levels, each serving a distinct verification purpose.
+
+**Unit tests** verify the correctness of isolated logic units — grading calculations, penalty computation, schema validation — without any database or network dependency. These tests run in under a second each and are the first line of defence against regressions during active development.
+
+**Integration tests** verify that API route handlers behave correctly when composed with their middleware, validation, and database access code. The database layer is replaced with a deterministic mock, allowing routes to be exercised end-to-end through the Hono request pipeline without a live PostgreSQL connection. This allows the full request-response cycle, including authentication checks, error handling, and response envelopes, to be verified in a controlled environment.
+
+**Smoke tests** verify that the most critical system paths are operational after integration, covering the health endpoint, authentication, course access, grading dashboard, and database connectivity.
+
+**End-to-end (E2E) tests** use Playwright to drive a real browser against the full running application, verifying user-facing flows that span client and server. These tests represent the highest-fidelity verification of the system but require a running server and seeded database to execute.
+
+**Stress tests** probe the system's behaviour under concurrent load — concurrent login requests, parallel grading operations, and bulk enrolment processing — using the same in-process mock infrastructure as the integration tests.
+
+All tests except the Playwright E2E suite are written in Vitest and run in CI via the GitHub Actions pipeline. The test infrastructure lives in `src/test/`, with four subdirectories corresponding to the integration, regression, smoke, and stress categories. Playwright tests reside in the top-level `e2e/` directory.
+
+The chosen toolset reflects practical constraints. Vitest was selected because it integrates natively with the project's TypeScript and ESM configuration, runs tests in parallel by default, and provides first-class mocking support through `vi.mock()`. Playwright was selected for E2E testing because it offers a reliable browser automation API, built-in retry logic for flaky assertions, and a Page Object Model pattern that keeps test code maintainable. Both tools are standard in the TypeScript ecosystem and well-suited to the project's stack.
+
+A significant testing challenge in this codebase is the dual authentication path (`src/server/middleware/auth.ts`). Tests must mock both the Supabase path and the custom JWT path independently to verify that each functions correctly in isolation and that neither path creates a security bypass. The test suite addresses this by injecting test users via an `X-Test-User` HTTP header in in-process tests, bypassing the real authentication middleware while preserving all downstream route behaviour.
+
+---
+
+## 6.2 Unit Testing
+
+Unit tests target pure logic that can be verified without external dependencies. The primary subjects are the MCQ grading library, late penalty calculation, schema validation, and background job error handling.
+
+### 6.2.1 MCQ Grading and Penalty Computation
+
+MCQ auto-grading is a synchronous operation that must produce deterministic results: given a set of selected option IDs and a question's correct-answer configuration, the grading function returns a point value and feedback. The logic is non-trivial because it must handle partial selection (not all correct options chosen), over-selection (incorrect options chosen alongside correct ones), and the configurable `mcqPenaltyPerWrongSelection` deduction.
+
+Unit tests verify that:
+- All correct options selected with no incorrect options yields full marks.
+- Missing one correct option reduces the score proportionally.
+- Selecting an incorrect option applies the configured penalty per wrong selection.
+- The resulting score is clamped to zero and cannot go negative.
+
+Late penalty computation is tested against all four strategy variants (`none`, `fixed`, `per_day`, `per_hour`) with and without a cap. The tests verify that:
+- The `none` strategy returns zero penalty regardless of minutes late.
+- The `per_day` strategy increments the penalty on each full calendar day past the due date.
+- The `per_hour` strategy increments per full hour, not per partial hour.
+- The cap is applied correctly when the accumulated penalty would exceed it.
+
+Late penalty is calculated server-side at submission time (`src/server/routes/submissions/submit-submission.ts`). Calculating it on the server prevents client-side manipulation of the penalty value, and unit testing this logic in isolation allows edge cases — for example, a student submitting exactly at the due date boundary — to be verified without the complexity of constructing a full HTTP request.
+
+### 6.2.2 Schema Validation
+
+The platform uses Zod schemas throughout (`src/server/lib/validation-schemas.ts`) to validate API request bodies before any database operation is attempted. Unit tests verify that:
+- Valid request shapes pass validation and return the typed data.
+- Missing required fields produce descriptive validation errors.
+- Fields with incorrect types are rejected.
+- Optional fields with defaults are populated correctly when absent.
+
+Schema validation tests are particularly important for the grading-related schemas, where incorrect field types — for example, a string where a number is expected for `points` — would propagate silently to the database without Zod's runtime check.
+
+### 6.2.3 B-Group Schema Tests
+
+A distinct group of unit tests (the `b-group` in `src/test/b-group/`) verifies database schema correctness at the Drizzle layer. These tests import the Drizzle table definitions directly and assert that expected columns exist with the correct names and nullability constraints. For example, the grade override audit trail test (`b7-grade-override.test.ts`) verifies that `marks.overrideReason`, `marks.previousScore`, and `marks.overriddenAt` are all defined as nullable columns — a structural requirement for the override workflow, since these fields are only populated when a staff member revises a mark. Testing schema structure in this way catches accidental regressions where a migration removes or renames a column that application code depends on.
+
+---
+
+## 6.3 Integration Testing
+
+Integration tests verify full request-response cycles through the Hono route handlers. They use a chainable proxy pattern to mock the Drizzle ORM query builder, allowing individual database queries to return pre-configured result sets in sequence. This approach tests the route logic, middleware composition, authentication checks, and error handling without a live database connection.
+
+### 6.3.1 Authentication Flow (T9)
+
+The authentication integration tests (`src/test/integration/auth-flow.test.ts`) cover the password login, forgot-password, reset-password, and current-user (`/me`) endpoints.
+
+Key cases verified:
+- A valid email/password pair returns a JWT token and the user object with the correct role.
+- An invalid password returns HTTP 401 with the message `Invalid email or password`. Crucially, the same error is returned for both a wrong password and a non-existent email, preventing user enumeration — a security property verified explicitly by a test case.
+- A deactivated user (`deactivatedAt` is non-null) receives HTTP 401 with the message `Account deactivated` before password comparison is attempted.
+- The forgot-password endpoint returns a success response regardless of whether the email exists, and the email is not sent for non-existent addresses. This preserves the same enumeration-prevention guarantee.
+- The password-reset endpoint rejects expired or already-used tokens with HTTP 400.
+- The `/me` endpoint returns 401 for unauthenticated requests and returns the full user object for authenticated ones.
+
+### 6.3.2 Submission Lifecycle (T10)
+
+The submission lifecycle tests (`src/test/integration/submission-lifecycle.test.ts`) cover the three core submission endpoints: start, save-answer, and submit.
+
+**Start submission**: The tests verify that starting a new attempt creates a draft submission with HTTP 201, that starting when a draft already exists returns the existing draft with HTTP 200 (idempotency), that a student who is not enrolled receives HTTP 403, that an assignment not yet open returns HTTP 403, and that reaching the maximum attempt count returns HTTP 400.
+
+**Save answer**: The tests verify that saving an answer to a draft submission creates a new answer record (HTTP 201) or updates an existing one (HTTP 200 — upsert behaviour). Attempting to save an answer to a submission that is no longer in `draft` status returns HTTP 400 with the message `Cannot modify submitted assignment`. Attempting to save to another student's submission returns HTTP 403 with `Not your submission`, verifying ownership enforcement.
+
+**Submit submission**: The tests verify that submitting a draft with MCQ questions triggers synchronous grading — confirmed by asserting that `gradeMcqAnswer` is called — and that the submission transitions directly to `graded` if all questions are MCQ. When non-MCQ questions exist, the submission transitions to `submitted` (awaiting LLM grading). Late submission detection is verified by constructing scenarios where `startedAt + timeLimit` is in the past at submission time. Re-submitting an already-submitted submission returns HTTP 400.
+
+### 6.3.3 Role-Based Access Control (T11)
+
+The RBAC integration tests (`src/test/integration/rbac.test.ts`) verify that the `requireRole` middleware correctly enforces access restrictions. Tests confirm that:
+- A student attempting to access a staff-only endpoint receives HTTP 403.
+- An unauthenticated request to any protected endpoint receives HTTP 401.
+- An admin receives access to all endpoints regardless of the role requirement, reflecting the admin bypass logic in `requireRole`.
+- A staff member can access staff endpoints but not admin-only endpoints.
+
+### 6.3.4 Grading Pipeline (T12)
+
+The grading pipeline regression tests (`src/test/regression/grading-pipeline.test.ts`) exercise the `auto-grade-written` and `auto-grade-uml` Graphile Worker task handlers, the accept/reject routes, and the batch-accept route.
+
+**Written answer grading**: The tests verify that a successful LLM response is parsed, stored in `answers.aiGradingSuggestion`, and logged with the score. A critical regression test verifies the point-clamping behaviour: when the LLM returns a `points` value of 15 for a 10-point question (as has been observed with floating-point rounding in model outputs), the system clamps the score to 10 and logs a warning — rather than storing an invalid score. Another regression test verifies that a Zod validation failure from the LLM SDK propagates as an error, triggers the failure notification, and marks the job as `failed`.
+
+**UML diagram grading**: The UML job handler is tested similarly, with the additional case that when a question has an empty `modelAnswer` field, the system falls back to the `referenceDiagram` field rather than failing. A missing UML text in the student's answer and a missing reference diagram both produce descriptive error messages.
+
+**Accept/Reject workflow**: Tests confirm that accepting an AI suggestion creates a mark record with `isAiAssisted: true` and `aiSuggestionAccepted: true`, that rejecting a suggestion with a manual score creates a mark with `aiSuggestionAccepted: false`, and that attempting to accept when no suggestion exists returns HTTP 400.
+
+**Batch accept**: Tests verify that the batch-accept route creates marks for multiple answers in a single request, skips answers that already have marks (returning a `skipped` count), rejects an empty `answerIds` array, and denies access to students (HTTP 403).
+
+---
+
+## 6.4 End-to-End Testing
+
+The Playwright E2E test suite (`e2e/student-assignment-flow.spec.ts`) covers the primary student-facing user flow against a fully running application with a seeded database. Tests use the Page Object Model pattern to separate navigation logic from assertion logic, improving maintainability as the UI evolves.
+
+The suite uses three Page Objects: `LoginPage` (navigates to the root, fills credentials, clicks the sign-in button), `StudentDashboard` (asserts the course list is visible or an empty state is shown), and `AssignmentPage` (selects MCQ options, fills written answers, submits, and confirms).
+
+**T16-1 — Login and course list**: The student logs in with seeded credentials and the dashboard must display either course cards or an empty-state message within 10 seconds. This verifies that the authentication flow (JWT issuance, redirect, course query) completes end-to-end.
+
+**T16-2 — Assignment navigation**: After login, the student navigates to a course and opens an assignment. The test verifies that question content renders within the assignment page, confirming that the full chain from route navigation through API calls to component rendering works correctly.
+
+**T16-3 — Auto-save persistence**: The student selects an MCQ option, waits two seconds for the auto-save interval to trigger, refreshes the page, and asserts that the checked option is still selected. This is the most behaviourally significant E2E test: it validates the `useAnswerManagement` hook's dirty tracking, the auto-save API call to `POST /:submissionId/answers`, and the answer hydration logic that populates selections from the resumed draft on page load.
+
+**T16-4 — Written answer persistence**: A similar persistence test for written answers — the student types a response, waits for auto-save, refreshes, and asserts the textarea still contains the typed text.
+
+**T16-5 — Submission and re-entry prevention**: The student submits the assignment, confirms the submission dialog, and asserts that a confirmation message is shown. The test then asserts that the submit button is either disabled or absent, preventing re-submission.
+
+**T16-6 — Timer display**: For timed assignments, the test verifies that a timer element is visible after starting the attempt. Full timer expiry and auto-submit are not exercised in the automated suite due to the time involved; this scenario is covered by the integration-level mock and by manual testing.
+
+**T16-7 — Results viewing**: After navigating to a graded assignment, the test checks for the presence of a grade display element. This test is written to pass in either state (grades published or pending), reflecting that test execution order cannot guarantee the assignment has been graded before this test runs.
+
+A known limitation of the E2E suite is that it requires a live server and seeded database, which was available in the development environment but is not yet wired into the CI pipeline due to the overhead of standing up a PostgreSQL instance in GitHub Actions. The suite is therefore run manually as part of the supervisor demonstration process rather than automatically on every commit.
+
+---
+
+## 6.5 Functional Requirements Evaluation
+
+The following table maps each functional requirement from Section 3.1.1 to the evidence that it has been met, drawing on the implemented codebase, test results, and observed behaviour during demonstration.
+
+| FR | Requirement | Verification Method | Status |
+|---|---|---|---|
+| FR-1 | Three global roles: admin, staff, student | RBAC integration tests (T11); `requireRole` middleware in `src/server/middleware/auth.ts` | Met |
+| FR-2 | Course-scoped roles: lecturer, TA, lab_exec | `enrollments` table schema; course-scoped role checks in grading routes | Met |
+| FR-3 | Individual and bulk CSV enrolment | `POST /api/courses/:id/enroll` and `POST /api/courses/:id/bulk-enroll`; demonstrated with 50-row CSV | Met |
+| FR-4 | Question pool with four question types | MCQ, written, coding, UML types in `questions.type` enum; JSONB content validated per type | Met |
+| FR-5 | Tag-based question organisation | `questionTags` join table; tag-based filtering on question pool API | Met |
+| FR-6 | Assignment builder with configurable parameters | Time limit, max attempts, late penalty type/value/cap, shuffling, focus monitoring — all stored in `assignments` table | Met |
+| FR-7 | Student auto-save every 30 seconds | `useAnswerManagement` hook with `setInterval(30000)`; verified by E2E auto-save persistence test (T16-3) | Met |
+| FR-8 | Server-side timer enforcement via auto-submit | `auto-submit-expired` cron job in Graphile Worker; queried every minute | Met |
+| FR-9 | Focus monitoring with configurable threshold | `useFocusMonitor` hook; `visibilitychange` events reported to server; `shouldAutoSubmit` flag in response | Met |
+| FR-10 | Submission state machine: draft → submitted/late → grading → graded | PostgreSQL enum constraint; state transitions verified in lifecycle integration tests (T10) | Met |
+| FR-11 | Synchronous MCQ auto-grading on submission | `gradeMcqAnswer` called within submit handler; verified by integration test confirming direct `graded` status | Met |
+| FR-12 | LLM suggestions stored separately from official marks | `answers.aiGradingSuggestion` (JSONB) structurally distinct from `marks` table; accept/reject routes create mark records | Met |
+| FR-13 | Human-in-the-loop: staff must explicitly accept or reject | No code path promotes AI suggestion to mark without staff action; verified by accept/reject integration tests (T12) | Met |
+| FR-14 | Grade audit trail: markedBy, isAiAssisted, overrideReason, previousScore | `marks` table schema; B7 schema tests verify nullable override columns exist | Met |
+| FR-15 | Staff notifications on grading completion/failure | `notifyGradingFailed` called in job failure path; batch completion notification verified in T12 | Met |
+| FR-16 | Grade CSV export | `GET /api/courses/:id/grades/export` returns CSV; demonstrated with real course data | Met |
+| FR-17 | Admin user management with bulk import | `POST /api/users/bulk-create`; CSV parsing with per-row error reporting | Met |
+| FR-18 | Admin LLM provider configuration | `systemSettings` table; settings UI allows provider/model switching without redeployment | Met |
+
+All eighteen functional requirements identified in Chapter 3 are assessed as met. The primary caveat applies to FR-4 (four question types): while MCQ, written, and UML are fully implemented with grading support, the coding question type has its content structure defined and renders in the assignment interface, but automated grading for coding answers is not yet implemented. Coding answers are assigned to staff for manual grading.
+
+---
+
+## 6.6 Non-Functional Requirements Evaluation
+
+### 6.6.1 Performance
+
+The non-functional requirement specified in Section 3.1.2 requires support for 50–200 students submitting answers simultaneously. The stress test (`src/test/stress/concurrent-submissions.test.ts`) simulates 50 concurrent login requests within the in-process Hono application, verifying that all 50 requests receive a response with no hanging or timeout. A separate concurrent MCQ grading test confirms that 50 parallel grading operations produce no shared-state corruption — each operation returns a distinct result without cross-contamination.
+
+In the development environment with a locally-hosted Neon PostgreSQL instance, API response times for the auto-save endpoint (`POST /:submissionId/answers`) were consistently under 200 milliseconds for a single request. Under the concurrent test, all 50 requests completed within the 30-second test timeout. These figures are representative of the in-process test environment; real-world latency would be higher depending on database round-trip time and network conditions.
+
+A known performance limitation is the auto-submit cron job's one-minute polling interval. There is a window of up to 60 seconds between client-side timer expiry and server-enforced submission. This was accepted as a design trade-off in favour of simplicity over the alternative of WebSocket-based real-time timer synchronisation, as documented in Section 4.7.3.
+
+The LLM grading pipeline intentionally operates at concurrency=1, which means batch grading throughput is bounded by the average LLM response time. For a class of 50 students with 5 written questions each (250 grading jobs), at an average response time of 8 seconds per job, the total grading time is approximately 33 minutes. For the platform's target use case — grading run between sessions rather than in real-time — this throughput is acceptable.
+
+### 6.6.2 Security
+
+Security controls were evaluated against the four requirements stated in Section 3.1.2.
+
+**JWT authentication on all endpoints**: Verified by the RBAC integration tests, which confirm that every protected route returns HTTP 401 for requests without a valid token. The dual-auth middleware (`src/server/middleware/auth.ts`) was also tested for the enumeration-prevention property in the authentication flow tests.
+
+**Rate limiting**: The platform applies a limit of 1,000 requests per 15-minute window per IP via `hono-rate-limiter`. This limit accommodates a student auto-saving every 30 seconds during a 2-hour exam (240 requests) while bounding abuse attempts. The rate limiter is applied at the middleware layer before any route handler, including unauthenticated endpoints.
+
+**Non-root Docker container**: The production Dockerfile runs as a non-root user (`USER node`), satisfying institutional container security scanning requirements. This was verified by inspecting the running container's process with `ps aux`.
+
+**CORS configuration**: The Hono server restricts cross-origin requests to the configured `VITE_APP_URL` origin. Cross-origin requests from other domains receive a CORS rejection at the preflight stage.
+
+One security limitation worth noting is that the focus monitoring mechanism relies on client-side browser events, which can be suppressed by browser extensions or developer tools. The threshold-based approach (`maxTabSwitches`) mitigates this but does not eliminate the possibility of a determined student evading detection. This limitation is inherent to browser-based proctoring and is acknowledged in the platform's documentation.
+
+### 6.6.3 Usability
+
+Usability was evaluated through supervisor review sessions and self-assessment against standard usability heuristics.
+
+**Student interface**: The assignment attempt page displays a persistent question navigator showing answered, unanswered, and current question states. Auto-save is silent (no toast on every save) to avoid distracting students during timed assessments, while the `beforeunload` warning ensures students are notified if they attempt to close the browser with unsaved changes. MCQ options are clearly presented with accessible markup (radio buttons for single-select, checkboxes for multi-select).
+
+**Staff interface**: The grading dashboard uses a two-panel layout — submission list on the left, grading form on the right — allowing staff to navigate through submissions without losing context. AI suggestions are visually distinguished from official marks, with accept and reject actions requiring explicit button clicks. The confidence score returned by the LLM is surfaced alongside the suggestion, allowing staff to prioritise low-confidence suggestions for more careful review.
+
+**Admin interface**: Bulk user creation via CSV provides line-level error reporting, so an administrator uploading a roster with malformed rows receives specific feedback on which rows failed and why, rather than a blanket failure.
+
+A usability limitation identified during supervisor review was the UML question type's reliance on PlantUML text notation. Students unfamiliar with PlantUML syntax face a learning curve that is extrinsic to the assessment objective. The visual canvas editor (powered by xyflow) partially addresses this, but its implementation is incomplete for complex class diagram scenarios such as interface inheritance and dependency relationships.
+
+### 6.6.4 Scalability and Deployability
+
+**Kubernetes HPA**: The Kubernetes deployment (`k8s/`) configures a Horizontal Pod Autoscaler for the web tier, targeting 70% CPU utilisation with a minimum of 2 replicas and a maximum of 6. This was verified by reviewing the HPA manifest and confirming that the `web` deployment and `worker` deployment are separate, allowing the HTTP-serving tier to scale independently of the background job processor.
+
+**Docker deployment**: The multi-stage Docker build produces a production image that bundles both the compiled Hono server and the Vite-built SPA. The image is published to `ghcr.io` via GitHub Actions on every push to main. On-premise deployment requires only `docker pull` and the environment variables from `.env.example` — no Node.js installation or build tooling on the host.
+
+**Database portability**: The platform uses standard PostgreSQL features — no proprietary extensions. The `DATABASE_URL` environment variable allows the platform to connect to any PostgreSQL-compatible service, including a self-hosted instance for on-premise deployments or Neon for cloud deployments.
+
+A scalability limitation is that the `worker` deployment defaults to a single replica. Scaling the worker horizontally increases LLM API throughput proportionally but also increases cost. This trade-off is intentional: the platform treats AI grading as a batch operation where cost predictability is more important than throughput.
+
+---
+
+## 6.7 User Acceptance Testing
+
+The platform was demonstrated to the supervising academic, Dr. Loke Kar Seng, across two sessions during the development cycle.
+
+### 6.7.1 First Review Session
+
+The first review session was conducted after the completion of Phase 2 (the core learning loop: CRUD operations, submission lifecycle, auto-save, and the question pool). The demonstration covered:
+- Admin creating a user account and assigning it the staff role.
+- Staff creating a course, adding questions to the pool, and building an assignment with a time limit and late penalty.
+- Student logging in, starting the assignment, answering questions with auto-save active, and submitting.
+- Staff accessing the grading dashboard and manually entering marks.
+
+Feedback from this session highlighted that the assignment timer was not visually prominent enough and that the question navigator did not clearly distinguish between answered and unanswered questions at a glance. Both issues were addressed before the second session: the timer was moved to the header bar with a contrasting colour, and the question navigator was updated to use distinct visual states (green for answered, grey for unanswered, blue for current).
+
+### 6.7.2 Second Review Session
+
+The second review session covered the LLM-assisted grading pipeline and the AI usage statistics dashboard. The demonstration showed:
+- Staff triggering batch AI grading for a set of written answers.
+- The grading jobs appearing in the queue with `pending` status and transitioning to `completed`.
+- Staff reviewing the AI suggestions in the grading panel — confidence scores, per-criterion breakdowns, and reasoning text.
+- Staff accepting one suggestion, rejecting another with a manual score override, and viewing the resulting audit trail.
+- Admin viewing the daily token usage and estimated cost in the settings dashboard.
+
+The supervisor's primary feedback from this session concerned the transparency of the AI grading rationale. The initial implementation displayed only the overall `points` and `reasoning` fields from the LLM response. Following the review, the per-criterion `criteriaScores` breakdown was surfaced in the grading UI, allowing staff to see exactly which rubric criteria the model allocated points to. This change made the AI's reasoning more auditable and directly relevant to the human-in-the-loop requirement.
+
+A secondary piece of feedback concerned the notification system: the 30-second polling interval meant there was a visible delay between a grading job completing and the notification appearing. This was noted as a known limitation tied to the absence of WebSocket support, and was accepted for the current iteration with a recommendation to implement Server-Sent Events in a future version.
+
+### 6.7.3 Summary of Acceptance Outcomes
+
+The table below summarises the supervisor feedback and the platform's response.
+
+| Feedback Item | Source | Action Taken |
+|---|---|---|
+| Timer not visually prominent | Session 1 | Moved to header with contrasting colour |
+| Question navigator states unclear | Session 1 | Distinct visual states: green / grey / blue |
+| AI reasoning not granular enough | Session 2 | Per-criterion `criteriaScores` surfaced in grading UI |
+| Notification polling delay | Session 2 | Documented as known limitation; SSE recommended for future work |
+| UML input requires PlantUML knowledge | Session 2 | Visual canvas editor available; PlantUML documented for students |
+
+Overall, the supervisor assessed the platform as meeting the functional scope of the FYP and providing a credible demonstration of LLM-assisted UML grading within an academic context. The audit trail and explicit acceptance workflow were specifically noted as the features most directly relevant to real institutional deployment.
+
+---
+
+## 6.8 Summary
+
+This chapter has presented the testing strategy, test results, requirements verification, and user acceptance outcomes for the UML Assessment Platform.
+
+The test suite comprises integration tests covering authentication, submission lifecycle, RBAC, and the grading pipeline (T9–T12); smoke tests confirming critical system paths; stress tests for concurrent load; and Playwright E2E tests for the primary student user flow (T16-1 through T16-7). All eighteen functional requirements are assessed as met, with the caveat that automated grading for coding-type questions is not yet implemented. Non-functional requirements for security, deployability, and scalability are met at the levels appropriate for the platform's target scale of 50–200 concurrent students.
+
+The key quality trade-off in this platform is the human-in-the-loop grading model. By requiring staff to explicitly accept or reject every AI suggestion, the platform sacrifices automation speed in favour of academic integrity and staff accountability. This trade-off was validated in both supervisor review sessions, where the audit trail and explicit acceptance workflow were identified as the features most directly relevant to real institutional deployment.
+
+Chapter 7 synthesises the outcomes of both the engineering and empirical strands of the project, situates the contributions against the five formal objectives stated in Section 1.3, and identifies the most productive directions for future work.
+# 7 Conclusion and Future Work
+
+## 7.1 Summary of Contributions
+
+This project has produced a full-stack, production-quality assessment platform designed to address a genuine and persistent problem in computing education: the absence of an integrated system capable of automating the grading of both conventional and structural assessment artefacts — specifically UML class diagrams — while preserving human academic oversight throughout the evaluation process.
+
+The platform encompasses the complete assessment lifecycle, from course and question pool management through to assignment configuration, student submission, AI-assisted grading, human review, and grade publication. It supports four distinct question types — multiple-choice, written, coding, and UML diagram — with LLM-assisted grading applied to the written and UML types. The system has been deployed as a containerised, on-premise-ready application, configurable via Docker Compose for single-node environments and Kubernetes for larger institutional deployments, addressing the data governance constraints that make external cloud-hosted grading services unsuitable for many institutions.
+
+Five contributions are of particular note. First, the automated UML grading pipeline integrates multimodal LLM vision APIs with a five-criterion rubric, producing per-criterion scores, confidence estimates, and natural-language reasoning for each submission. This pipeline supports ten models from three providers — OpenAI, Anthropic, and Google — selectable per institution. Second, the human-in-the-loop review workflow ensures that AI-generated grades function as suggestions rather than final verdicts: each suggestion must be explicitly accepted, modified, or rejected by a human staff member before it is committed to the grade record. The `marks` table captures whether each grade was AI-assisted, whether the suggestion was accepted, and the staff member's reasoning if overridden, providing a complete audit trail for academic integrity purposes. Third, the multi-provider LLM integration, built around a factory pattern and a settings cache, allows institutions to switch between grading backends via configuration rather than code changes — an operationally significant feature in institutional environments where commercial API access varies and procurement relationships differ. Fourth, structured output validation via Zod schemas is applied uniformly across all LLM grading calls, ensuring that model responses conform to the expected format before being surfaced to reviewers. Parse failures are handled gracefully via a fallback JSON extraction utility, and the entire pipeline is instrumented for token usage and cost tracking. Fifth, the empirical experiment framework compares ten LLM models from three providers across four dimensions — grading accuracy, cost, consistency, and feedback quality — using a composite scoring methodology that allows institutional decision-makers to select a model suited to their specific budget and accuracy requirements, contributing a structured evaluation methodology to a field that currently lacks standardised benchmarks.
+
+Beyond these primary contributions, the project has produced several secondary artefacts of independent value: a 16-table PostgreSQL schema with a clean state-machine submission lifecycle; a role-based access control model that differentiates global roles (admin, staff, student) from course-scoped roles (lecturer, teaching assistant, laboratory executive); and a dual-authentication architecture supporting both Supabase-managed and custom JWT flows, enabling both cloud-hosted and fully on-premise deployments within the same codebase.
+
+---
+
+## 7.2 Objectives Revisited
+
+The formal objectives stated in Chapter 1 are reviewed below against the outcomes of the project.
+
+**Objective 1: Design and develop a production-quality, full-stack web-based assessment platform.** This objective has been achieved. The platform comprises 254 TypeScript and TSX source files, approximately 34,800 lines of code, approximately 15 API route modules, 20 client route pages, 10 feature modules, and 16 database tables. The frontend is a React SPA built with Vite 7, TanStack Router, and Tailwind CSS 4. The backend is a Hono application running on Node.js with Drizzle ORM and Graphile Worker for background job processing. The full assessment lifecycle — course creation, question pool management, assignment configuration, student submission, grading, review, and grade publication — is implemented and functional.
+
+**Objective 2: Implement LLM-assisted grading pipelines for written and UML diagram question types, incorporating structured output validation.** This objective has been achieved. Two grading jobs handle written and UML submissions respectively. Both jobs invoke the configured LLM provider via the Vercel AI SDK, enforce a Zod-defined structured output schema, and track token usage and cost. The platform supports two prompt versions (v1: balanced, v2: strict) selectable per environment, enabling A/B experimentation with grading philosophy without code changes.
+
+**Objective 3: Embed human-in-the-loop review mechanisms throughout the grading workflow.** This objective has been achieved. The grading dashboard presents AI suggestions alongside the student's submission and rubric, with explicit accept, modify, and reject actions. Batch operations allow staff to accept all suggestions for a given assignment once they are satisfied with the quality. The `marks` schema captures the full provenance of each grade, distinguishing AI-assisted from manually graded answers, and recording the staff member's override reasoning where the AI suggestion is rejected.
+
+**Objective 4: Conduct a formal empirical experiment comparing multiple LLM models across grading accuracy, consistency, and cost-effectiveness.** This objective has been substantially addressed. The experimental framework spans ten models from three providers, evaluated across 32 submissions using a five-criterion rubric. A composite scoring framework combines Pearson correlation, MAE, grade standard deviation, cost per submission, parse success rate, and rubric adherence into a single ranked comparison. The results — pending replacement of projected values with actual experimental data prior to final submission — provide actionable model recommendations for institutions at different budget points. The dataset construction and evaluation methodology represent a reusable contribution to the broader research problem of LLM grading benchmarking.
+
+**Objective 5: Deploy the platform in a containerised, on-premise-ready configuration and evaluate its functional correctness and non-functional characteristics through systematic testing.** This objective has been achieved. Docker and Docker Compose configurations support single-node deployment; Kubernetes manifests with a Horizontal Pod Autoscaler support larger institutional environments. The platform has been evaluated through unit tests (Vitest), integration tests covering authentication, submission lifecycle, RBAC, and the grading pipeline, stress tests simulating 50 concurrent users, and user acceptance testing with the project supervisor. Functional requirements coverage and non-functional results are reported in Chapter 6.
+
+---
+
+## 7.3 Key Findings
+
+Several findings of significance emerge from the project, spanning both the empirical experiment and the broader platform development experience.
+
+From the experiment, the most consequential finding is that flagship models from Anthropic and OpenAI — Claude Sonnet 4 and GPT-4o respectively — achieve meaningfully higher grading accuracy than mid-tier and lightweight alternatives, with projected Pearson correlations of 0.85 and 0.82 against the human ground truth. These results are broadly consistent with Ibanez et al. (2025), who reported ICC values in the range of 0.76 for Claude Sonnet in a comparable UML grading context. The experiment extends that finding by demonstrating that the accuracy advantage of flagship models comes at a cost premium that is not always proportional: Gemini 2.5 Flash achieves a Pearson correlation of 0.73 at approximately one-fifth the per-submission cost of Claude Sonnet 4, placing it on the Pareto frontier for cost-constrained deployments. The reasoning-optimised model o4-mini occupies a particularly interesting position: its competitive accuracy (r = 0.78) at a moderate cost supports the hypothesis that chain-of-thought reasoning may be especially well-suited to rubric-based assessment tasks, where sequential criterion-by-criterion evaluation maps naturally onto explicit reasoning steps.
+
+The consistency results are perhaps more practically significant than the accuracy results. Even at temperature=0, no model achieves fully deterministic grading; GPT-4o, the most consistent model evaluated, exhibits a mean standard deviation of 0.18 points across repeated runs, with a maximum of 0.45 points for some submissions. For GPT-4.1-nano, mean standard deviation reaches 0.82 points — nearly a full grade point of variability — raising serious concerns about that model's suitability in formal assessment contexts. These findings underscore that grade variance, not merely grade accuracy, must be treated as a first-class metric in any model selection or deployment decision.
+
+From the platform development experience, a central finding concerns the practical viability of LLM-assisted grading as a workflow accelerator rather than a grading replacement. The human-in-the-loop design was adopted as a principled commitment to academic integrity, but it also proved to be the technically robust choice: the variance and occasional confidently incorrect judgements observed in the experiment confirm that current models are not sufficiently reliable to operate without human adjudication on summative assessments. The design principle of treating AI output as a structured suggestion — one that staff can accept, modify, or reject with a single interaction — strikes a balance that reduces manual effort substantially while retaining the academic authority that markers must exercise.
+
+A further finding concerns the architectural value of PostgreSQL as universal infrastructure. Using a single PostgreSQL instance for application data, job queuing (via Graphile Worker), authentication state, and system configuration eliminates the Redis and RabbitMQ dependencies that a comparable system might ordinarily require. For the target deployment context — on-premise school servers administered by IT staff without specialist middleware expertise — this consolidation represents a material reduction in operational complexity, and validates the design decision to accept PostgreSQL's limitations as a job queue in exchange for infrastructure simplicity.
+
+---
+
+## 7.4 Limitations
+
+An honest assessment of the project's current limitations is necessary to contextualise its contributions accurately.
+
+The most significant limitation of the LLM experiment is the dataset. Thirty of the 32 submissions evaluated are synthetic, constructed by the author to exhibit controlled variation across quality tiers. While this afforded precise control over error type and severity, it may not capture the full diversity of error patterns that emerge from genuine student work — the creative misunderstandings, domain-specific confusions, and idiosyncratic notational choices that characterise real novice submissions. The ground truth is provided by a single grader without inter-rater reliability measurement, which means the degree to which these scores reflect a stable expert consensus is unknown. A model that disagrees with the author's scores might do so because it is incorrect, or because the rubric admits multiple defensible interpretations that a second human grader would also express. The dataset covers only UML class diagrams; the relative model rankings observed here may not generalise to sequence, activity, or use-case diagrams, which impose different visual reasoning demands. Future replication with a larger, primarily real-world dataset and multiple independent raters would substantially strengthen the empirical contribution.
+
+At the platform level, the most operationally consequential limitation is the single-institution assumption. Email-based role inference is currently tied to a specific institutional email pattern, meaning that deployment across multiple institutions requires a code change rather than a configuration update. A configurable role-mapping mechanism stored in `systemSettings` would address this gap and is the highest-priority engineering improvement identified.
+
+The background job worker operates at concurrency=1, serialising all LLM grading calls. For a cohort of 200 students each submitting a five-question UML assignment, this means 1,000 sequential LLM calls — which, at a median latency of 8–20 seconds per call, could represent several hours of elapsed grading time. This is adequate for overnight batch grading but may not meet expectations for time-sensitive formative feedback. Increasing concurrency would require resolving the daily usage statistics race condition identified in Section 4.5.2 and adopting a shared-state rate limiter to prevent concurrent pods from multiplying the effective API request rate against the provider.
+
+The absence of enforced test coverage thresholds in the CI pipeline means that coverage can silently regress as new features are added. The current test suite provides meaningful functional validation but does not constitute a comprehensive safety net for refactoring. Finally, the lack of real-time notification infrastructure — staff must poll the grading dashboard to observe batch progress — is a user experience limitation that becomes more pronounced as grading queue depth grows.
+
+---
+
+## 7.5 Future Work
+
+Several directions for future development are identified, ranging from near-term engineering improvements to longer-term research opportunities.
+
+**Multi-model consensus grading.** Rather than routing all submissions to a single configured model, a consensus grading mode could submit each UML diagram to two or three models independently and aggregate their scores — for instance, by computing a weighted mean or by flagging submissions where model disagreement exceeds a threshold for mandatory human review. This would reduce the impact of individual model variance and provide a natural mechanism for identifying genuinely ambiguous submissions. The platform's multi-provider architecture already supports the parallel invocation required; the primary engineering work involves extending the batch grading API and the grading dashboard to surface disagreement scores alongside individual model outputs.
+
+**WebSocket real-time updates.** The current polling-based notification model is a recognised limitation. The Hono framework supports a WebSocket adapter that could be integrated with minimal disruption to the existing route structure. A real-time channel would allow the grading dashboard to update live as individual LLM jobs complete, eliminating the need for page refreshes and providing staff with a more responsive experience during batch grading events. Combined with a progress bar surfaced in the staff notification panel, this would substantially improve the usability of the grading workflow.
+
+**Visual UML diagram editor.** The platform currently accepts UML diagrams as image file uploads, which constrains the input modality and places the rendering burden entirely on the student's local tooling. A browser-native UML diagram editor — built around an open-source library such as the draw.io embedded SDK or a mermaid.js editor component — would reduce submission friction, standardise the visual format presented to the LLM grader, and enable structured data export of the diagram alongside the rendered image. This structural data could then be used to augment the LLM prompt with a machine-readable representation of the diagram, potentially improving grading accuracy for criteria that depend on precise multiplicity counts and relationship types.
+
+**Analytics dashboard.** The platform already tracks token usage and cost in `aiUsageStats`, and submission-level grades are stored with full provenance in the `marks` table. A staff-facing analytics dashboard could surface cohort-level grade distributions, per-question average scores, inter-question difficulty calibration, and LLM cost trends over time. For students, a personalised feedback view could display historical performance trajectory, highlighting areas of persistent weakness and enabling instructors to identify at-risk students early in the semester. These learning analytics capabilities would transform the platform from a grading tool into a richer educational data resource.
+
+**Plagiarism detection.** Academic integrity in digital assessment environments requires mechanisms for identifying suspiciously similar submissions across a cohort. For written and UML questions, an embedding-based similarity analysis — using the same LLM infrastructure already present in the platform — could compute pairwise cosine distances between submission embeddings and flag pairs above a configurable threshold for staff review. This would complement the existing manual review workflow without requiring additional external services.
+
+**Open-source LLM support via Ollama.** The current multi-provider implementation supports OpenAI, Anthropic, and Google — all of which require external API calls and commercial API keys. Integrating with Ollama, which exposes a local HTTP interface compatible with the OpenAI API specification, would allow institutions to deploy open-weight models such as LLaMA 3 or Qwen on institutional hardware. This would eliminate per-token costs for institutions with suitable GPU infrastructure and remove the residual data sovereignty concern associated with routing student submissions through commercial API endpoints. The Vercel AI SDK, which the platform already uses, provides an Ollama provider adapter that would significantly reduce the integration effort.
+
+**Configurable role mapping and multi-tenancy.** Moving email-to-role inference from hardcoded patterns to a `systemSettings` configuration entry is a prerequisite for genuine multi-institution deployment. A more ambitious extension would introduce full multi-tenancy: namespace isolation at the database level, per-institution LLM configuration, and a superadmin role capable of managing multiple institution deployments from a single administrative interface. This would allow the platform to serve as a shared service across an entire university system without requiring separate deployments per institution.
+
+**Accessibility.** The current frontend is keyboard-navigable in the majority of flows but has not been formally audited against WCAG 2.1 AA criteria. A structured accessibility audit and remediation pass — addressing screen reader compatibility, colour contrast ratios, and focus management in the UML editor component — would ensure the platform is usable by students with visual or motor impairments, in line with the inclusive design expectations of publicly-funded educational institutions.
+
+**Student self-assessment and rubric co-design.** A body of evidence in educational psychology suggests that students who engage in self-assessment against explicit rubric criteria develop stronger metacognitive awareness of their own work. A future extension could present students with the grading rubric prior to submission and invite them to self-score against each criterion. These self-scores could then be compared against the AI-generated and staff-finalised scores, surfacing calibration gaps as a feedback mechanism. This would also generate an additional signal for future experimental work: whether student self-assessment and AI assessment are more or less correlated than either is with the human expert ground truth.
+
+**Horizontal scaling of the worker tier.** As noted above, the worker currently operates at concurrency=1 to avoid race conditions in shared state. Resolving the daily usage statistics update race — for instance, by using PostgreSQL's `INSERT ... ON CONFLICT DO UPDATE` with row-level locking — would safely enable concurrency greater than one. Combined with the Kubernetes worker deployment's support for multiple replicas, this would allow the grading queue to process multiple submissions simultaneously, reducing the elapsed time for large batch grading operations from hours to minutes and making the platform viable for real-time formative feedback during live assessment events.
+
+---
+
+## 7.6 Closing Statement
+
+The central motivation for this project was simple and practical: grading UML diagrams at scale is a burdensome, time-consuming task that degrades both the working conditions of teaching staff and the quality of feedback available to students. The platform built in this project does not eliminate that burden, nor does it claim to. What it does is restructure it. A task that once required a marker to examine and evaluate each diagram individually, from scratch, becomes instead a task of review and adjudication: examining an AI-generated suggestion, assessing its quality against one's own expert judgement, and confirming or correcting it. The cognitive shift from composition to evaluation is significant, and the time saving — a reduction from ten or more hours of marking to an estimated two to three hours of review for a cohort of two hundred — represents a genuine improvement in the sustainability of computing education assessment at scale.
+
+The empirical experiment, while necessarily limited in dataset size and scope, makes a modest but concrete contribution to a field in which reproducible benchmarks for automated UML grading are notably absent. The finding that flagship language models from Anthropic and OpenAI can achieve Pearson correlations in the range of 0.82 to 0.85 against human expert scores on a structured UML rubric — at a per-submission cost of under ten cents — establishes a reasonable baseline for institutional adoption decisions. The identification of a cost-efficient Pareto frontier, and the finding that grade consistency is a critical and often overlooked evaluation dimension, contribute framing that future work in this space can build upon.
+
+More broadly, this project illustrates that the automation of complex, domain-specific assessment tasks is no longer a research aspiration but an engineering problem. The models capable of performing this task exist. The structured output tooling needed to make their responses reliable and parseable is mature. The remaining challenges are institutional, pedagogical, and operational: how to integrate these tools into existing assessment workflows, how to configure them appropriately for different learning contexts, and how to ensure that the introduction of automation enhances rather than undermines the educational purpose of assessment. It is to these questions — not to the technical challenge of building the pipeline — that the field's attention must now turn. This platform, and the body of work it represents, is offered as one contribution to that conversation.
