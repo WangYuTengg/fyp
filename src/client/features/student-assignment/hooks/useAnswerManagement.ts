@@ -10,10 +10,12 @@ export function useAnswerManagement(
   const [answers, setAnswers] = useState<Record<string, AnswerState>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const dirtyRef = useRef<Set<string>>(new Set());
   const answersRef = useRef<Record<string, AnswerState>>({});
+  const submittingRef = useRef(false);
 
   // Hydrate answers from submission
   useEffect(() => {
@@ -137,8 +139,10 @@ export function useAnswerManagement(
   }, [isPastDue, saveAnswer, submission, submitted]);
 
   const submit = async () => {
-    if (!submission) return;
+    if (!submission || submittingRef.current) return;
 
+    submittingRef.current = true;
+    setSubmitting(true);
     try {
       await submissionsApi.submit(submission.id);
       setSubmitted(true);
@@ -147,6 +151,9 @@ export function useAnswerManagement(
         const message = err instanceof Error ? err.message : String(err);
         showToast(message);
       }
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -159,6 +166,7 @@ export function useAnswerManagement(
     answers,
     saving,
     submitted,
+    submitting,
     toast,
     lastSaved,
     saveAnswer,

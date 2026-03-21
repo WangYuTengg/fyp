@@ -33,6 +33,7 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     answers,
     saving,
     submitted,
+    submitting,
     toast,
     lastSaved,
     saveAnswer,
@@ -321,7 +322,7 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
         <button
           type="button"
           onClick={openSubmitConfirm}
-          disabled={submitted || !submission}
+          disabled={submitted || submitting || !submission}
           className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
         >
           Submit assignment
@@ -366,9 +367,10 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
             <button
               type="button"
               onClick={confirmSubmit}
-              className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+              disabled={submitting}
+              className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
             >
-              Submit anyway
+              {submitting ? 'Submitting...' : 'Submit anyway'}
             </button>
           </div>
         </div>
