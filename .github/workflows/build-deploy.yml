@@ -76,13 +76,55 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VITE_SUPABASE_URL=${{ vars.VITE_SUPABASE_URL }}
+            VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
+            VITE_API_URL=${{ vars.VITE_API_URL }}
 
-  # Add deployment step here if you have a deployment target
-  # deploy:
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   if: github.ref == 'refs/heads/main'
-  #   steps:
-  #     - name: Deploy to production
-  #       run: |
-  #         # Add your deployment commands here
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "${KUBECONFIG_DATA}" | base64 -d > ~/.kube/config
+
+      - name: Run database migrations
+        env:
+          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+        run: |
+          SHORT_SHA="${IMAGE_TAG##*:sha-}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          FULL_TAG="${IMAGE_TAG%:*}:sha-${SHORT_SHA}"
+          # Delete previous migration job if it exists
+          kubectl delete job db-migrate -n uml-assessment --ignore-not-found
+          # Create migration job with the new image
+          sed "s|ghcr.io/OWNER/uml-assessment:latest|${FULL_TAG}|g" k8s/migration-job.yaml | kubectl apply -f -
+          # Wait for migration to complete (2 min timeout)
+          kubectl wait --for=condition=complete job/db-migrate -n uml-assessment --timeout=120s
+
+      - name: Deploy web and worker
+        env:
+          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+        run: |
+          SHORT_SHA="${IMAGE_TAG##*:sha-}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          FULL_TAG="${IMAGE_TAG%:*}:sha-${SHORT_SHA}"
+          kubectl set image deployment/web web="${FULL_TAG}" -n uml-assessment
+          kubectl set image deployment/worker worker="${FULL_TAG}" -n uml-assessment
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/web -n uml-assessment --timeout=300s
+          kubectl rollout status deployment/worker -n uml-assessment --timeout=300s

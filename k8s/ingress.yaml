@@ -1,0 +1,29 @@
+# Ingress — exposes the web service externally.
+#
+# Works with Traefik (ships with k3s) or nginx-ingress.
+# TLS: Uses cert-manager. For on-premise, use a self-signed issuer or
+# the school's CA. If internet-accessible, Let's Encrypt works too.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+  namespace: uml-assessment
+  annotations:
+    # Uncomment for cert-manager TLS automation
+    # cert-manager.io/cluster-issuer: selfsigned-issuer
+spec:
+  tls:
+    - hosts:
+        - uml.school.edu  # Replace with your school's domain
+      secretName: uml-tls
+  rules:
+    - host: uml.school.edu  # Replace with your school's domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80

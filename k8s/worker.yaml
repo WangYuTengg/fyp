@@ -1,0 +1,55 @@
+# Graphile Worker — standalone background job processor for LLM grading.
+#
+# Separated from the web tier so that long-running LLM calls (up to 60s)
+# don't affect HTTP response times. Scales independently.
+#
+# Tasks processed: auto-grade-written, auto-grade-uml, auto-submit-expired (cron)
+#
+# Scaling: Start with 1 replica. Each replica processes jobs sequentially
+# (concurrency: 1). Graphile Worker uses PostgreSQL advisory locks so multiple
+# replicas are safe — jobs won't be double-processed. Scale to 2-3 if the
+# grading queue backs up during exam periods.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: uml-assessment
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      # LLM grading jobs can take up to 60s — give the worker time to finish before killing
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: worker
+          image: ghcr.io/OWNER/uml-assessment:latest  # Replace OWNER with your GitHub org/user
+          command: ["node", "dist/server/worker.js"]
+          envFrom:
+            - secretRef:
+                name: app-secrets
+            - configMapRef:
+                name: app-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 250m
+              memory: 512Mi
+          # No HTTP server — check if the node process is alive
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "kill -0 1"]
+            periodSeconds: 30
+            failureThreshold: 3

@@ -1,0 +1,15 @@
+# Non-secret configuration shared by web and worker pods.
+# Build-time env vars (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_API_URL)
+# are baked into the JS bundle at Docker build time via build args — they are NOT here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: uml-assessment
+data:
+  NODE_ENV: "production"
+  # VITE_APP_URL is used server-side for CORS origin — must match the public URL
+  VITE_APP_URL: "https://uml.school.edu"
+  # VITE_SUPABASE_URL is used server-side for auth verification (JWT decoding).
+  # This is your managed Supabase project URL (e.g., https://XXXXX.supabase.co).
+  VITE_SUPABASE_URL: "https://XXXXX.supabase.co"

@@ -38,6 +38,9 @@ RUN npm ci --only=production
 # Copy built assets from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy migration files for db:migrate Job
+COPY --from=builder /app/src/db/migrations ./src/db/migrations
+
 # S8: Run as non-root user for defense-in-depth
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
     && chown -R appuser:appgroup /app
@@ -49,5 +52,6 @@ EXPOSE 3000
 # Set environment to production
 ENV NODE_ENV=production
 
-# Start the server
+# Default: start the web server
+# Override with ["node", "dist/server/worker.js"] for the Graphile Worker service
 CMD ["node", "dist/server/index.js"]

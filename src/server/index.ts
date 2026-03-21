@@ -12,7 +12,8 @@ import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import { cors } from 'hono/cors';
 import { rateLimiter } from 'hono-rate-limiter';
-import type { TaskList } from 'graphile-worker';
+import { sql } from 'drizzle-orm';
+import { db } from '../db/index.js';
 import authRoutes from './routes/auth/index.js';
 import coursesRoutes from './routes/courses/index.js';
 import assignmentsRoutes from './routes/assignments/index.js';
@@ -25,10 +26,6 @@ import settingsRoutes from './routes/settings/index.js';
 import usersRoutes from './routes/users/index.js';
 import adminRoutes from './routes/admin/index.js';
 import { authMiddleware, type AuthContext } from './middleware/auth.js';
-import { initializeWorker, shutdownWorker } from './lib/worker.js';
-import autoGradeWritten, { type AutoGradeWrittenPayload } from './jobs/auto-grade-written.js';
-import autoGradeUML, { type AutoGradeUMLPayload } from './jobs/auto-grade-uml.js';
-import autoSubmitExpired from './jobs/auto-submit-expired.js';
 import { RATE_LIMIT_CONFIG } from './config/constants.js';
 import { env } from './config/env.js';
 
@@ -154,7 +151,23 @@ app.route('/api/settings', settingsRoutes);
 app.route('/api/users', usersRoutes);
 app.route('/api/admin', adminRoutes);
 
-// Health check
+// Health checks — separate liveness and readiness for Kubernetes
+// Liveness: is the process alive? (used by livenessProbe — avoids killing pods on transient DB issues)
+app.get('/api/health/live', (c) => {
+  return c.json({ status: 'ok' });
+});
+
+// Readiness: can the pod serve traffic? (used by readinessProbe — removes pod from Service if DB is unreachable)
+app.get('/api/health/ready', async (c) => {
+  try {
+    await db.execute(sql`SELECT 1`);
+    return c.json({ status: 'ok', db: 'connected' });
+  } catch {
+    return c.json({ status: 'degraded', db: 'disconnected' }, 503);
+  }
+});
+
+// Backwards-compatible alias
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok' });
 });
@@ -177,34 +190,14 @@ if (process.env.NODE_ENV === 'production') {
 
 const port = Number(process.env.PORT) || 3000;
 
-// Initialize Graphile Worker for background job processing
-const taskList: TaskList = {
-  'auto-grade-written': (payload, helpers) =>
-    autoGradeWritten(payload as AutoGradeWrittenPayload, helpers),
-  'auto-grade-uml': (payload, helpers) => autoGradeUML(payload as AutoGradeUMLPayload, helpers),
-  'auto-submit-expired': (payload, helpers) => autoSubmitExpired(payload, helpers),
-};
-
-initializeWorker(taskList)
-  .then(() => {
-    console.log('✓ Graphile Worker initialized');
-  })
-  .catch((err) => {
-    console.error('FATAL: Failed to initialize Graphile Worker:', err);
-    console.error('Auto-grading system will not function. Exiting...');
-    process.exit(1);
-  });
-
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully...');
-  await shutdownWorker();
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down...');
   process.exit(0);
 });
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down gracefully...');
-  await shutdownWorker();
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down...');
   process.exit(0);
 });
 

@@ -1,0 +1,43 @@
+# HorizontalPodAutoscaler for the web tier.
+#
+# Scales based on CPU utilization — the web server is mostly I/O-bound (DB queries),
+# so CPU spikes indicate request processing load from concurrent students.
+#
+# Scale-up is aggressive (exam starts → traffic spike → add 2 pods per minute).
+# Scale-down is conservative (5-min stabilization, 1 pod per 2 minutes) to avoid
+# flapping between exam questions.
+#
+# For known exam windows, pre-scale with: kubectl scale deployment web --replicas=4
+# The HPA will maintain at least 4 and scale further if needed.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-hpa
+  namespace: uml-assessment
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120

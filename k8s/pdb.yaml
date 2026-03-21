@@ -1,0 +1,25 @@
+# PodDisruptionBudgets — protect availability during node drains and cluster upgrades.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-pdb
+  namespace: uml-assessment
+spec:
+  # Always keep at least 1 web pod running during voluntary disruptions
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: web
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: worker-pdb
+  namespace: uml-assessment
+spec:
+  # Worker can be fully drained — Graphile Worker releases advisory locks on shutdown,
+  # and the replacement pod picks up pending jobs. No data loss.
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app: worker
