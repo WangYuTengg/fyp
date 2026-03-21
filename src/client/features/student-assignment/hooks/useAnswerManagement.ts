@@ -141,19 +141,21 @@ export function useAnswerManagement(
     return () => clearInterval(interval);
   }, [isPastDue, saveAnswer, submission, submitted]);
 
-  const submit = async () => {
-    if (!submission || submittingRef.current) return;
+  const submit = async (): Promise<string | null> => {
+    if (!submission || submittingRef.current) return null;
 
     submittingRef.current = true;
     setSubmitting(true);
     try {
       await submissionsApi.submit(submission.id);
       setSubmitted(true);
+      return submission.id;
     } catch (err: unknown) {
       if (isBlockingError(err)) {
         const message = err instanceof Error ? err.message : String(err);
         showToast(message);
       }
+      return null;
     } finally {
       submittingRef.current = false;
       setSubmitting(false);

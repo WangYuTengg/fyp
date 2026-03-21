@@ -43,11 +43,14 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     retrySave,
   } = useAnswerManagement(submission, questionsById, isPastDue);
 
-  const handleFocusAutoSubmit = useCallback(() => {
+  const handleFocusAutoSubmit = useCallback(async () => {
     if (!submitted && submission) {
-      submit();
+      const submissionId = await submit();
+      if (submissionId) {
+        navigate({ to: '/student/submissions/$submissionId/receipt', params: { submissionId } });
+      }
     }
-  }, [submitted, submission, submit]);
+  }, [submitted, submission, submit, navigate]);
 
   const { showWarning: showFocusWarning, dismissWarning: dismissFocusWarning } = useFocusMonitor({
     submissionId: submission?.id,
@@ -162,10 +165,13 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
   }, [authLoading, user, navigate, dbUser, setAdminViewAs]);
 
   // Auto-submit when time runs out
-  const handleTimeUp = () => {
+  const handleTimeUp = async () => {
     if (!submitted && submission) {
-      alert('⏰ Time is up! Submitting your assignment...');
-      submit();
+      alert('Time is up! Submitting your assignment...');
+      const submissionId = await submit();
+      if (submissionId) {
+        navigate({ to: '/student/submissions/$submissionId/receipt', params: { submissionId } });
+      }
     }
   };
 
@@ -212,8 +218,11 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
   };
 
   const confirmSubmit = async () => {
-    await submit();
+    const submissionId = await submit();
     setIsSubmitConfirmOpen(false);
+    if (submissionId) {
+      navigate({ to: '/student/submissions/$submissionId/receipt', params: { submissionId } });
+    }
   };
 
   return (
