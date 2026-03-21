@@ -100,19 +100,19 @@ jobs:
           mkdir -p ~/.kube
           echo "${KUBECONFIG_DATA}" | base64 -d > ~/.kube/config
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Run database migrations
         env:
-          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-        run: |
-          SHORT_SHA="${IMAGE_TAG##*:sha-}"
-          SHORT_SHA="${SHORT_SHA:0:7}"
-          FULL_TAG="${IMAGE_TAG%:*}:sha-${SHORT_SHA}"
-          # Delete previous migration job if it exists
-          kubectl delete job db-migrate -n uml-assessment --ignore-not-found
-          # Create migration job with the new image
-          sed "s|ghcr.io/OWNER/uml-assessment:latest|${FULL_TAG}|g" k8s/migration-job.yaml | kubectl apply -f -
-          # Wait for migration to complete (2 min timeout)
-          kubectl wait --for=condition=complete job/db-migrate -n uml-assessment --timeout=120s
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:migrate
 
       - name: Deploy web and worker
         env:
