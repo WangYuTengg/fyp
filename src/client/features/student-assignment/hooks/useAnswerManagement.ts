@@ -10,10 +10,13 @@ export function useAnswerManagement(
   const [answers, setAnswers] = useState<Record<string, AnswerState>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [saveError, setSaveError] = useState(false);
   const dirtyRef = useRef<Set<string>>(new Set());
   const answersRef = useRef<Record<string, AnswerState>>({});
+  const submittingRef = useRef(false);
 
   // Hydrate answers from submission
   useEffect(() => {
@@ -107,7 +110,9 @@ export function useAnswerManagement(
         });
         dirtyRef.current.delete(questionId);
         setLastSaved(new Date());
+        setSaveError(false);
       } catch (err: unknown) {
+        setSaveError(true);
         if (isBlockingError(err)) {
           const message = err instanceof Error ? err.message : String(err);
           showToast(message);
@@ -136,17 +141,24 @@ export function useAnswerManagement(
     return () => clearInterval(interval);
   }, [isPastDue, saveAnswer, submission, submitted]);
 
-  const submit = async () => {
-    if (!submission) return;
+  const submit = async (): Promise<string | null> => {
+    if (!submission || submittingRef.current) return null;
 
+    submittingRef.current = true;
+    setSubmitting(true);
     try {
       await submissionsApi.submit(submission.id);
       setSubmitted(true);
+      return submission.id;
     } catch (err: unknown) {
       if (isBlockingError(err)) {
         const message = err instanceof Error ? err.message : String(err);
         showToast(message);
       }
+      return null;
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -155,14 +167,25 @@ export function useAnswerManagement(
     dirtyRef.current.add(questionId);
   }, []);
 
+  const retrySave = useCallback(() => {
+    const dirtyIds = Array.from(dirtyRef.current);
+    if (dirtyIds.length === 0) return;
+    dirtyIds.forEach((questionId) => {
+      void saveAnswer(questionId, true);
+    });
+  }, [saveAnswer]);
+
   return {
     answers,
     saving,
     submitted,
+    submitting,
     toast,
     lastSaved,
+    saveError,
     saveAnswer,
     submit,
     updateAnswer,
+    retrySave,
   };
 }

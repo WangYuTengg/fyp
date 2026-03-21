@@ -1,8 +1,11 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import type { RefObject } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { GradingAnswer, GradingMark, QuestionGrade } from '../types';
 import { UMLViewer } from '../../../components/UMLViewer';
 import { UMLAnnotationOverlay, AnnotationSidebar, type AnnotationPin } from './UMLAnnotationOverlay';
+import { rubricsApi } from '../../../lib/api';
+import type { RubricCriterion } from '../../../lib/api';
 import {
   CheckCircleIcon,
   ChevronDownIcon,
@@ -19,6 +22,12 @@ const OVERRIDE_REASONS = [
   { value: 'other', label: 'Other' },
 ] as const;
 
+type RubricScoreSelection = {
+  criterionId: string;
+  levelLabel: string;
+  points: number;
+};
+
 type QuestionGradeCardProps = {
   answer: GradingAnswer;
   questionNumber: number;
@@ -27,6 +36,9 @@ type QuestionGradeCardProps = {
   isReadOnly: boolean;
   pointsInputRef?: RefObject<HTMLInputElement | null>;
   existingMark?: GradingMark | null;
+  focusedCriterionIndex?: number | null;
+  acceptAITrigger?: number;
+  rubricLevelSelectTrigger?: { criterionIndex: number; levelIndex: number; seq: number } | null;
 };
 
 type ParsedAISuggestion = {
@@ -49,11 +61,101 @@ export function QuestionGradeCard({
   isReadOnly,
   pointsInputRef,
   existingMark,
+  focusedCriterionIndex,
+  acceptAITrigger,
+  rubricLevelSelectTrigger,
 }: QuestionGradeCardProps) {
   const [showReference, setShowReference] = useState(false);
   const [showAISuggestion, setShowAISuggestion] = useState(true);
   const [aiSuggestionDismissed, setAISuggestionDismissed] = useState(false);
   const question = answer.question;
+
+  // Fetch rubric for this question
+  const { data: rubricData } = useQuery({
+    queryKey: ['rubric', answer.questionId],
+    queryFn: () => rubricsApi.getByQuestion(answer.questionId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const rubricCriteria = useMemo<RubricCriterion[]>(
+    () => (rubricData?.rubric?.criteria ?? []) as RubricCriterion[],
+    [rubricData]
+  );
+
+  const hasRubric = rubricCriteria.length > 0;
+
+  // Per-criterion level selections
+  const [rubricSelections, setRubricSelections] = useState<Record<string, RubricScoreSelection>>(() => {
+    // Try to restore from existing mark feedback
+    if (existingMark?.feedback) {
+      try {
+        const parsed = JSON.parse(existingMark.feedback) as { rubricScores?: RubricScoreSelection[] };
+        if (parsed?.rubricScores && Array.isArray(parsed.rubricScores)) {
+          const map: Record<string, RubricScoreSelection> = {};
+          for (const sel of parsed.rubricScores) {
+            map[sel.criterionId] = sel;
+          }
+          return map;
+        }
+      } catch {
+        // Not JSON, that's fine
+      }
+    }
+    return {};
+  });
+
+  const handleRubricLevelSelect = useCallback(
+    (criterion: RubricCriterion, level: { label: string; points: number }) => {
+      if (isReadOnly) return;
+
+      setRubricSelections((prev) => {
+        const isDeselect = prev[criterion.id]?.levelLabel === level.label;
+        const next = { ...prev };
+
+        if (isDeselect) {
+          delete next[criterion.id];
+        } else {
+          next[criterion.id] = {
+            criterionId: criterion.id,
+            levelLabel: level.label,
+            points: level.points,
+          };
+        }
+
+        // Auto-sum points from rubric selections
+        const rubricTotal = Object.values(next).reduce((sum, sel) => sum + sel.points, 0);
+        const maxPts = question?.points ?? 0;
+        const clampedPoints = Math.max(0, Math.min(maxPts, rubricTotal));
+
+        // Build structured feedback JSON
+        const rubricScores = Object.values(next);
+        const currentFeedbackText = (() => {
+          try {
+            const parsed = JSON.parse(grade?.feedback ?? '') as { comment?: string };
+            return parsed?.comment ?? '';
+          } catch {
+            return grade?.feedback ?? '';
+          }
+        })();
+
+        const feedbackJson = JSON.stringify({
+          rubricScores,
+          comment: currentFeedbackText,
+        });
+
+        onGradeChange({
+          answerId: answer.id,
+          questionId: answer.questionId,
+          points: clampedPoints,
+          maxPoints: maxPts,
+          feedback: feedbackJson,
+        });
+
+        return next;
+      });
+    },
+    [isReadOnly, question?.points, grade?.feedback, onGradeChange, answer.id, answer.questionId]
+  );
 
   const aiSuggestion = useMemo<ParsedAISuggestion | null>(() => {
     if (!answer.aiGradingSuggestion) return null;
@@ -132,23 +234,68 @@ export function QuestionGradeCard({
     [grade, answer.id, answer.questionId, question?.points, onGradeChange]
   );
 
-  if (!question) {
-    return null;
-  }
-
-  const maxPoints = question.points;
-  const currentGrade =
-    grade ??
-    ({
-      answerId: answer.id,
-      questionId: answer.questionId,
-      points: 0,
-      maxPoints,
-      feedback: '',
-    } satisfies QuestionGrade);
+  const maxPoints = question?.points ?? 0;
+  const currentGrade = useMemo<QuestionGrade>(
+    () =>
+      grade ?? {
+        answerId: answer.id,
+        questionId: answer.questionId,
+        points: 0,
+        maxPoints,
+        feedback: '',
+      },
+    [grade, answer.id, answer.questionId, maxPoints]
+  );
 
   const currentPoints = currentGrade.points;
   const currentFeedback = currentGrade.feedback;
+
+  const handleAcceptAISuggestion = useCallback(() => {
+    if (!aiSuggestion) return;
+
+    const suggestedPoints = Number.isFinite(aiSuggestion.points)
+      ? Number(aiSuggestion.points)
+      : 0;
+
+    onGradeChange({
+      ...currentGrade,
+      points: Math.max(0, Math.min(maxPoints, Math.round(suggestedPoints))),
+      feedback: aiSuggestion.reasoning || currentFeedback,
+      maxPoints,
+    });
+    setAISuggestionDismissed(true);
+  }, [aiSuggestion, currentGrade, maxPoints, currentFeedback, onGradeChange]);
+
+  // Accept AI suggestion when triggered by keyboard shortcut from parent
+  useEffect(() => {
+    if (acceptAITrigger && acceptAITrigger > 0 && aiSuggestion && !aiSuggestionDismissed && !isReadOnly) {
+      handleAcceptAISuggestion();
+    }
+    // Only trigger on acceptAITrigger changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acceptAITrigger]);
+
+  // Select rubric level when triggered by keyboard shortcut from parent
+  useEffect(() => {
+    if (!rubricLevelSelectTrigger || !hasRubric || isReadOnly) return;
+    const { criterionIndex, levelIndex } = rubricLevelSelectTrigger;
+    const criterion = rubricCriteria[criterionIndex];
+    if (!criterion) return;
+    const levels = criterion.levels ?? [];
+    const level = levels[levelIndex];
+    if (!level) return;
+    handleRubricLevelSelect(criterion, level);
+    // Only trigger on rubricLevelSelectTrigger changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rubricLevelSelectTrigger]);
+
+  const handleRejectAISuggestion = () => {
+    setAISuggestionDismissed(true);
+  };
+
+  if (!question) {
+    return null;
+  }
 
   const handlePointsChange = (value: string) => {
     const parsed = Number.parseInt(value, 10);
@@ -172,26 +319,6 @@ export function QuestionGradeCard({
       feedback: value,
       maxPoints,
     });
-  };
-
-  const handleAcceptAISuggestion = () => {
-    if (!aiSuggestion) return;
-
-    const suggestedPoints = Number.isFinite(aiSuggestion.points)
-      ? Number(aiSuggestion.points)
-      : 0;
-
-    onGradeChange({
-      ...currentGrade,
-      points: Math.max(0, Math.min(maxPoints, Math.round(suggestedPoints))),
-      feedback: aiSuggestion.reasoning || currentFeedback,
-      maxPoints,
-    });
-    setAISuggestionDismissed(true);
-  };
-
-  const handleRejectAISuggestion = () => {
-    setAISuggestionDismissed(true);
   };
 
   const getConfidenceBadge = (confidence: number | null | undefined) => {
@@ -539,6 +666,55 @@ export function QuestionGradeCard({
                 className="form-input-block"
               />
             </div>
+
+            {hasRubric ? (
+              <div className="space-y-3">
+                <div className="text-sm font-medium text-gray-700">Rubric Criteria</div>
+                {rubricCriteria.map((criterion, cIndex) => {
+                  const levels = criterion.levels ?? [];
+                  const selected = rubricSelections[criterion.id];
+                  const isFocused = focusedCriterionIndex === cIndex;
+
+                  return (
+                    <div
+                      key={criterion.id}
+                      className={`border rounded-md p-3 space-y-2 ${isFocused ? 'border-blue-400 bg-blue-50/50 ring-1 ring-blue-300' : 'border-gray-200 bg-white'}`}
+                    >
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-gray-800">
+                          {cIndex + 1}. {criterion.description}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {selected ? selected.points : '—'} / {criterion.maxPoints}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {levels.map((level, lIndex) => {
+                          const isSelected = selected?.levelLabel === level.label;
+                          return (
+                            <button
+                              key={`${criterion.id}-${level.label}`}
+                              type="button"
+                              onClick={() => handleRubricLevelSelect(criterion, level)}
+                              disabled={isReadOnly}
+                              title={level.description || `${level.label}: ${level.points} pts${isFocused ? ` (press ${lIndex + 1})` : ''}`}
+                              className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white ring-1 ring-blue-700'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50'
+                              }`}
+                            >
+                              {level.label}: {level.points}pt{level.points !== 1 ? 's' : ''}
+                              {isFocused ? <span className="ml-1 opacity-60">({lIndex + 1})</span> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
 
             <div className="text-sm bg-white border border-gray-200 rounded-md p-3">
               <span className="text-gray-600">Score: </span>

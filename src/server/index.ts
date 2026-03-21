@@ -151,7 +151,7 @@ app.route('/api/settings', settingsRoutes);
 app.route('/api/users', usersRoutes);
 app.route('/api/admin', adminRoutes);
 
-// Health checks — separate liveness and readiness for Kubernetes
+// Health checks — separate liveness and readiness for Kubernetes / Docker
 // Liveness: is the process alive? (used by livenessProbe — avoids killing pods on transient DB issues)
 app.get('/api/health/live', (c) => {
   return c.json({ status: 'ok' });
@@ -159,15 +159,22 @@ app.get('/api/health/live', (c) => {
 
 // Readiness: can the pod serve traffic? (used by readinessProbe — removes pod from Service if DB is unreachable)
 app.get('/api/health/ready', async (c) => {
+  const checks = { database: false };
+
   try {
     await db.execute(sql`SELECT 1`);
-    return c.json({ status: 'ok', db: 'connected' });
+    checks.database = true;
   } catch {
-    return c.json({ status: 'degraded', db: 'disconnected' }, 503);
+    // DB unreachable — leave checks.database as false
   }
+
+  const status = checks.database ? 'ok' : 'degraded';
+  const statusCode = checks.database ? 200 : 503;
+
+  return c.json({ status, checks }, statusCode);
 });
 
-// Backwards-compatible alias
+// Backwards-compatible alias — lightweight liveness probe
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok' });
 });

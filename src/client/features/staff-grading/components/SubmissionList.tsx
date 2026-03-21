@@ -163,8 +163,9 @@ export function SubmissionList({
         )}
       </div>
 
-      <div className="px-4 py-2 border-t border-gray-200 text-xs text-gray-500">
-        Shortcuts: J/K for next/previous student.
+      <div className="px-4 py-2 border-t border-gray-200 text-xs text-gray-500 space-y-0.5">
+        <div>J/K next/prev student &middot; [/] or Tab cycle questions</div>
+        <div>1-9 rubric levels &middot; Enter/A accept AI &middot; Ctrl+S save</div>
       </div>
     </div>
   );

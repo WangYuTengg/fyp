@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { GradingAnswer, GradingAssignment, GradingSubmission, QuestionGrade, TabSwitchEvent } from '../types';
 import { QuestionGradeCard } from './QuestionGradeCard';
 import { TabSwitchLog } from './TabSwitchLog';
+import { rubricsApi } from '../../../lib/api';
 
 type GradingPanelProps = {
   submission: GradingSubmission;
@@ -107,13 +109,73 @@ export function GradingPanel({
     [activeQuestionIndex, answers]
   );
 
+  const isGraded = submission.status === 'graded';
+
+  // Keyboard-driven rubric scoring state
+  const [acceptAITrigger, setAcceptAITrigger] = useState(0);
+  const [rubricLevelSelectTrigger, setRubricLevelSelectTrigger] = useState<{
+    criterionIndex: number;
+    levelIndex: number;
+    seq: number;
+  } | null>(null);
+
+  // Fetch rubric for the active question to know criterion count for keyboard nav
+  const activeQuestionId_forRubric = activeAnswer?.questionId ?? null;
+  const { data: rubricData } = useQuery({
+    queryKey: ['rubric', activeQuestionId_forRubric],
+    queryFn: () => rubricsApi.getByQuestion(activeQuestionId_forRubric!),
+    enabled: !!activeQuestionId_forRubric,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const rubricCriteriaCount = useMemo(() => {
+    const criteria = rubricData?.rubric?.criteria;
+    return Array.isArray(criteria) ? criteria.length : 0;
+  }, [rubricData]);
+
+  // Derive focused criterion index as a combined key of question + offset
+  // Reset offset when question changes by tracking it alongside the offset
+  const [focusedCriterionState, setFocusedCriterionState] = useState<{ questionId: string | null; offset: number }>({
+    questionId: activeQuestionId_forRubric,
+    offset: 0,
+  });
+
+  // When the question changes, reset to 0
+  const focusedCriterionOffset = focusedCriterionState.questionId === activeQuestionId_forRubric
+    ? focusedCriterionState.offset
+    : 0;
+  const focusedCriterionIndex = rubricCriteriaCount > 0 ? focusedCriterionOffset : null;
+
+  // Ref for save handler to use in keyboard shortcut
+  const handleSubmitRef = useRef<(moveToNext?: boolean) => Promise<void>>();
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+S / Cmd+S to save grades (works even when typing)
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault();
+        if (!isGraded && answers.length > 0 && handleSubmitRef.current) {
+          void handleSubmitRef.current(false);
+        }
+        return;
+      }
+
       if (isTypingTarget(event.target)) {
         return;
       }
 
       const key = event.key.toLowerCase();
+
+      // Tab to cycle between questions
+      if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        if (event.shiftKey) {
+          setActiveQuestionByOffset(-1);
+        } else {
+          setActiveQuestionByOffset(1);
+        }
+        return;
+      }
 
       if (event.key === '[') {
         event.preventDefault();
@@ -125,6 +187,46 @@ export function GradingPanel({
         event.preventDefault();
         setActiveQuestionByOffset(1);
         return;
+      }
+
+      // Enter / A to accept AI suggestion
+      if ((key === 'enter' || key === 'a') && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        setAcceptAITrigger((prev) => prev + 1);
+        return;
+      }
+
+      // Number keys 1-9 to select rubric criterion levels
+      if (rubricCriteriaCount > 0 && focusedCriterionIndex !== null) {
+        const num = Number.parseInt(event.key, 10);
+        if (num >= 1 && num <= 9) {
+          event.preventDefault();
+          setRubricLevelSelectTrigger({
+            criterionIndex: focusedCriterionIndex,
+            levelIndex: num - 1,
+            seq: Date.now(),
+          });
+          return;
+        }
+
+        // Up/Down arrows to cycle focused criterion
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          setFocusedCriterionState((prev) => ({
+            questionId: activeQuestionId_forRubric,
+            offset: prev.offset > 0 ? prev.offset - 1 : rubricCriteriaCount - 1,
+          }));
+          return;
+        }
+
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          setFocusedCriterionState((prev) => ({
+            questionId: activeQuestionId_forRubric,
+            offset: prev.offset < rubricCriteriaCount - 1 ? prev.offset + 1 : 0,
+          }));
+          return;
+        }
       }
 
       if (key === 'j' && hasNextSubmission) {
@@ -142,14 +244,17 @@ export function GradingPanel({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
+    answers.length,
+    isGraded,
     hasNextSubmission,
     hasPreviousSubmission,
     onSelectNextSubmission,
     onSelectPreviousSubmission,
     setActiveQuestionByOffset,
+    rubricCriteriaCount,
+    focusedCriterionIndex,
+    activeQuestionId_forRubric,
   ]);
-
-  const isGraded = submission.status === 'graded';
 
   useEffect(() => {
     if (isGraded || !activeAnswer) return;
@@ -185,7 +290,7 @@ export function GradingPanel({
     });
   }, [answers, grades]);
 
-  const handleSubmit = async (moveToNextAfterSave = false) => {
+  const handleSubmit = useCallback(async (moveToNextAfterSave = false) => {
     if (answers.length === 0) return;
 
     setError(null);
@@ -203,7 +308,12 @@ export function GradingPanel({
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
     }
-  };
+  }, [answers.length, onSubmitGrade, gradeList, hasNextSubmission, onSelectNextSubmission]);
+
+  // Keep ref updated for keyboard shortcut
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  }, [handleSubmit]);
 
   const totalPoints = gradeList.reduce((sum, grade) => sum + grade.points, 0);
   const maxPoints = answers.reduce((sum, answer) => sum + (answer.question?.points ?? 0), 0);
@@ -286,7 +396,7 @@ export function GradingPanel({
               );
             })}
           </div>
-          <p className="text-xs text-gray-500 mt-2">Use [ and ] to move between questions.</p>
+          <p className="text-xs text-gray-500 mt-2">Use [/] or Tab/Shift+Tab to move between questions. {rubricCriteriaCount > 0 ? 'Arrow keys to focus criteria, 1-9 to select levels.' : ''}</p>
         </div>
       ) : null}
 
@@ -302,6 +412,9 @@ export function GradingPanel({
           existingMark={
             (submission.marks ?? []).find((m) => m.answerId === activeAnswer.id) ?? null
           }
+          focusedCriterionIndex={focusedCriterionIndex}
+          acceptAITrigger={acceptAITrigger}
+          rubricLevelSelectTrigger={rubricLevelSelectTrigger}
         />
       ) : (
         <div className="bg-white shadow rounded-lg p-6">

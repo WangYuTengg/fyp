@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { db } from '../../../db/index.js';
-import { submissions, answers, marks, questions, users, assignments } from '../../../db/schema.js';
+import { submissions, answers, marks, questions, users, assignments, assignmentQuestions } from '../../../db/schema.js';
 import { requireAuth, type AuthContext } from '../../middleware/auth.js';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, count } from 'drizzle-orm';
 import { omitTeacherOnlyFields, toStudentSafeMcqContent } from '../../lib/content-utils.js';
 import { resolveScoringSubmission } from '../../lib/grading-utils.js';
 
@@ -119,12 +119,21 @@ getSubmissionRoute.get('/:submissionId', requireAuth, async (c) => {
     )
     .orderBy(desc(submissions.attemptNumber));
 
-  // Determine which attempt is the scoring attempt
+  // Load assignment details for receipt and scoring
   const [assignment] = await db
-    .select({ attemptScoringMethod: assignments.attemptScoringMethod })
+    .select({
+      attemptScoringMethod: assignments.attemptScoringMethod,
+      title: assignments.title,
+    })
     .from(assignments)
     .where(eq(assignments.id, submission.assignmentId))
     .limit(1);
+
+  // Count total questions in the assignment
+  const [questionCountResult] = await db
+    .select({ count: count() })
+    .from(assignmentQuestions)
+    .where(eq(assignmentQuestions.assignmentId, submission.assignmentId));
 
   const scoringMethod = (assignment?.attemptScoringMethod as 'latest' | 'highest') ?? 'latest';
 
@@ -162,6 +171,8 @@ getSubmissionRoute.get('/:submissionId', requireAuth, async (c) => {
     isScoringAttempt: submission.id === scoringAttemptId,
     scoringMethod,
     allAttempts,
+    assignment: assignment ? { title: assignment.title } : null,
+    totalQuestions: questionCountResult?.count ?? 0,
   });
 });
 

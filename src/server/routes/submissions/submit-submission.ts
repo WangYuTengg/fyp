@@ -28,7 +28,8 @@ submitSubmissionRoute.post('/:submissionId/submit', requireAuth, async (c) => {
   }
 
   if (submission.status !== 'draft') {
-    return c.json({ error: 'Already submitted' }, 400);
+    // Idempotent: return existing submission instead of erroring on double-submit
+    return c.json(submission);
   }
 
   // Determine if submission is late

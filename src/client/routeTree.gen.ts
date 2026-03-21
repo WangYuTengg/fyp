@@ -22,7 +22,8 @@ import { Route as StaffNotificationsRouteImport } from './routes/staff/notificat
 import { Route as StaffGradingRouteImport } from './routes/staff/grading'
 import { Route as StaffAssignmentAnalyticsRouteImport } from './routes/staff/assignment-analytics'
 import { Route as StaffAnalyticsRouteImport } from './routes/staff/analytics'
-import { Route as StudentSubmissionsSubmissionIdRouteImport } from './routes/student/submissions/$submissionId'
+import { Route as StudentSubmissionsSubmissionIdIndexRouteImport } from './routes/student/submissions/$submissionId/index'
+import { Route as StudentSubmissionsSubmissionIdReceiptRouteImport } from './routes/student/submissions/$submissionId/receipt'
 import { Route as StudentCoursesCourseIdRouteImport } from './routes/student/courses/$courseId'
 import { Route as StudentAssignmentsAssignmentIdRouteImport } from './routes/student/assignments/$assignmentId'
 import { Route as StaffGradingReviewRouteImport } from './routes/staff/grading.review'
@@ -95,10 +96,16 @@ const StaffAnalyticsRoute = StaffAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => StaffRoute,
 } as any)
-const StudentSubmissionsSubmissionIdRoute =
-  StudentSubmissionsSubmissionIdRouteImport.update({
-    id: '/submissions/$submissionId',
-    path: '/submissions/$submissionId',
+const StudentSubmissionsSubmissionIdIndexRoute =
+  StudentSubmissionsSubmissionIdIndexRouteImport.update({
+    id: '/submissions/$submissionId/',
+    path: '/submissions/$submissionId/',
+    getParentRoute: () => StudentRoute,
+  } as any)
+const StudentSubmissionsSubmissionIdReceiptRoute =
+  StudentSubmissionsSubmissionIdReceiptRouteImport.update({
+    id: '/submissions/$submissionId/receipt',
+    path: '/submissions/$submissionId/receipt',
     getParentRoute: () => StudentRoute,
   } as any)
 const StudentCoursesCourseIdRoute = StudentCoursesCourseIdRouteImport.update({
@@ -147,7 +154,8 @@ export interface FileRoutesByFullPath {
   '/staff/grading/review': typeof StaffGradingReviewRoute
   '/student/assignments/$assignmentId': typeof StudentAssignmentsAssignmentIdRoute
   '/student/courses/$courseId': typeof StudentCoursesCourseIdRoute
-  '/student/submissions/$submissionId': typeof StudentSubmissionsSubmissionIdRoute
+  '/student/submissions/$submissionId/': typeof StudentSubmissionsSubmissionIdIndexRoute
+  '/student/submissions/$submissionId/receipt': typeof StudentSubmissionsSubmissionIdReceiptRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -166,7 +174,8 @@ export interface FileRoutesByTo {
   '/staff/grading/review': typeof StaffGradingReviewRoute
   '/student/assignments/$assignmentId': typeof StudentAssignmentsAssignmentIdRoute
   '/student/courses/$courseId': typeof StudentCoursesCourseIdRoute
-  '/student/submissions/$submissionId': typeof StudentSubmissionsSubmissionIdRoute
+  '/student/submissions/$submissionId': typeof StudentSubmissionsSubmissionIdIndexRoute
+  '/student/submissions/$submissionId/receipt': typeof StudentSubmissionsSubmissionIdReceiptRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -188,7 +197,8 @@ export interface FileRoutesById {
   '/staff/grading/review': typeof StaffGradingReviewRoute
   '/student/assignments/$assignmentId': typeof StudentAssignmentsAssignmentIdRoute
   '/student/courses/$courseId': typeof StudentCoursesCourseIdRoute
-  '/student/submissions/$submissionId': typeof StudentSubmissionsSubmissionIdRoute
+  '/student/submissions/$submissionId/': typeof StudentSubmissionsSubmissionIdIndexRoute
+  '/student/submissions/$submissionId/receipt': typeof StudentSubmissionsSubmissionIdReceiptRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -211,7 +221,8 @@ export interface FileRouteTypes {
     | '/staff/grading/review'
     | '/student/assignments/$assignmentId'
     | '/student/courses/$courseId'
-    | '/student/submissions/$submissionId'
+    | '/student/submissions/$submissionId/'
+    | '/student/submissions/$submissionId/receipt'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/student/assignments/$assignmentId'
     | '/student/courses/$courseId'
     | '/student/submissions/$submissionId'
+    | '/student/submissions/$submissionId/receipt'
   id:
     | '__root__'
     | '/'
@@ -251,7 +263,8 @@ export interface FileRouteTypes {
     | '/staff/grading/review'
     | '/student/assignments/$assignmentId'
     | '/student/courses/$courseId'
-    | '/student/submissions/$submissionId'
+    | '/student/submissions/$submissionId/'
+    | '/student/submissions/$submissionId/receipt'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -356,11 +369,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffAnalyticsRouteImport
       parentRoute: typeof StaffRoute
     }
-    '/student/submissions/$submissionId': {
-      id: '/student/submissions/$submissionId'
-      path: '/submissions/$submissionId'
-      fullPath: '/student/submissions/$submissionId'
-      preLoaderRoute: typeof StudentSubmissionsSubmissionIdRouteImport
+    '/student/submissions/$submissionId/': {
+      id: '/student/submissions/$submissionId/'
+      path: '/submissions/$submissionId/'
+      fullPath: '/student/submissions/$submissionId/'
+      preLoaderRoute: typeof StudentSubmissionsSubmissionIdIndexRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/submissions/$submissionId/receipt': {
+      id: '/student/submissions/$submissionId/receipt'
+      path: '/submissions/$submissionId/receipt'
+      fullPath: '/student/submissions/$submissionId/receipt'
+      preLoaderRoute: typeof StudentSubmissionsSubmissionIdReceiptRouteImport
       parentRoute: typeof StudentRoute
     }
     '/student/courses/$courseId': {
@@ -441,14 +461,16 @@ interface StudentRouteChildren {
   StudentIndexRoute: typeof StudentIndexRoute
   StudentAssignmentsAssignmentIdRoute: typeof StudentAssignmentsAssignmentIdRoute
   StudentCoursesCourseIdRoute: typeof StudentCoursesCourseIdRoute
-  StudentSubmissionsSubmissionIdRoute: typeof StudentSubmissionsSubmissionIdRoute
+  StudentSubmissionsSubmissionIdIndexRoute: typeof StudentSubmissionsSubmissionIdIndexRoute
+  StudentSubmissionsSubmissionIdReceiptRoute: typeof StudentSubmissionsSubmissionIdReceiptRoute
 }
 
 const StudentRouteChildren: StudentRouteChildren = {
   StudentIndexRoute: StudentIndexRoute,
   StudentAssignmentsAssignmentIdRoute: StudentAssignmentsAssignmentIdRoute,
   StudentCoursesCourseIdRoute: StudentCoursesCourseIdRoute,
-  StudentSubmissionsSubmissionIdRoute: StudentSubmissionsSubmissionIdRoute,
+  StudentSubmissionsSubmissionIdIndexRoute: StudentSubmissionsSubmissionIdIndexRoute,
+  StudentSubmissionsSubmissionIdReceiptRoute: StudentSubmissionsSubmissionIdReceiptRoute,
 }
 
 const StudentRouteWithChildren =

@@ -26,14 +26,15 @@ export const PAGINATION_CONFIG = {
 export const WORKER_CONFIG = {
   CONCURRENCY: 1, // Process one job at a time
   POLL_INTERVAL_MS: 1000, // Check queue every second
-  MAX_ATTEMPTS: 1, // No retries for AI jobs
+  MAX_ATTEMPTS: 3, // Retry failed jobs up to 3 times
 } as const;
 
 // AI/LLM
 export const AI_CONFIG = {
   DEFAULT_TIMEOUT_MS: 60000, // 60 seconds
   ESTIMATED_TOKENS_PER_GRADING: 1000,
-  MAX_RETRIES: 0, // No auto-retry for AI calls
+  MAX_RETRIES: 3, // Retry transient LLM errors (429, 5xx)
+  BASE_DELAY_MS: 2000, // Exponential backoff base: 2s, 4s, 8s
 } as const;
 
 // Session/Auth

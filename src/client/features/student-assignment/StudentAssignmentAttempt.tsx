@@ -33,18 +33,24 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     answers,
     saving,
     submitted,
+    submitting,
     toast,
     lastSaved,
+    saveError,
     saveAnswer,
     submit,
     updateAnswer,
+    retrySave,
   } = useAnswerManagement(submission, questionsById, isPastDue);
 
-  const handleFocusAutoSubmit = useCallback(() => {
+  const handleFocusAutoSubmit = useCallback(async () => {
     if (!submitted && submission) {
-      submit();
+      const submissionId = await submit();
+      if (submissionId) {
+        navigate({ to: '/student/submissions/$submissionId/receipt', params: { submissionId } });
+      }
     }
-  }, [submitted, submission, submit]);
+  }, [submitted, submission, submit, navigate]);
 
   const { showWarning: showFocusWarning, dismissWarning: dismissFocusWarning } = useFocusMonitor({
     submissionId: submission?.id,
@@ -159,10 +165,13 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
   }, [authLoading, user, navigate, dbUser, setAdminViewAs]);
 
   // Auto-submit when time runs out
-  const handleTimeUp = () => {
+  const handleTimeUp = async () => {
     if (!submitted && submission) {
-      alert('⏰ Time is up! Submitting your assignment...');
-      submit();
+      alert('Time is up! Submitting your assignment...');
+      const submissionId = await submit();
+      if (submissionId) {
+        navigate({ to: '/student/submissions/$submissionId/receipt', params: { submissionId } });
+      }
     }
   };
 
@@ -209,8 +218,11 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
   };
 
   const confirmSubmit = async () => {
-    await submit();
+    const submissionId = await submit();
     setIsSubmitConfirmOpen(false);
+    if (submissionId) {
+      navigate({ to: '/student/submissions/$submissionId/receipt', params: { submissionId } });
+    }
   };
 
   return (
@@ -223,6 +235,8 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
         toast={toast}
         lastSaved={lastSaved}
         isSaving={Object.values(saving).some((s) => s)}
+        saveError={saveError}
+        onRetrySave={retrySave}
       />
 
       {/* Timer */}
@@ -321,7 +335,7 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
         <button
           type="button"
           onClick={openSubmitConfirm}
-          disabled={submitted || !submission}
+          disabled={submitted || submitting || !submission}
           className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
         >
           Submit assignment
@@ -366,9 +380,10 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
             <button
               type="button"
               onClick={confirmSubmit}
-              className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+              disabled={submitting}
+              className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
             >
-              Submit anyway
+              {submitting ? 'Submitting...' : 'Submit anyway'}
             </button>
           </div>
         </div>
