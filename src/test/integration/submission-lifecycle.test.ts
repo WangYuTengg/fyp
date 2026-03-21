@@ -391,7 +391,7 @@ describe('T10: Submission Lifecycle — POST /:submissionId/submit', () => {
     expect(res.status).toBe(200);
   });
 
-  it('rejects already-submitted submission', async () => {
+  it('returns existing submission idempotently for already-submitted', async () => {
     const app = createTestApp();
 
     queryResults.push(
@@ -403,9 +403,10 @@ describe('T10: Submission Lifecycle — POST /:submissionId/submit', () => {
       headers: { 'Content-Type': 'application/json' },
     });
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.error).toBe('Already submitted');
+    expect(body.id).toBe('sub-1');
+    expect(body.status).toBe('submitted');
   });
 
   it('rejects submission by wrong user', async () => {
