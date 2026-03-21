@@ -588,7 +588,7 @@ async function main() {
 
   // ── 8. Create assignments and attach questions ──
   // Fetch all questions grouped by course
-  const allQuestions = await sql`
+  const allQuestions = await sql<Array<{ id: string; course_id: string; type: string; title: string }>>`
     SELECT id, course_id, type, title FROM questions
     WHERE course_id = ANY(${orderedCourseIds})
     ORDER BY course_id, type, title
