@@ -10,8 +10,9 @@ const runMigrations = async () => {
   
   console.log('🔄 Running migrations...');
   
-  // Create a connection for migrations
-  const migrationClient = postgres(connectionString, { max: 1 });
+  // Create a dedicated connection for migrations.
+  // prepare: false for Supabase Supavisor (transaction-mode pooling) compatibility.
+  const migrationClient = postgres(connectionString, { max: 1, prepare: false });
   const db = drizzle(migrationClient);
   
   try {

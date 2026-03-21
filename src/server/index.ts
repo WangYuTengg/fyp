@@ -26,6 +26,7 @@ import settingsRoutes from './routes/settings/index.js';
 import usersRoutes from './routes/users/index.js';
 import adminRoutes from './routes/admin/index.js';
 import { authMiddleware, type AuthContext } from './middleware/auth.js';
+import { rlsMiddleware } from './middleware/rls.js';
 import { RATE_LIMIT_CONFIG } from './config/constants.js';
 import { env } from './config/env.js';
 
@@ -137,6 +138,10 @@ app.use('/api/*', limiter);
 
 // Global auth middleware to attach user to all requests
 app.use('*', authMiddleware);
+
+// RLS middleware — wraps authenticated requests in an RLS-scoped transaction
+// Route handlers can use c.get('rlsDb') for RLS-protected queries
+app.use('/api/*', rlsMiddleware);
 
 // API routes
 app.route('/api/auth', authRoutes);

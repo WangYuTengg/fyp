@@ -596,7 +596,9 @@ async function main() {
 
   const questionsByCourse: Record<string, Array<{ id: string; type: string; title: string }>> = {};
   for (const cid of orderedCourseIds) {
-    questionsByCourse[cid] = allQuestions.filter(q => q.course_id === cid);
+    questionsByCourse[cid] = allQuestions
+      .filter(q => q.course_id === cid)
+      .map(q => ({ id: q.id as string, type: q.type as string, title: q.title as string }));
   }
 
   const assignmentDefs = [

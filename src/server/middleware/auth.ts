@@ -1,14 +1,14 @@
 import type { Context, Next } from 'hono';
 import { jwtVerify } from 'jose';
 import { supabase } from '../lib/supabase.js';
-import { db } from '../../db/index.js';
+import { db, type Database } from '../../db/index.js';
 import { users } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { env } from '../config/env.js';
 
 const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
 
-// Extend Hono context to include user
+// Extend Hono context to include user and RLS-scoped database
 export type AuthContext = {
   Variables: {
     user: {
@@ -17,6 +17,7 @@ export type AuthContext = {
       role: string;
       supabaseId: string;
     } | null;
+    rlsDb: Database | null;
   };
 };
 
