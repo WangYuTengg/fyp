@@ -13,6 +13,7 @@ export function useAnswerManagement(
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [saveError, setSaveError] = useState(false);
   const dirtyRef = useRef<Set<string>>(new Set());
   const answersRef = useRef<Record<string, AnswerState>>({});
   const submittingRef = useRef(false);
@@ -109,7 +110,9 @@ export function useAnswerManagement(
         });
         dirtyRef.current.delete(questionId);
         setLastSaved(new Date());
+        setSaveError(false);
       } catch (err: unknown) {
+        setSaveError(true);
         if (isBlockingError(err)) {
           const message = err instanceof Error ? err.message : String(err);
           showToast(message);
@@ -162,6 +165,14 @@ export function useAnswerManagement(
     dirtyRef.current.add(questionId);
   }, []);
 
+  const retrySave = useCallback(() => {
+    const dirtyIds = Array.from(dirtyRef.current);
+    if (dirtyIds.length === 0) return;
+    dirtyIds.forEach((questionId) => {
+      void saveAnswer(questionId, true);
+    });
+  }, [saveAnswer]);
+
   return {
     answers,
     saving,
@@ -169,8 +180,10 @@ export function useAnswerManagement(
     submitting,
     toast,
     lastSaved,
+    saveError,
     saveAnswer,
     submit,
     updateAnswer,
+    retrySave,
   };
 }

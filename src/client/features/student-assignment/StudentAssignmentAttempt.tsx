@@ -36,9 +36,11 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
     submitting,
     toast,
     lastSaved,
+    saveError,
     saveAnswer,
     submit,
     updateAnswer,
+    retrySave,
   } = useAnswerManagement(submission, questionsById, isPastDue);
 
   const handleFocusAutoSubmit = useCallback(() => {
@@ -224,6 +226,8 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
         toast={toast}
         lastSaved={lastSaved}
         isSaving={Object.values(saving).some((s) => s)}
+        saveError={saveError}
+        onRetrySave={retrySave}
       />
 
       {/* Timer */}
