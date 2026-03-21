@@ -5,7 +5,8 @@ import type { AuthContext } from './auth.js';
 
 /**
  * Middleware that wraps authenticated requests in an RLS-scoped transaction.
- * Sets PostgreSQL session variables so RLS policies enforce access control.
+ * Sets Supabase's request.jwt.claims so auth.uid() and auth.jwt() work in
+ * RLS policies, then switches to the `authenticated` role.
  *
  * Must run AFTER authMiddleware. Route handlers use c.get('rlsDb') for
  * RLS-protected queries, or the db import for owner-level access.
@@ -22,10 +23,11 @@ export async function rlsMiddleware(c: Context<AuthContext>, next: Next) {
     return next();
   }
 
+  const claims = JSON.stringify({ sub: user.id, user_role: user.role });
+
   return db.transaction(async (tx) => {
-    await tx.execute(sql`SET LOCAL ROLE app_user`);
-    await tx.execute(sql`SET LOCAL app.current_user_id = ${user.id}`);
-    await tx.execute(sql`SET LOCAL app.current_user_role = ${user.role}`);
+    await tx.execute(sql`SELECT set_config('request.jwt.claims', ${claims}, true)`);
+    await tx.execute(sql`SET LOCAL ROLE authenticated`);
     c.set('rlsDb', tx as unknown as Database);
     await next();
   });
