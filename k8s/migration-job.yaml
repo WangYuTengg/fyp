@@ -1,11 +1,8 @@
 # Database migration Job — run BEFORE deploying new web/worker versions.
 #
 # Drizzle ORM migrations are idempotent (tracking table) — re-running is a no-op.
-# The migration script connects with max=1 connection, runs, and exits.
-#
-# IMPORTANT: The migration script uses prepared statements (no `prepare: false`),
-# so it MUST use Supabase's DIRECT connection (port 5432), NOT the pooled
-# connection (port 6543). The direct URL is provided via DIRECT_DATABASE_URL.
+# The migration script connects with max=1 connection and prepare: false,
+# so it works with Supabase's pooled connection (port 6543).
 #
 # CI/CD pipeline should:
 #   1. kubectl delete job db-migrate -n uml-assessment --ignore-not-found
@@ -28,12 +25,6 @@ spec:
         - name: migrate
           image: ghcr.io/OWNER/uml-assessment:latest  # Replace OWNER + tag
           command: ["node", "dist/db/migrate.js"]
-          env:
-            # Override DATABASE_URL with the DIRECT connection for migrations.
-            # The direct URL uses port 5432 and supports prepared statements,
-            # unlike the pooled URL (port 6543) used by the app at runtime.
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: DIRECT_DATABASE_URL
+          envFrom:
+            - secretRef:
+                name: app-secrets
