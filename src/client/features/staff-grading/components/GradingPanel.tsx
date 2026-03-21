@@ -147,7 +147,7 @@ export function GradingPanel({
   const focusedCriterionIndex = rubricCriteriaCount > 0 ? focusedCriterionOffset : null;
 
   // Ref for save handler to use in keyboard shortcut
-  const handleSubmitRef = useRef<(moveToNext?: boolean) => Promise<void>>();
+  const handleSubmitRef = useRef<((moveToNext?: boolean) => Promise<void>) | undefined>(undefined);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
