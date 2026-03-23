@@ -133,8 +133,7 @@ export function EditQuestionForm({
   };
 
   return (
-    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-300">
-      <h4 className="text-lg font-semibold mb-4">Edit Question</h4>
+    <div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Title</label>

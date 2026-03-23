@@ -5,6 +5,7 @@ import { filterQuestions, type QuestionFilters } from '../utils/question-utils';
 import { EditQuestionForm } from './EditQuestionForm';
 import { QuestionCard } from './QuestionCard';
 import { QuestionFilters as QuestionFiltersComponent } from './QuestionFilters';
+import { Modal } from '../../../components/Modal';
 
 type QuestionPoolPanelProps = {
   questions: Question[];
@@ -304,8 +305,7 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
                   key={question.id}
                   question={question}
                   onDelete={onDelete}
-                  onEdit={onEdit}
-                  availableTags={availableTags}
+                  onEdit={onEdit ? () => setEditingQuestionId(question.id) : undefined}
                 />
               ))}
             </div>
@@ -389,22 +389,26 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
             </div>
           )}
 
-          {viewMode === 'table' && editingQuestion && onEdit && (
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit: {editingQuestion.title}</h3>
-              <EditQuestionForm
-                question={editingQuestion}
-                availableTags={availableTags}
-                onSubmit={(id, data) => {
-                  onEdit(id, data);
-                  setEditingQuestionId(null);
-                }}
-                onCancel={() => setEditingQuestionId(null)}
-              />
-            </div>
-          )}
-
         </>
+      )}
+
+      {editingQuestion && onEdit && (
+        <Modal
+          isOpen
+          onClose={() => setEditingQuestionId(null)}
+          title={`Edit: ${editingQuestion.title}`}
+          size={editingQuestion.type === 'uml' ? 'screen' : 'xl'}
+        >
+          <EditQuestionForm
+            question={editingQuestion}
+            availableTags={availableTags}
+            onSubmit={(id, data) => {
+              onEdit(id, data);
+              setEditingQuestionId(null);
+            }}
+            onCancel={() => setEditingQuestionId(null)}
+          />
+        </Modal>
       )}
     </div>
   );

@@ -1,23 +1,9 @@
-import { useState } from 'react';
-import type { Question, McqOption } from '../../../lib/api';
-import { EditQuestionForm } from './EditQuestionForm';
+import type { Question } from '../../../lib/api';
 
 type QuestionCardProps = {
   question: Question;
   onDelete?: (questionId: string) => void;
-  onEdit?: (id: string, data: {
-    title?: string;
-    prompt?: string;
-    points?: number;
-    options?: McqOption[];
-    allowMultiple?: boolean;
-    tags?: string[];
-    referenceDiagram?: string;
-
-    modelAnswer?: string;
-  }) => void;
-  availableTags?: string[];
-  isEditing?: boolean;
+  onEdit?: () => void;
 };
 
 function getPrompt(content: unknown): string {
@@ -26,32 +12,12 @@ function getPrompt(content: unknown): string {
   return typeof record.prompt === 'string' ? record.prompt : '';
 }
 
-export function QuestionCard({ question, onDelete, onEdit, availableTags = [], isEditing: externalIsEditing }: QuestionCardProps) {
-  const [isEditing, setIsEditing] = useState(false);
-
+export function QuestionCard({ question, onDelete, onEdit }: QuestionCardProps) {
   const handleDelete = () => {
     if (window.confirm(`Are you sure you want to delete "${question.title}"?`)) {
       onDelete?.(question.id);
     }
   };
-
-  const handleEdit = (id: string, data: Parameters<NonNullable<typeof onEdit>>[1]) => {
-    onEdit?.(id, data);
-    setIsEditing(false);
-  };
-
-  if (isEditing || externalIsEditing) {
-    return (
-      <div className="border border-gray-200 rounded-lg p-4">
-        <EditQuestionForm
-          question={question}
-          onSubmit={handleEdit}
-          onCancel={() => setIsEditing(false)}
-          availableTags={availableTags}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="border border-gray-200 rounded-lg p-4">
@@ -79,7 +45,7 @@ export function QuestionCard({ question, onDelete, onEdit, availableTags = [], i
         <div className="flex gap-2">
           {onEdit && (
             <button
-              onClick={() => setIsEditing(true)}
+              onClick={onEdit}
               className="text-blue-600 hover:text-blue-800 font-medium py-2 px-4 rounded hover:bg-blue-50"
             >
               Edit
