@@ -74,7 +74,7 @@ startSubmissionRoute.post('/start', requireAuth, async (c) => {
     return c.json({ error: 'Assignment not yet open' }, 403);
   }
 
-  // Check for an existing draft — return it if found (resume in-progress attempt)
+  // Check for an existing draft — return it if still active, or auto-submit if expired
   const [existingDraft] = await db
     .select()
     .from(submissions)
@@ -89,12 +89,40 @@ startSubmissionRoute.post('/start', requireAuth, async (c) => {
     .limit(1);
 
   if (existingDraft) {
-    const existingAnswers = await db
-      .select()
-      .from(answers)
-      .where(eq(answers.submissionId, existingDraft.id));
+    // Check if the draft's timer has expired
+    let draftExpired = false;
+    if (assignment.timeLimit) {
+      const startTime = new Date(existingDraft.startedAt).getTime();
+      const endTime = startTime + assignment.timeLimit * 60 * 1000;
+      draftExpired = Date.now() > endTime;
+    }
 
-    return c.json({ ...existingDraft, answers: existingAnswers });
+    if (!draftExpired) {
+      // Draft is still active — resume it
+      const existingAnswers = await db
+        .select()
+        .from(answers)
+        .where(eq(answers.submissionId, existingDraft.id));
+
+      return c.json({ ...existingDraft, answers: existingAnswers });
+    }
+
+    // Draft has expired — auto-submit it so a new attempt can be created
+    const now = new Date();
+    let expiredStatus: 'submitted' | 'late' = 'submitted';
+    if (assignment.dueDate && now > assignment.dueDate) {
+      expiredStatus = 'late';
+    }
+
+    await db
+      .update(submissions)
+      .set({
+        status: expiredStatus,
+        submittedAt: now,
+        autoSubmitted: true,
+        updatedAt: now,
+      })
+      .where(eq(submissions.id, existingDraft.id));
   }
 
   // Admins can start a submission for UI inspection without enrollment.

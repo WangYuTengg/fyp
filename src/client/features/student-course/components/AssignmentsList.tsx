@@ -9,10 +9,22 @@ type AssignmentsListProps = {
 export function AssignmentsList({ assignments }: AssignmentsListProps) {
   const navigate = useNavigate();
 
-  const startAssignment = (assignmentId: string) => {
+  const startAssignment = (assignment: StudentAssignment) => {
+    // If already submitted/late, navigate to submission review instead of starting a new attempt
+    if (
+      (assignment.submissionStatus === 'submitted' || assignment.submissionStatus === 'late') &&
+      assignment.submissionId
+    ) {
+      navigate({
+        to: '/student/submissions/$submissionId',
+        params: { submissionId: assignment.submissionId },
+      });
+      return;
+    }
+
     navigate({
       to: '/student/assignments/$assignmentId',
-      params: { assignmentId },
+      params: { assignmentId: assignment.id },
     });
   };
 
@@ -74,7 +86,7 @@ export function AssignmentsList({ assignments }: AssignmentsListProps) {
                     </div>
                   </div>
                   <button
-                    onClick={() => startAssignment(assignment.id)}
+                    onClick={() => startAssignment(assignment)}
                     className="ml-4 bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
                   >
                     {assignment.submissionStatus === 'submitted' || assignment.submissionStatus === 'late' ? 'View' : assignment.submissionStatus === 'draft' ? 'Resume' : 'Start'}

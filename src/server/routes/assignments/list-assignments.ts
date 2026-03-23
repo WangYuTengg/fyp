@@ -108,6 +108,7 @@ listAssignmentsRoute.get('/course/:courseId', requireAuth, async (c) => {
       ...assignment,
       ...getQuestionStats(assignment.id),
       submissionStatus: submissionsByAssignment.get(assignment.id)?.status || null,
+      submissionId: submissionsByAssignment.get(assignment.id)?.id || null,
     }));
 
     return c.json(assignmentsWithStatus);
