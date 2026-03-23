@@ -7,7 +7,7 @@ export type { QuestionFilters };
 
 export function useStaffCourse(
   courseId: string,
-  user: unknown,
+  _user: unknown,
   dbUser: { role: string } | null
 ) {
   const isAuthorized = !!dbUser && (dbUser.role === 'admin' || dbUser.role === 'staff');
