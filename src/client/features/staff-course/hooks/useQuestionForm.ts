@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { questionsApi, type McqOption } from '../../../lib/api';
 
@@ -22,7 +22,18 @@ export function useQuestionForm(courseId: string) {
     { id: crypto.randomUUID(), text: '', isCorrect: false },
     { id: crypto.randomUUID(), text: '', isCorrect: false },
   ]);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const queryClient = useQueryClient();
+
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const createMutation = useMutation({
     mutationFn: (data: Parameters<typeof questionsApi.create>[0]) => questionsApi.create(data),
@@ -64,10 +75,11 @@ export function useQuestionForm(courseId: string) {
       queryClient.invalidateQueries({ queryKey: ['questions', courseId] });
       queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
       queryClient.invalidateQueries({ queryKey: ['tags', courseId] });
+      showToast('Question updated successfully', 'success');
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
-      alert('Failed to update question: ' + message);
+      showToast('Failed to update question: ' + message, 'error');
     },
   });
 
@@ -167,5 +179,6 @@ export function useQuestionForm(courseId: string) {
     isCreating: createMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isEditing: editMutation.isPending,
+    toast,
   };
 }

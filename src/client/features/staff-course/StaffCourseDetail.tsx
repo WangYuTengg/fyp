@@ -76,6 +76,15 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
 
   return (
     <div className="space-y-6">
+      {questionForm.toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 rounded-md px-4 py-3 shadow-lg text-white ${
+            questionForm.toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+          }`}
+        >
+          {questionForm.toast.message}
+        </div>
+      )}
       <CourseHeader course={course} />
 
       <div className="bg-white shadow rounded-lg">
