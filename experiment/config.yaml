@@ -5,81 +5,46 @@ experiment:
   max_retries: 3
   timeout_seconds: 120
 
-# Models to benchmark
+# Models to benchmark (6 models: 2 per provider — 1 flagship + 1 baseline)
 models:
-  # Commercial APIs
-  - id: "gpt-4o"
+  # OpenAI
+  - id: "gpt-5.4"
     provider: "openai"
-    model_name: "gpt-4o"
+    model_name: "gpt-5.4"
     input_cost_per_1m: 2.50
-    output_cost_per_1m: 10.00
+    output_cost_per_1m: 15.00
 
-  - id: "gpt-4o-mini"
+  - id: "gpt-5.4-mini"
     provider: "openai"
-    model_name: "gpt-4o-mini"
-    input_cost_per_1m: 0.15
-    output_cost_per_1m: 0.60
+    model_name: "gpt-5.4-mini"
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 4.50
 
-  - id: "gpt-4.1-mini"
-    provider: "openai"
-    model_name: "gpt-4.1-mini"
-    input_cost_per_1m: 0.40
-    output_cost_per_1m: 1.60
-
-  - id: "gpt-4.1-nano"
-    provider: "openai"
-    model_name: "gpt-4.1-nano"
-    input_cost_per_1m: 0.10
-    output_cost_per_1m: 0.40
-
-  - id: "o4-mini"
-    provider: "openai"
-    model_name: "o4-mini"
-    input_cost_per_1m: 1.10
-    output_cost_per_1m: 4.40
-
-  - id: "claude-sonnet-4"
+  # Anthropic
+  - id: "claude-opus-4-6"
     provider: "anthropic"
-    model_name: "claude-sonnet-4-20250514"
+    model_name: "claude-opus-4-6"
+    input_cost_per_1m: 5.00
+    output_cost_per_1m: 25.00
+
+  - id: "claude-sonnet-4-6"
+    provider: "anthropic"
+    model_name: "claude-sonnet-4-6"
     input_cost_per_1m: 3.00
     output_cost_per_1m: 15.00
 
-  - id: "claude-haiku-3.5"
-    provider: "anthropic"
-    model_name: "claude-3-5-haiku-20241022"
-    input_cost_per_1m: 0.80
-    output_cost_per_1m: 4.00
-
-  - id: "gemini-2.5-pro"
+  # Google
+  - id: "gemini-3.1-pro"
     provider: "google"
-    model_name: "gemini-2.5-pro-preview-06-05"
-    input_cost_per_1m: 1.25
-    output_cost_per_1m: 10.00
+    model_name: "gemini-3.1-pro-preview"
+    input_cost_per_1m: 2.00
+    output_cost_per_1m: 12.00
 
-  - id: "gemini-2.5-flash"
+  - id: "gemini-3-flash"
     provider: "google"
-    model_name: "gemini-2.5-flash-preview-05-20"
-    input_cost_per_1m: 0.15
-    output_cost_per_1m: 0.60
-
-  - id: "gemini-2.0-flash"
-    provider: "google"
-    model_name: "gemini-2.0-flash"
-    input_cost_per_1m: 0.10
-    output_cost_per_1m: 0.40
-
-  # Local models (via Ollama)
-  # - id: "deepseek-r1-32b"
-  #   provider: "ollama"
-  #   model_name: "deepseek-r1:32b"
-  #   input_cost_per_1m: 0.0
-  #   output_cost_per_1m: 0.0
-
-  # - id: "qwen2.5-coder-32b"
-  #   provider: "ollama"
-  #   model_name: "qwen2.5-coder:32b"
-  #   input_cost_per_1m: 0.0
-  #   output_cost_per_1m: 0.0
+    model_name: "gemini-3-flash-preview"
+    input_cost_per_1m: 0.50
+    output_cost_per_1m: 3.00
 
 # Rubric definition (10-point scale)
 rubric:

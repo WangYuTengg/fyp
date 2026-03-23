@@ -5,7 +5,7 @@ Formal experiment to determine the optimal LLM for auto-grading UML class diagra
 ## Research Questions
 
 1. **RQ1**: Which LLM achieves the highest grading accuracy compared to human expert grades?
-2. **RQ2**: What is the cost-performance tradeoff between commercial APIs and local open-source models?
+2. **RQ2**: What is the cost-performance tradeoff between flagship and baseline models across providers?
 3. **RQ3**: How consistent (reliable) are LLM grades across multiple runs on the same submission?
 4. **RQ4**: Which model provides the most useful qualitative feedback?
 
@@ -28,7 +28,7 @@ cp .env.example .env
 python run.py generate
 
 # Run a quick test (1 run, specific models)
-python run.py benchmark --models gpt-4o-mini claude-haiku-3.5 --runs 1
+python run.py benchmark --models gpt-5.4-mini claude-sonnet-4-6 --runs 1
 
 # Run the full experiment (all models, 5 runs each)
 python run.py benchmark
@@ -42,18 +42,33 @@ python run.py all
 
 ## Models Tested
 
-| Model | Provider | Input $/1M | Output $/1M |
-|-------|----------|-----------|-------------|
-| GPT-4o | OpenAI | $2.50 | $10.00 |
-| GPT-4o-mini | OpenAI | $0.15 | $0.60 |
-| GPT-4.1-mini | OpenAI | $0.40 | $1.60 |
-| GPT-4.1-nano | OpenAI | $0.10 | $0.40 |
-| o4-mini | OpenAI | $1.10 | $4.40 |
-| Claude Sonnet 4 | Anthropic | $3.00 | $15.00 |
-| Claude 3.5 Haiku | Anthropic | $0.80 | $4.00 |
-| Gemini 2.5 Pro | Google | $1.25 | $10.00 |
-| Gemini 2.5 Flash | Google | $0.15 | $0.60 |
-| Gemini 2.0 Flash | Google | $0.10 | $0.40 |
+6 models — 2 per provider (1 flagship + 1 baseline):
+
+| Model | Provider | Tier | API Model ID | Input $/1M | Output $/1M |
+|-------|----------|------|-------------|-----------|-------------|
+| GPT-5.4 | OpenAI | Flagship | `gpt-5.4` | $2.50 | $15.00 |
+| GPT-5.4 Mini | OpenAI | Baseline | `gpt-5.4-mini` | $0.75 | $4.50 |
+| Claude Opus 4.6 | Anthropic | Flagship | `claude-opus-4-6` | $5.00 | $25.00 |
+| Claude Sonnet 4.6 | Anthropic | Baseline | `claude-sonnet-4-6` | $3.00 | $15.00 |
+| Gemini 3.1 Pro | Google | Flagship | `gemini-3.1-pro-preview` | $2.00 | $12.00 |
+| Gemini 3 Flash | Google | Baseline | `gemini-3-flash-preview` | $0.50 | $3.00 |
+
+### Why These 3 Providers and 6 Models?
+
+**Why only OpenAI, Anthropic, and Google?**
+
+These three providers represent the current frontier of large language model capabilities. They consistently rank at the top of public benchmarks (MMLU, HumanEval, GPQA, LMSYS Chatbot Arena) and are the only providers offering models with the instruction-following precision and structured output reliability required for rubric-based grading. The experiment focuses on **grading accuracy over all other factors** — latency and cost are secondary concerns compared to whether the model can correctly evaluate a UML diagram against a rubric.
+
+**Why not local/open-source models (e.g., DeepSeek, Qwen, LLaMA via Ollama)?**
+
+- **Performance gap**: Open-source models, even at 70B+ parameters, consistently underperform frontier commercial models on complex structured evaluation tasks. UML grading requires simultaneously understanding diagram semantics, comparing against a reference solution, applying a multi-criterion rubric, and producing valid JSON output — a combination where frontier models have a clear advantage.
+- **Structured output reliability**: Commercial APIs offer native JSON mode / structured output guarantees that local models cannot match. Parse failures waste experiment budget and reduce statistical power.
+- **Reproducibility**: API-based models provide deterministic versioning (e.g., `gpt-5.4`, `claude-opus-4-6`). Local model behavior varies by quantization level, hardware, and inference engine, making results harder to reproduce.
+- **Deployment context**: The target platform is a school assessment system where API costs are manageable (grading is infrequent, ~32 submissions per assignment). Hosting a local 70B model would require GPU infrastructure most institutions lack.
+
+**Why 1 flagship + 1 baseline per provider?**
+
+Each provider's flagship model (GPT-5.4, Claude Opus 4.6, Gemini 3.1 Pro) represents their best commercially available performance. The baseline model (GPT-5.4 Mini, Claude Sonnet 4.6, Gemini 3 Flash) tests whether a cheaper alternative can achieve comparable accuracy — directly answering **RQ2** about cost-performance tradeoffs. This 2-per-provider design keeps the experiment tractable (6 models x 32 submissions x 5 runs = 960 API calls) while covering the full cost-quality spectrum across all three frontier providers.
 
 ## Evaluation Criteria
 
@@ -153,7 +168,7 @@ experiment/
 ├── prompts/
 │   └── grading_prompt.py        # Standardized prompt with few-shot examples
 ├── src/
-│   ├── providers.py             # OpenAI, Anthropic, Google, Ollama abstraction
+│   ├── providers.py             # OpenAI, Anthropic, Google abstraction
 │   ├── runner.py                # Experiment orchestration with retries
 │   └── analyze.py               # Statistical analysis + 6 visualization types
 ├── results/                     # Raw experiment outputs (git-ignored)

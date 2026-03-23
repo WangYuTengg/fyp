@@ -52,7 +52,7 @@ def get_api_key(provider: str) -> str:
     }
     env_var = key_map.get(provider, "")
     key = os.getenv(env_var, "")
-    if not key and provider != "ollama":
+    if not key:
         print(f"  WARNING: {env_var} not set, skipping {provider} models")
     return key
 
@@ -100,7 +100,6 @@ def grade_submission(
         user_prompt=prompt,
         api_key=api_key,
         timeout=timeout,
-        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
     )
 
     parsed = parse_grade_response(response.content)
@@ -190,7 +189,7 @@ def run_experiment(
     with tqdm(total=total_tasks, desc="Overall progress") as pbar:
         for model in models:
             api_key = api_keys.get(model["provider"], "")
-            if not api_key and model["provider"] != "ollama":
+            if not api_key:
                 pbar.update(len(dataset) * runs_per_submission)
                 continue
 

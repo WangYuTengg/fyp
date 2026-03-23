@@ -1,6 +1,6 @@
 """
 LLM provider abstraction layer.
-Supports OpenAI, Anthropic, Google, and Ollama (local) with unified interface.
+Supports OpenAI, Anthropic, and Google with unified interface.
 """
 
 import json
@@ -32,7 +32,7 @@ def call_openai(
     api_key: str,
     timeout: int = 120,
 ) -> LLMResponse:
-    """Call OpenAI API (GPT-4o, GPT-4o-mini, o4-mini, etc.)."""
+    """Call OpenAI API (GPT-5.4, GPT-5.4-mini, etc.)."""
     client = openai.OpenAI(api_key=api_key)
 
     start = time.perf_counter()
@@ -87,7 +87,7 @@ def call_anthropic(
     api_key: str,
     timeout: int = 120,
 ) -> LLMResponse:
-    """Call Anthropic API (Claude Sonnet, Haiku, etc.)."""
+    """Call Anthropic API (Claude Opus 4.6, Sonnet 4.6, etc.)."""
     client = anthropic.Anthropic(api_key=api_key)
 
     start = time.perf_counter()
@@ -148,44 +148,10 @@ def call_google(
     )
 
 
-def call_ollama(
-    model_name: str,
-    system_prompt: str,
-    user_prompt: str,
-    base_url: str = "http://localhost:11434",
-    timeout: int = 120,
-) -> LLMResponse:
-    """Call local Ollama model via OpenAI-compatible API."""
-    client = openai.OpenAI(base_url=f"{base_url}/v1", api_key="ollama")
-
-    start = time.perf_counter()
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.2,
-        max_tokens=2000,
-        timeout=timeout,
-    )
-    latency = (time.perf_counter() - start) * 1000
-
-    return LLMResponse(
-        content=response.choices[0].message.content or "",
-        input_tokens=response.usage.prompt_tokens if response.usage else 0,
-        output_tokens=response.usage.completion_tokens if response.usage else 0,
-        latency_ms=latency,
-        model=model_name,
-        provider="ollama",
-    )
-
-
 PROVIDER_MAP = {
     "openai": call_openai,
     "anthropic": call_anthropic,
     "google": call_google,
-    "ollama": call_ollama,
 }
 
 
@@ -203,22 +169,13 @@ def call_model(
     if not fn:
         raise ValueError(f"Unknown provider: {provider}")
 
-    if provider == "ollama":
-        return fn(
-            model_name=model_name,
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            base_url=kwargs.get("base_url", "http://localhost:11434"),
-            timeout=timeout,
-        )
-    else:
-        return fn(
-            model_name=model_name,
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            api_key=api_key,
-            timeout=timeout,
-        )
+    return fn(
+        model_name=model_name,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        api_key=api_key,
+        timeout=timeout,
+    )
 
 
 def parse_grade_response(content: str) -> dict | None:
