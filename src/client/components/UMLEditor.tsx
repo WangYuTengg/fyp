@@ -52,10 +52,9 @@ function UMLEditorInner({
   const [activeTab, setActiveTab] = useState<EditorMode>(() =>
     initialDiagramState || !hasInitialText ? 'visual' : 'preview'
   );
-  const [diagram, setDiagram] = useState(() => ({
-    state: initialDiagramState ?? EMPTY_CLASS_DIAGRAM_STATE,
-    seedKey: initialDiagramState ? JSON.stringify(initialDiagramState) : 'empty-diagram',
-  }));
+  const [diagramState, setDiagramState] = useState<ClassDiagramState>(
+    () => initialDiagramState ?? EMPTY_CLASS_DIAGRAM_STATE
+  );
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
 
   const previewState = useMemo(() => {
@@ -86,17 +85,14 @@ function UMLEditorInner({
   };
 
   const handleDiagramChange = (state: ClassDiagramState, plantUml: string) => {
-    setDiagram({
-      state,
-      seedKey: JSON.stringify(state),
-    });
+    setDiagramState(state);
     setUmlText(plantUml);
     onChange?.(plantUml, state);
   };
 
   const visualUml = useMemo(
-    () => (diagram.state ? generateClassDiagramPlantUml(diagram.state) : ''),
-    [diagram.state]
+    () => (diagramState ? generateClassDiagramPlantUml(diagramState) : ''),
+    [diagramState]
   );
 
   const imageUrl = previewState.encodedUml
@@ -188,8 +184,7 @@ function UMLEditorInner({
         <div className="p-4">
           {activeTab === 'visual' ? (
             <ClassDiagramEditor
-              key={diagram.seedKey}
-              initialState={diagram.state}
+              initialState={diagramState}
               onChange={handleDiagramChange}
               readOnly={readOnly}
               height={height}
