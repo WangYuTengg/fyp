@@ -611,8 +611,8 @@ export function CreateAssignmentForm({
               </div>
 
               {/* Focus Monitoring */}
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-900 cursor-pointer">
+              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={monitorFocus}
