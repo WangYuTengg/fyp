@@ -83,7 +83,7 @@ function getPageNumbers(totalPages: number, currentPage: number): number[] {
 export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }: QuestionPoolPanelProps) {
   const [filters, setFilters] = useState<QuestionFilters>({});
   const [sort, setSort] = useState<QuestionSort>('newest');
-  const [pageSize, setPageSize] = useState<number>(25);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [viewMode, setViewMode] = useState<QuestionViewMode>(() =>
     questions.length > 80 ? 'table' : 'cards'
   );
@@ -136,84 +136,6 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm text-gray-600">
-              Total pool size: <span className="font-semibold text-gray-900">{questions.length}</span>
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              MCQ {typeCounts.mcq} | Written {typeCounts.written} | UML {typeCounts.uml} | Coding {typeCounts.coding}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label htmlFor="question-pool-sort" className="block text-xs font-medium text-gray-600">
-                Sort
-              </label>
-              <select
-                id="question-pool-sort"
-                value={sort}
-                onChange={(event) => {
-                  setSort(event.target.value as QuestionSort);
-                  resetPage();
-                }}
-                className="form-select-block"
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="question-pool-page-size" className="block text-xs font-medium text-gray-600">
-                Per page
-              </label>
-              <select
-                id="question-pool-page-size"
-                value={String(pageSize)}
-                onChange={(event) => {
-                  setPageSize(Number(event.target.value));
-                  resetPage();
-                }}
-                className="form-select-block"
-              >
-                {PAGE_SIZE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <p className="block text-xs font-medium text-gray-600 mb-1">View</p>
-              <div className="inline-flex rounded-md border border-gray-300 bg-white p-1">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('cards')}
-                  className={`px-3 py-1 text-sm rounded ${
-                    viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  Cards
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 text-sm rounded ${
-                    viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  Compact
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <QuestionFiltersComponent
         filters={filters}
         setFilters={(nextFilters) => {
@@ -221,30 +143,151 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
           resetPage();
         }}
         availableTags={availableTags}
-      />
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-gray-600">
-          Showing <span className="font-medium text-gray-900">{pageRangeLabel}</span> of{' '}
-          <span className="font-medium text-gray-900">{totalQuestions}</span> questions
-          {hasActiveFilters && (
-            <span className="ml-2 text-xs text-blue-700">
-              ({activeFilterCount} active filter{activeFilterCount === 1 ? '' : 's'})
-            </span>
-          )}
-        </p>
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={() => {
-              setFilters({});
+      >
+        <div>
+          <label htmlFor="question-pool-sort" className="block text-xs font-medium text-gray-600">
+            Sort
+          </label>
+          <select
+            id="question-pool-sort"
+            value={sort}
+            onChange={(event) => {
+              setSort(event.target.value as QuestionSort);
               resetPage();
             }}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className="form-select-block"
           >
-            Reset filters
-          </button>
-        )}
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="question-pool-page-size" className="block text-xs font-medium text-gray-600">
+            Per page
+          </label>
+          <select
+            id="question-pool-page-size"
+            value={String(pageSize)}
+            onChange={(event) => {
+              setPageSize(Number(event.target.value));
+              resetPage();
+            }}
+            className="form-select-block"
+          >
+            {PAGE_SIZE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <p className="block text-xs font-medium text-gray-600 mb-1">View</p>
+          <div className="inline-flex rounded-md border border-gray-300 bg-white p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              className={`px-3 py-1 text-sm rounded ${
+                viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Cards
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`px-3 py-1 text-sm rounded ${
+                viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Compact
+            </button>
+          </div>
+        </div>
+      </QuestionFiltersComponent>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm text-gray-600">
+          <p>
+            Showing <span className="font-medium text-gray-900">{pageRangeLabel}</span> of{' '}
+            <span className="font-medium text-gray-900">{totalQuestions}</span> questions
+            {hasActiveFilters && (
+              <span className="ml-2 text-xs text-blue-700">
+                ({activeFilterCount} active filter{activeFilterCount === 1 ? '' : 's'})
+              </span>
+            )}
+          </p>
+          <p className="text-xs text-gray-500">
+            Pool: {questions.length} total — MCQ {typeCounts.mcq} | Written {typeCounts.written} | UML {typeCounts.uml} | Coding {typeCounts.coding}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilters({});
+                resetPage();
+              }}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Reset filters
+            </button>
+          )}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="px-2 py-1 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                First
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
+                disabled={page === 1}
+                className="px-2 py-1 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+              {pageNumbers.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  onClick={() => setPage(pageNumber)}
+                  className={`px-2 py-1 text-sm rounded border ${
+                    pageNumber === page
+                      ? 'border-blue-600 bg-blue-600 text-white'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
+                disabled={page === totalPages}
+                className="px-2 py-1 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="px-2 py-1 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Last
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {totalQuestions === 0 ? (
@@ -361,61 +404,6 @@ export function QuestionPoolPanel({ questions, availableTags, onDelete, onEdit }
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <p className="text-sm text-gray-600">
-                Page {page} of {totalPages}
-              </p>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setPage(1)}
-                  disabled={page === 1}
-                  className="px-2 py-1 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  First
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
-                  disabled={page === 1}
-                  className="px-2 py-1 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Prev
-                </button>
-                {pageNumbers.map((pageNumber) => (
-                  <button
-                    key={pageNumber}
-                    type="button"
-                    onClick={() => setPage(pageNumber)}
-                    className={`px-2 py-1 text-sm rounded border ${
-                      pageNumber === page
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNumber}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
-                  disabled={page === totalPages}
-                  className="px-2 py-1 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPage(totalPages)}
-                  disabled={page === totalPages}
-                  className="px-2 py-1 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Last
-                </button>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>
