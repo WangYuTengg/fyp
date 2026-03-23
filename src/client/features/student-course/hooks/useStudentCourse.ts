@@ -4,7 +4,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import type { StudentAssignment, StudentCourse } from '../types';
 
 export function useStudentCourse(courseId: string) {
-  const { user } = useAuth();
+  const { user, dbUser } = useAuth();
   const [course, setCourse] = useState<StudentCourse | null>(null);
   const [assignments, setAssignments] = useState<StudentAssignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,10 +26,10 @@ export function useStudentCourse(courseId: string) {
   }, [courseId]);
 
   useEffect(() => {
-    if (user) {
+    if (user || dbUser) {
       loadData();
     }
-  }, [user, loadData]);
+  }, [user, dbUser, loadData]);
 
   return {
     course,

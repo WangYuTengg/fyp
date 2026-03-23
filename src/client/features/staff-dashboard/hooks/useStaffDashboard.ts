@@ -4,7 +4,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import type { StaffCourse } from '../types';
 
 export function useStaffDashboard() {
-  const { user } = useAuth();
+  const { user, dbUser } = useAuth();
   const [courses, setCourses] = useState<StaffCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,10 +23,10 @@ export function useStaffDashboard() {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user || dbUser) {
       loadCourses();
     }
-  }, [user, loadCourses]);
+  }, [user, dbUser, loadCourses]);
 
   return {
     courses,

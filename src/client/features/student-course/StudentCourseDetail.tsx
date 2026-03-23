@@ -15,7 +15,7 @@ export function StudentCourseDetail({ courseId }: StudentCourseDetailProps) {
   const { course, assignments, loading } = useStudentCourse(courseId);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && !dbUser) {
       navigate({ to: '/login' });
     }
     if (!authLoading && dbUser?.role === 'admin') {

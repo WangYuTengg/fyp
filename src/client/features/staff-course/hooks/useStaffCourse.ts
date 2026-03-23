@@ -10,7 +10,7 @@ export function useStaffCourse(
   user: unknown,
   dbUser: { role: string } | null
 ) {
-  const isAuthorized = user && dbUser && (dbUser.role === 'admin' || dbUser.role === 'staff');
+  const isAuthorized = !!dbUser && (dbUser.role === 'admin' || dbUser.role === 'staff');
 
   const { data: course, isLoading: courseLoading } = useQuery({
     queryKey: ['course', courseId],

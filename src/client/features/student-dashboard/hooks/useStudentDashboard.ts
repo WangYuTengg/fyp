@@ -4,13 +4,13 @@ import { useAuth } from '../../../hooks/useAuth';
 import type { StudentCourse } from '../types';
 
 export function useStudentDashboard() {
-  const { user } = useAuth();
+  const { user, dbUser } = useAuth();
   const [courses, setCourses] = useState<StudentCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user && !dbUser) return;
 
     const loadCourses = async () => {
       try {
@@ -26,7 +26,7 @@ export function useStudentDashboard() {
     };
 
     loadCourses();
-  }, [user]);
+  }, [user, dbUser]);
 
   return {
     courses,

@@ -4,14 +4,14 @@ import { useAuth } from '../../../hooks/useAuth';
 import type { AssignmentDetails, Submission } from '../types';
 
 export function useAssignmentData(assignmentId: string) {
-  const { user } = useAuth();
+  const { user, dbUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<AssignmentDetails | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user && !dbUser) return;
 
     const run = async () => {
       try {
@@ -33,7 +33,7 @@ export function useAssignmentData(assignmentId: string) {
     };
 
     run();
-  }, [user, assignmentId]);
+  }, [user, dbUser, assignmentId]);
 
   const questions = useMemo(() => {
     const qs = assignment?.questions ?? [];
@@ -59,7 +59,7 @@ export function useAssignmentData(assignmentId: string) {
   const isPastDue = dueDate ? Date.now() > dueDate.getTime() : false;
 
   const refreshSubmission = async () => {
-    if (!user || !assignment) return;
+    if ((!user && !dbUser) || !assignment) return;
     
     try {
       const submissionData = await submissionsApi.start(assignmentId);

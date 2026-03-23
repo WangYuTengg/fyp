@@ -56,7 +56,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!user) {
+      if (!user && !dbUser) {
         navigate({ to: '/login' });
       } else if (dbUser && dbUser.role !== 'admin' && dbUser.role !== 'staff') {
         navigate({ to: '/student' });
