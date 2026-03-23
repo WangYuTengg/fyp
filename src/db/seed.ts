@@ -183,7 +183,8 @@ const MCQ_QUESTIONS: Array<{ title: string; description: string; content: object
 const WRITTEN_QUESTIONS: Array<{ title: string; description: string; content: object; rubric: object; points: number; tags: string[]; courseIdx: number }> = [
   // SC2000
   { title: 'Explain OOP Pillars', description: 'Explain the four pillars of OOP with examples', courseIdx: 0, points: 20, tags: ['oop', 'theory'],
-    content: { prompt: 'Explain the four pillars of Object-Oriented Programming (Encapsulation, Abstraction, Inheritance, Polymorphism). Provide a real-world analogy and a code example for each.' },
+    content: { prompt: 'Explain the four pillars of Object-Oriented Programming (Encapsulation, Abstraction, Inheritance, Polymorphism). Provide a real-world analogy and a code example for each.',
+      modelAnswer: 'The four pillars of OOP are: (1) Encapsulation — bundling data and methods together while hiding internal state (e.g., a BankAccount class with a private balance field and public deposit/withdraw methods). (2) Abstraction — exposing only essential features and hiding complexity (e.g., a Car class with a start() method that hides engine internals). (3) Inheritance — creating new classes from existing ones to reuse code (e.g., Dog extends Animal, inheriting eat() and adding bark()). (4) Polymorphism — allowing objects to take many forms (e.g., a Shape reference calling draw() executes different code for Circle vs Rectangle).' },
     rubric: { criteria: [
       { description: 'Encapsulation explanation with example', maxPoints: 5 },
       { description: 'Abstraction explanation with example', maxPoints: 5 },
@@ -191,13 +192,15 @@ const WRITTEN_QUESTIONS: Array<{ title: string; description: string; content: ob
       { description: 'Polymorphism explanation with example', maxPoints: 5 },
     ] } },
   { title: 'SOLID Principles Essay', description: 'Discuss SOLID principles and their importance', courseIdx: 0, points: 20, tags: ['solid', 'design-principles'],
-    content: { prompt: 'Discuss each of the SOLID principles. For each principle, explain what it means, why it matters, and provide a code example showing a violation and how to fix it.' },
+    content: { prompt: 'Discuss each of the SOLID principles. For each principle, explain what it means, why it matters, and provide a code example showing a violation and how to fix it.',
+      modelAnswer: 'SOLID stands for: (S) Single Responsibility — a class should have one reason to change. (O) Open/Closed — open for extension, closed for modification; use abstractions instead of modifying existing code. (L) Liskov Substitution — subtypes must be substitutable for their base types without breaking behavior. (I) Interface Segregation — prefer small, specific interfaces over large general ones. (D) Dependency Inversion — depend on abstractions, not concrete implementations. Each principle reduces coupling and improves maintainability.' },
     rubric: { criteria: [
       { description: 'Correct explanation of each SOLID principle', maxPoints: 10 },
       { description: 'Code examples showing violations and fixes', maxPoints: 10 },
     ] } },
   { title: 'Composition vs Inheritance', description: 'Compare composition and inheritance', courseIdx: 0, points: 15, tags: ['oop', 'design'],
-    content: { prompt: 'Compare and contrast composition and inheritance. When should you prefer one over the other? Provide examples to support your argument.' },
+    content: { prompt: 'Compare and contrast composition and inheritance. When should you prefer one over the other? Provide examples to support your argument.',
+      modelAnswer: 'Inheritance creates an "is-a" relationship (Dog is-a Animal) and enables code reuse through class hierarchies, but can lead to tight coupling and fragile base class problems. Composition creates a "has-a" relationship (Car has-a Engine) and is more flexible — components can be swapped at runtime. Prefer composition when you need flexibility, when the relationship is not truly "is-a", or when you want to avoid deep inheritance hierarchies. Prefer inheritance when there is a genuine taxonomic relationship and you want to leverage polymorphism.' },
     rubric: { criteria: [
       { description: 'Clear comparison of composition and inheritance', maxPoints: 5 },
       { description: 'Appropriate use cases for each', maxPoints: 5 },
@@ -206,21 +209,24 @@ const WRITTEN_QUESTIONS: Array<{ title: string; description: string; content: ob
 
   // SC3004
   { title: 'Microservices vs Monolith', description: 'Compare microservices and monolithic architecture', courseIdx: 1, points: 20, tags: ['architecture', 'microservices'],
-    content: { prompt: 'Compare microservices architecture with monolithic architecture. Discuss the trade-offs including scalability, development complexity, deployment, and team organization. When would you choose each approach?' },
+    content: { prompt: 'Compare microservices architecture with monolithic architecture. Discuss the trade-offs including scalability, development complexity, deployment, and team organization. When would you choose each approach?',
+      modelAnswer: 'Monolithic architecture packages all components into a single deployable unit — simpler to develop and deploy initially, but harder to scale and maintain as the system grows. Microservices decompose the system into independently deployable services, each owning its data and business logic. Trade-offs: microservices offer better scalability, independent deployment, and team autonomy, but introduce network complexity, distributed data management, and operational overhead. Choose monolith for small teams or early-stage products; choose microservices when you need independent scaling, have multiple teams, or require technology diversity.' },
     rubric: { criteria: [
       { description: 'Accurate comparison of architectures', maxPoints: 7 },
       { description: 'Discussion of trade-offs', maxPoints: 7 },
       { description: 'Appropriate recommendations for when to use each', maxPoints: 6 },
     ] } },
   { title: 'Design Patterns in Practice', description: 'Apply design patterns to a scenario', courseIdx: 1, points: 20, tags: ['design-patterns', 'application'],
-    content: { prompt: 'You are designing a notification system that needs to support email, SMS, and push notifications. The system should be easily extensible to support new notification channels. Which design patterns would you use? Explain your choices and sketch the class structure.' },
+    content: { prompt: 'You are designing a notification system that needs to support email, SMS, and push notifications. The system should be easily extensible to support new notification channels. Which design patterns would you use? Explain your choices and sketch the class structure.',
+      modelAnswer: 'Use the Strategy pattern to define a NotificationStrategy interface with a send() method, with concrete implementations EmailStrategy, SMSStrategy, and PushStrategy. Use the Factory pattern (NotificationFactory) to create the appropriate strategy based on configuration. Optionally use the Observer pattern if multiple parties need to be notified of events. The class structure: NotificationService holds a list of NotificationStrategy instances; each strategy implements the send(message, recipient) method. Adding a new channel (e.g., Slack) only requires creating a new strategy class without modifying existing code.' },
     rubric: { criteria: [
       { description: 'Appropriate pattern selection (e.g., Strategy, Factory, Observer)', maxPoints: 8 },
       { description: 'Clear explanation of why each pattern fits', maxPoints: 6 },
       { description: 'Class structure diagram or description', maxPoints: 6 },
     ] } },
   { title: 'Technical Debt Analysis', description: 'Analyze technical debt and propose solutions', courseIdx: 1, points: 15, tags: ['technical-debt', 'refactoring'],
-    content: { prompt: 'What is technical debt? Categorize different types of technical debt, explain how it accumulates, and propose strategies for managing and reducing it in a real project.' },
+    content: { prompt: 'What is technical debt? Categorize different types of technical debt, explain how it accumulates, and propose strategies for managing and reducing it in a real project.',
+      modelAnswer: 'Technical debt is the implied cost of rework caused by choosing quick solutions over better approaches. Types: (1) Deliberate — shortcuts taken knowingly under time pressure. (2) Inadvertent — poor decisions due to lack of knowledge. (3) Bit rot — code degrades as requirements evolve. It accumulates through rushed deadlines, lack of refactoring, poor documentation, and insufficient testing. Management strategies: maintain a tech debt backlog, allocate a percentage of each sprint to debt reduction, use static analysis tools, enforce code review standards, and refactor incrementally rather than in big rewrites.' },
     rubric: { criteria: [
       { description: 'Definition and categorization of technical debt', maxPoints: 5 },
       { description: 'Explanation of accumulation causes', maxPoints: 5 },
@@ -229,7 +235,8 @@ const WRITTEN_QUESTIONS: Array<{ title: string; description: string; content: ob
 
   // SC2007
   { title: 'Waterfall vs Agile', description: 'Compare Waterfall and Agile methodologies', courseIdx: 2, points: 20, tags: ['sdlc', 'methodology'],
-    content: { prompt: 'Compare the Waterfall and Agile software development methodologies. Discuss the strengths and weaknesses of each approach, and describe scenarios where each methodology would be most appropriate.' },
+    content: { prompt: 'Compare the Waterfall and Agile software development methodologies. Discuss the strengths and weaknesses of each approach, and describe scenarios where each methodology would be most appropriate.',
+      modelAnswer: 'Waterfall is a sequential, phase-based approach (Requirements → Design → Implementation → Testing → Deployment). Strengths: clear milestones, thorough documentation, predictable timelines. Weaknesses: inflexible to change, late testing, customer sees product only at the end. Agile is iterative and incremental, delivering working software in short sprints. Strengths: adaptable to change, continuous feedback, early delivery of value. Weaknesses: scope creep risk, requires experienced teams, less documentation. Use Waterfall for well-defined, stable requirements (e.g., embedded systems, regulatory projects). Use Agile for evolving requirements and customer-facing applications.' },
     rubric: { criteria: [
       { description: 'Accurate description of Waterfall methodology', maxPoints: 5 },
       { description: 'Accurate description of Agile methodology', maxPoints: 5 },
@@ -237,13 +244,15 @@ const WRITTEN_QUESTIONS: Array<{ title: string; description: string; content: ob
       { description: 'Appropriate scenario recommendations', maxPoints: 5 },
     ] } },
   { title: 'Requirements Elicitation', description: 'Discuss requirements elicitation techniques', courseIdx: 2, points: 15, tags: ['requirements', 'elicitation'],
-    content: { prompt: 'Describe at least four requirements elicitation techniques. For each technique, explain when it is most effective and provide an example of how it would be used in a real project.' },
+    content: { prompt: 'Describe at least four requirements elicitation techniques. For each technique, explain when it is most effective and provide an example of how it would be used in a real project.',
+      modelAnswer: 'Four key techniques: (1) Interviews — one-on-one discussions with stakeholders; best for understanding individual perspectives and uncovering implicit requirements. (2) Surveys/Questionnaires — collecting input from many users; effective for large user bases and quantitative data. (3) Workshops/JAD sessions — collaborative group sessions; best for resolving conflicts and building consensus. (4) Prototyping — building mockups for user feedback; effective when requirements are unclear and users need something tangible to react to. Additional techniques include observation, document analysis, and use case modeling.' },
     rubric: { criteria: [
       { description: 'Description of at least 4 techniques', maxPoints: 8 },
       { description: 'Effectiveness analysis and real-world examples', maxPoints: 7 },
     ] } },
   { title: 'Software Testing Strategy', description: 'Design a testing strategy for a web application', courseIdx: 2, points: 15, tags: ['testing', 'strategy'],
-    content: { prompt: 'Design a comprehensive testing strategy for an e-commerce web application. Include the types of tests you would write, the tools you would use, and how you would integrate testing into the CI/CD pipeline.' },
+    content: { prompt: 'Design a comprehensive testing strategy for an e-commerce web application. Include the types of tests you would write, the tools you would use, and how you would integrate testing into the CI/CD pipeline.',
+      modelAnswer: 'A comprehensive testing strategy includes: Unit tests (Jest/Vitest) for individual functions and components. Integration tests for API endpoints and database operations. E2E tests (Playwright/Cypress) for critical user flows like checkout and payment. Performance tests (k6/Artillery) for load testing. Security tests (OWASP ZAP) for vulnerability scanning. CI/CD integration: run unit and integration tests on every PR, E2E tests on merge to main, performance tests nightly, and security scans weekly. Use code coverage thresholds (e.g., 80%) as merge gates.' },
     rubric: { criteria: [
       { description: 'Comprehensive coverage of testing types', maxPoints: 5 },
       { description: 'Appropriate tool selection', maxPoints: 5 },
@@ -254,21 +263,24 @@ const WRITTEN_QUESTIONS: Array<{ title: string; description: string; content: ob
 const UML_QUESTIONS: Array<{ title: string; description: string; content: object; rubric: object; points: number; tags: string[]; courseIdx: number }> = [
   // SC2000
   { title: 'Class Diagram: Library System', description: 'Design a class diagram for a library management system', courseIdx: 0, points: 20, tags: ['uml', 'class-diagram'],
-    content: { diagramType: 'class', prompt: 'Design a UML class diagram for a library management system. Include classes for Book, Member, Librarian, Loan, and Reservation. Show relationships, attributes, and methods.' },
+    content: { diagramType: 'class', prompt: 'Design a UML class diagram for a library management system. Include classes for Book, Member, Librarian, Loan, and Reservation. Show relationships, attributes, and methods.',
+      modelAnswer: '@startuml\nclass Book {\n  -isbn: String\n  -title: String\n  -author: String\n  -available: boolean\n  +getDetails(): String\n}\nclass Member {\n  -memberId: String\n  -name: String\n  -email: String\n  +borrowBook(book: Book): Loan\n}\nclass Librarian {\n  -employeeId: String\n  -name: String\n  +addBook(book: Book): void\n  +removeBook(isbn: String): void\n}\nclass Loan {\n  -loanDate: Date\n  -dueDate: Date\n  -returnDate: Date\n  +isOverdue(): boolean\n}\nclass Reservation {\n  -reservationDate: Date\n  -status: String\n}\nMember "1" -- "0..*" Loan\nBook "1" -- "0..*" Loan\nMember "1" -- "0..*" Reservation\nBook "1" -- "0..*" Reservation\nLibrarian "1" -- "0..*" Book : manages\n@enduml' },
     rubric: { criteria: [
       { description: 'Correct classes with appropriate attributes and methods', maxPoints: 8 },
       { description: 'Proper relationships (association, inheritance, composition)', maxPoints: 7 },
       { description: 'Correct multiplicity and notation', maxPoints: 5 },
     ] } },
   { title: 'Class Diagram: Online Store', description: 'Design a class diagram for an online store', courseIdx: 0, points: 20, tags: ['uml', 'class-diagram'],
-    content: { diagramType: 'class', prompt: 'Create a UML class diagram for an online store system. Include Product, Customer, Order, ShoppingCart, Payment, and Review classes with appropriate relationships.' },
+    content: { diagramType: 'class', prompt: 'Create a UML class diagram for an online store system. Include Product, Customer, Order, ShoppingCart, Payment, and Review classes with appropriate relationships.',
+      modelAnswer: '@startuml\nclass Product {\n  -productId: String\n  -name: String\n  -price: double\n  -stock: int\n}\nclass Customer {\n  -customerId: String\n  -name: String\n  -email: String\n}\nclass Order {\n  -orderId: String\n  -orderDate: Date\n  -status: String\n  +getTotal(): double\n}\nclass ShoppingCart {\n  -items: List<CartItem>\n  +addItem(product: Product, qty: int): void\n  +checkout(): Order\n}\nclass Payment {\n  -paymentId: String\n  -amount: double\n  -method: String\n  -status: String\n}\nclass Review {\n  -rating: int\n  -comment: String\n  -date: Date\n}\nCustomer "1" -- "1" ShoppingCart\nCustomer "1" -- "0..*" Order\nOrder "1" -- "1" Payment\nOrder "1" *-- "1..*" Product\nCustomer "1" -- "0..*" Review\nProduct "1" -- "0..*" Review\n@enduml' },
     rubric: { criteria: [
       { description: 'Complete and accurate class definitions', maxPoints: 8 },
       { description: 'Correct relationships and multiplicities', maxPoints: 7 },
       { description: 'Proper UML notation', maxPoints: 5 },
     ] } },
   { title: 'Sequence Diagram: Login Flow', description: 'Draw a sequence diagram for user login', courseIdx: 0, points: 15, tags: ['uml', 'sequence-diagram'],
-    content: { diagramType: 'sequence', prompt: 'Draw a UML sequence diagram showing the login process for a web application. Include the User, Browser, Web Server, Authentication Service, and Database as participants.' },
+    content: { diagramType: 'sequence', prompt: 'Draw a UML sequence diagram showing the login process for a web application. Include the User, Browser, Web Server, Authentication Service, and Database as participants.',
+      modelAnswer: '@startuml\nactor User\nparticipant Browser\nparticipant "Web Server" as WS\nparticipant "Auth Service" as Auth\ndatabase Database\n\nUser -> Browser: Enter credentials\nBrowser -> WS: POST /login (email, password)\nWS -> Auth: validateCredentials(email, password)\nAuth -> Database: SELECT user WHERE email = ?\nDatabase --> Auth: user record\nAuth -> Auth: verify password hash\nalt valid credentials\n  Auth --> WS: auth token\n  WS --> Browser: 200 OK + JWT\n  Browser --> User: Redirect to dashboard\nelse invalid credentials\n  Auth --> WS: authentication failed\n  WS --> Browser: 401 Unauthorized\n  Browser --> User: Show error message\nend\n@enduml' },
     rubric: { criteria: [
       { description: 'Correct participants and lifelines', maxPoints: 5 },
       { description: 'Proper message sequencing', maxPoints: 5 },
@@ -277,21 +289,24 @@ const UML_QUESTIONS: Array<{ title: string; description: string; content: object
 
   // SC3004
   { title: 'Architecture Diagram: Microservices', description: 'Design a component diagram for a microservices architecture', courseIdx: 1, points: 25, tags: ['uml', 'component-diagram', 'architecture'],
-    content: { diagramType: 'component', prompt: 'Design a UML component diagram for a microservices-based e-commerce platform. Include API Gateway, User Service, Product Service, Order Service, Payment Service, and a Message Broker.' },
+    content: { diagramType: 'component', prompt: 'Design a UML component diagram for a microservices-based e-commerce platform. Include API Gateway, User Service, Product Service, Order Service, Payment Service, and a Message Broker.',
+      modelAnswer: '@startuml\npackage "E-Commerce Platform" {\n  [API Gateway] as GW\n  [User Service] as US\n  [Product Service] as PS\n  [Order Service] as OS\n  [Payment Service] as PAY\n  queue "Message Broker" as MQ\n  database "User DB" as UDB\n  database "Product DB" as PDB\n  database "Order DB" as ODB\n}\nGW --> US : REST\nGW --> PS : REST\nGW --> OS : REST\nUS --> UDB\nPS --> PDB\nOS --> ODB\nOS --> MQ : publish order events\nPAY --> MQ : subscribe to order events\nMQ --> US : notifications\n@enduml' },
     rubric: { criteria: [
       { description: 'Correct component identification and boundaries', maxPoints: 8 },
       { description: 'Proper interfaces and dependencies', maxPoints: 9 },
       { description: 'Communication patterns (sync/async)', maxPoints: 8 },
     ] } },
   { title: 'State Diagram: Order Lifecycle', description: 'Design a state diagram for order processing', courseIdx: 1, points: 20, tags: ['uml', 'state-diagram'],
-    content: { diagramType: 'state', prompt: 'Create a UML state diagram showing the lifecycle of an order in an e-commerce system. Include states such as Created, Confirmed, Processing, Shipped, Delivered, Cancelled, and Returned.' },
+    content: { diagramType: 'state', prompt: 'Create a UML state diagram showing the lifecycle of an order in an e-commerce system. Include states such as Created, Confirmed, Processing, Shipped, Delivered, Cancelled, and Returned.',
+      modelAnswer: '@startuml\n[*] --> Created\nCreated --> Confirmed : payment received\nCreated --> Cancelled : user cancels\nConfirmed --> Processing : warehouse picks order\nProcessing --> Shipped : handed to courier\nShipped --> Delivered : delivery confirmed\nDelivered --> Returned : return requested\nReturned --> [*]\nDelivered --> [*]\nCancelled --> [*]\nConfirmed --> Cancelled : cancel before processing\n@enduml' },
     rubric: { criteria: [
       { description: 'Complete state identification', maxPoints: 7 },
       { description: 'Correct transitions and guards', maxPoints: 7 },
       { description: 'Initial/final states and proper notation', maxPoints: 6 },
     ] } },
   { title: 'Class Diagram: Design Patterns', description: 'Illustrate Observer and Strategy patterns in UML', courseIdx: 1, points: 25, tags: ['uml', 'class-diagram', 'design-patterns'],
-    content: { diagramType: 'class', prompt: 'Create UML class diagrams illustrating both the Observer pattern and the Strategy pattern. For each, show the abstract classes/interfaces and at least two concrete implementations.' },
+    content: { diagramType: 'class', prompt: 'Create UML class diagrams illustrating both the Observer pattern and the Strategy pattern. For each, show the abstract classes/interfaces and at least two concrete implementations.',
+      modelAnswer: '@startuml\ninterface Subject {\n  +attach(observer: Observer): void\n  +detach(observer: Observer): void\n  +notify(): void\n}\ninterface Observer {\n  +update(subject: Subject): void\n}\nclass ConcreteSubject implements Subject {\n  -state: String\n  -observers: List<Observer>\n}\nclass EmailObserver implements Observer {\n  +update(subject: Subject): void\n}\nclass LogObserver implements Observer {\n  +update(subject: Subject): void\n}\nSubject "1" --> "0..*" Observer\n\ninterface Strategy {\n  +execute(data: Object): Object\n}\nclass Context {\n  -strategy: Strategy\n  +setStrategy(s: Strategy): void\n  +doWork(): Object\n}\nclass ConcreteStrategyA implements Strategy {\n  +execute(data: Object): Object\n}\nclass ConcreteStrategyB implements Strategy {\n  +execute(data: Object): Object\n}\nContext --> Strategy\n@enduml' },
     rubric: { criteria: [
       { description: 'Correct Observer pattern structure', maxPoints: 10 },
       { description: 'Correct Strategy pattern structure', maxPoints: 10 },
@@ -300,21 +315,24 @@ const UML_QUESTIONS: Array<{ title: string; description: string; content: object
 
   // SC2007
   { title: 'Use Case Diagram: Student Portal', description: 'Design a use case diagram for a student portal', courseIdx: 2, points: 15, tags: ['uml', 'use-case-diagram'],
-    content: { diagramType: 'usecase', prompt: 'Design a UML use case diagram for a university student portal. Include actors such as Student, Professor, and Admin. Include use cases for enrollment, grade viewing, course management, and assignment submission.' },
+    content: { diagramType: 'usecase', prompt: 'Design a UML use case diagram for a university student portal. Include actors such as Student, Professor, and Admin. Include use cases for enrollment, grade viewing, course management, and assignment submission.',
+      modelAnswer: '@startuml\nleft to right direction\nactor Student\nactor Professor\nactor Admin\nrectangle "Student Portal" {\n  usecase "Enroll in Course" as UC1\n  usecase "View Grades" as UC2\n  usecase "Submit Assignment" as UC3\n  usecase "Manage Courses" as UC4\n  usecase "Grade Assignments" as UC5\n  usecase "Manage Users" as UC6\n  usecase "Authenticate" as UC7\n}\nStudent --> UC1\nStudent --> UC2\nStudent --> UC3\nProfessor --> UC4\nProfessor --> UC5\nAdmin --> UC6\nStudent --> UC7\nProfessor --> UC7\nAdmin --> UC7\nUC3 ..> UC7 : <<include>>\nUC1 ..> UC7 : <<include>>\n@enduml' },
     rubric: { criteria: [
       { description: 'Correct actor identification', maxPoints: 5 },
       { description: 'Comprehensive use cases', maxPoints: 5 },
       { description: 'Proper relationships (include, extend, generalization)', maxPoints: 5 },
     ] } },
   { title: 'Activity Diagram: Bug Fix Process', description: 'Model the bug fix workflow as an activity diagram', courseIdx: 2, points: 15, tags: ['uml', 'activity-diagram'],
-    content: { diagramType: 'activity', prompt: 'Create a UML activity diagram for the bug fix process in a software team. Include bug reporting, triage, assignment, fixing, code review, testing, and deployment stages. Show decision points and parallel activities.' },
+    content: { diagramType: 'activity', prompt: 'Create a UML activity diagram for the bug fix process in a software team. Include bug reporting, triage, assignment, fixing, code review, testing, and deployment stages. Show decision points and parallel activities.',
+      modelAnswer: '@startuml\nstart\n:Report Bug;\n:Triage Bug;\nif (Severity?) then (Critical)\n  :Assign to Senior Dev;\nelse (Normal)\n  :Assign to Developer;\nendif\n:Fix Bug;\nfork\n  :Code Review;\nfork again\n  :Write Tests;\nend fork\nif (Review Passed?) then (Yes)\n  :Run Test Suite;\n  if (Tests Pass?) then (Yes)\n    :Deploy to Staging;\n    :Verify Fix;\n    :Deploy to Production;\n  else (No)\n    :Return to Developer;\n    :Fix Bug;\n  endif\nelse (No)\n  :Address Review Comments;\n  :Fix Bug;\nendif\nstop\n@enduml' },
     rubric: { criteria: [
       { description: 'Complete activity flow', maxPoints: 5 },
       { description: 'Correct decision points and forks/joins', maxPoints: 5 },
       { description: 'Proper UML notation', maxPoints: 5 },
     ] } },
   { title: 'Class Diagram: Hospital System', description: 'Design a class diagram for hospital management', courseIdx: 2, points: 20, tags: ['uml', 'class-diagram'],
-    content: { diagramType: 'class', prompt: 'Design a UML class diagram for a hospital management system. Include Patient, Doctor, Nurse, Appointment, MedicalRecord, Ward, and Prescription classes. Show inheritance, composition, and association relationships.' },
+    content: { diagramType: 'class', prompt: 'Design a UML class diagram for a hospital management system. Include Patient, Doctor, Nurse, Appointment, MedicalRecord, Ward, and Prescription classes. Show inheritance, composition, and association relationships.',
+      modelAnswer: '@startuml\nabstract class Person {\n  -id: String\n  -name: String\n  -phone: String\n}\nclass Patient extends Person {\n  -patientId: String\n  -dateOfBirth: Date\n  -bloodType: String\n}\nclass Doctor extends Person {\n  -specialization: String\n  -licenseNo: String\n}\nclass Nurse extends Person {\n  -department: String\n  -shift: String\n}\nclass Appointment {\n  -dateTime: DateTime\n  -status: String\n}\nclass MedicalRecord {\n  -diagnosis: String\n  -treatment: String\n  -date: Date\n}\nclass Ward {\n  -wardNo: String\n  -capacity: int\n  -type: String\n}\nclass Prescription {\n  -medication: String\n  -dosage: String\n  -duration: String\n}\nPatient "1" -- "0..*" Appointment\nDoctor "1" -- "0..*" Appointment\nPatient "1" *-- "0..*" MedicalRecord\nDoctor "1" -- "0..*" MedicalRecord\nMedicalRecord "1" *-- "0..*" Prescription\nWard "1" -- "0..*" Patient\nWard "1" -- "0..*" Nurse\n@enduml' },
     rubric: { criteria: [
       { description: 'Complete class definitions with attributes and methods', maxPoints: 8 },
       { description: 'Correct relationships and multiplicities', maxPoints: 7 },
