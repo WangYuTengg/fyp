@@ -156,7 +156,7 @@ export function StudentAssignmentAttempt({ assignmentId }: StudentAssignmentAtte
   }, [submitted]);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && !dbUser) {
       navigate({ to: '/login' });
     }
     if (!authLoading && dbUser?.role === 'admin') {
