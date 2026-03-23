@@ -252,12 +252,9 @@ export function UMLEditor({
   height = '400px',
 }: UMLEditorProps) {
   const normalizedInitialValue = isNonEmptyText(initialValue) ? initialValue : '';
-  const diagramSeedKey = initialDiagramState ? JSON.stringify(initialDiagramState) : 'empty-diagram';
-  const editorKey = `${normalizedInitialValue}::${diagramSeedKey}`;
 
   return (
     <UMLEditorInner
-      key={editorKey}
       initialValue={normalizedInitialValue}
       initialDiagramState={initialDiagramState}
       onChange={onChange}
