@@ -11,8 +11,8 @@ function Index() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Only redirect if we have dbUser (authenticated and synced with DB)
-    if (!loading && user && dbUser) {
+    // Redirect if we have dbUser (covers both Supabase and password login)
+    if (!loading && dbUser) {
       if (dbUser.role === 'student') {
         navigate({ to: '/student' });
       } else {
@@ -33,7 +33,7 @@ function Index() {
   }
 
   // Show welcome page for non-authenticated users
-  if (!user) {
+  if (!user && !dbUser) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">

@@ -11,7 +11,7 @@ function StudentLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && !dbUser) {
       navigate({ to: '/login' });
     }
     if (!authLoading && dbUser?.role === 'admin') {

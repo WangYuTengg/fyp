@@ -12,7 +12,7 @@ function StaffLayout() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!user) {
+      if (!user && !dbUser) {
         navigate({ to: '/login' });
       } else if (dbUser && dbUser.role !== 'admin' && dbUser.role !== 'staff') {
         navigate({ to: '/student' });
