@@ -231,26 +231,23 @@ Update `updated_at` manually in update queries:
 .set({ name: 'New Name', updated_at: new Date() })
 ```
 
-## Enum-like Columns
+## Enums
 
-Use varchar with validation:
+Use Postgres enums via `pgEnum`:
 
-```typescript
-export const users = pgTable('users', {
-  role: varchar('role', { length: 20 }).notNull(), // 'admin', 'staff', 'student'
-});
-
-// Validate in application code
-type UserRole = 'admin' | 'staff' | 'student';
-```
-
-Or use Postgres enums (less flexible):
 ```typescript
 import { pgEnum } from 'drizzle-orm/pg-core';
 
-export const roleEnum = pgEnum('role', ['admin', 'staff', 'student']);
-
-export const users = pgTable('users', {
-  role: roleEnum('role').notNull(),
-});
+export const userRoleEnum = pgEnum('user_role', ['admin', 'staff', 'student']);
+export const submissionStatusEnum = pgEnum('submission_status', ['draft', 'submitted', 'late', 'grading', 'graded']);
+export const aiJobStatusEnum = pgEnum('ai_job_status', ['pending', 'processing', 'completed', 'failed']);
 ```
+
+## Current Tables (16)
+
+- **Auth & Users**: `users`, `passwordResetTokens`, `refreshTokens`
+- **Courses**: `courses`, `enrollments`
+- **Assessment**: `questions`, `assignments`, `assignmentQuestions`
+- **Submissions**: `submissions`, `answers`, `marks`, `rubrics`
+- **AI Grading**: `aiGradingJobs`, `aiUsageStats`
+- **Platform**: `staffNotifications`, `systemSettings`

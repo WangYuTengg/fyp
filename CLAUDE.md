@@ -49,29 +49,44 @@ src/
 │   │   └── staff/                   # Staff: courses, grading, analytics, settings
 │   ├── features/                    # Feature modules (hooks, components, types per feature)
 │   │   ├── student-dashboard/
-│   │   ├── student-assignment/
-│   │   ├── staff-course/            # Course management + question pool
-│   │   ├── staff-grading/           # Grading dashboard
-│   │   └── staff-settings/          # LLM configuration
-│   ├── components/                  # Shared (Modal, Sidebar, ErrorBoundary, UMLEditor, FileUpload)
+│   │   ├── student-assignment/      # Assignment attempt, timer, focus monitor, auto-save
+│   │   ├── student-course/
+│   │   ├── student-submission/      # Submission review
+│   │   ├── staff-dashboard/
+│   │   ├── staff-course/            # Course management + question pool + assignment builder
+│   │   ├── staff-grading/           # Grading dashboard + AI review
+│   │   ├── staff-settings/          # LLM configuration
+│   │   ├── staff-notifications/     # Grading job notifications
+│   │   └── admin-users/             # User management
+│   ├── components/                  # Shared (Modal, Sidebar, ErrorBoundary, UMLEditor, UMLViewer, UserInfo)
 │   ├── contexts/AuthContext.tsx      # Auth state + DB user roles
 │   └── lib/api.ts                   # API client with auto Bearer token injection
 │
 ├── server/
-│   ├── routes/                      # Hono route handlers (~15 files, one per resource)
+│   ├── routes/                      # Hono route handlers (subdirectories per resource)
 │   ├── jobs/                        # Graphile Worker tasks
 │   │   ├── auto-grade-written.ts    # LLM grading for essays
-│   │   └── auto-grade-uml.ts       # Vision API for UML diagrams
+│   │   ├── auto-grade-uml.ts       # Vision API for UML diagrams
+│   │   └── auto-submit-expired.ts   # Cron: auto-submit expired drafts
 │   ├── middleware/auth.ts           # JWT validation + RBAC (dual: custom JWT + Supabase JWT)
 │   ├── lib/ai.ts                    # LLM provider factory (OpenAI or Anthropic)
 │   ├── config/prompts.ts            # LLM prompt templates
 │   └── config/pricing.ts            # Token cost calculation per provider/model
 │
 ├── db/
-│   ├── schema.ts                    # 13 tables with Drizzle ORM
+│   ├── schema.ts                    # 16 tables with Drizzle ORM
 │   └── migrations/                  # Auto-generated SQL
 │
-└── docs/agents/                     # Detailed convention docs (architecture, api-design, style, etc.)
+└── docs/
+    ├── agents/                      # Detailed convention docs for agents/AI assistants
+    │   ├── architecture.md          # Folder organization, client/server separation
+    │   ├── api-design.md            # Hono routes, middleware, error responses
+    │   ├── auth.md                  # Auth flow, middleware, session handling
+    │   ├── database.md              # Drizzle schema, migrations, queries
+    │   ├── frontend.md              # React components, routing, state management
+    │   ├── style.md                 # Code style conventions
+    │   └── typescript-conventions.md # Type safety, naming, patterns
+    └── DEPLOYMENT.md                # Production deployment guide
 ```
 
 ## Key Patterns
@@ -91,7 +106,7 @@ src/
 ### Database
 - Schema-first with Drizzle ORM — modify `src/db/schema.ts` → `npm run db:generate` → `npm run db:migrate`
 - JSONB fields for flexible content (MCQ options, rubrics, code templates, UML data)
-- Enums: `user_role`, `submission_status` (draft→submitted→grading→graded), `ai_job_status`
+- Enums: `user_role`, `course_role`, `assignment_type`, `submission_status` (draft→submitted→late→grading→graded), `ai_job_status`, `notification_type`
 - Indexes on: course_id, user_id, assignment_id
 - All tables have `created_at` + `updated_at` — update `updated_at` manually in `.set()`
 

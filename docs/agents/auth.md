@@ -1,4 +1,12 @@
-# Authentication with Supabase
+# Authentication (Dual Auth: Custom JWT + Supabase)
+
+## Overview
+
+The platform supports two authentication methods:
+1. **Custom JWT** (primary, on-premise): Password-based login with HS256 JWT signing via `jose`, refresh token rotation via `refreshTokens` table
+2. **Supabase JWT** (fallback, cloud): Magic links, OAuth flows via Supabase Auth
+
+The auth middleware tries custom JWT first (no network call), falling back to Supabase verification. Email-based role inference: `@staff.main.ntu.edu.sg` → staff, `@e.ntu.edu.sg` → student.
 
 ## Supabase Setup
 

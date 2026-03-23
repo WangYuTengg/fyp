@@ -1,6 +1,6 @@
 # Database Layer
 
-Schema-first PostgreSQL database using Drizzle ORM with 15 tables and auto-generated SQL migrations.
+Schema-first PostgreSQL database using Drizzle ORM with 16 tables and auto-generated SQL migrations.
 
 ## Design Decisions
 

@@ -6,16 +6,18 @@
 src/
 ├── client/          # Frontend code (React + TanStack Router)
 │   ├── routes/      # File-based routing
+│   ├── features/    # Feature modules (hooks, components, types per feature)
 │   ├── components/  # Reusable UI components
-│   ├── contexts/    # React contexts (auth, etc.)
-│   ├── hooks/       # Custom React hooks
-│   └── lib/         # Client utilities (api.ts, route-guards.ts)
+│   ├── contexts/    # React contexts (auth)
+│   └── lib/         # Client utilities (api.ts)
 ├── server/          # Backend code (Hono API)
-│   ├── routes/      # API route handlers
-│   ├── middleware/  # Auth, CORS, error handling
-│   └── lib/         # Server utilities (supabase.ts)
+│   ├── routes/      # API route handlers (subdirectories per resource)
+│   ├── middleware/  # Auth, RLS
+│   ├── jobs/        # Graphile Worker tasks (LLM grading, auto-submit)
+│   ├── lib/         # Server utilities (ai.ts, notifications.ts, etc.)
+│   └── config/      # Prompts, pricing, constants, env validation
 ├── db/              # Database layer
-│   ├── schema.ts    # Drizzle schema definitions
+│   ├── schema.ts    # Drizzle schema definitions (16 tables)
 │   ├── index.ts     # Database client
 │   └── migrations/  # Auto-generated SQL migrations
 └── lib/             # Shared utilities
@@ -45,27 +47,33 @@ File-based routing in `src/client/routes/`:
 
 ### Backend Routes (Hono)
 
-API routes in `src/server/routes/`:
-- `/api/auth/*` - Authentication endpoints
-- `/api/courses/*` - Course CRUD
-- `/api/assignments/*` - Assignment CRUD
-- `/api/submissions/*` - Submission handling
-- `/api/questions/*` - Question management
+API routes in `src/server/routes/` organized as subdirectories per resource:
+- `/api/auth/*` - Authentication (signin, signup, magic link, password reset, refresh)
+- `/api/courses/*` - Course CRUD, enrollments, bulk enroll, grade export
+- `/api/assignments/*` - Assignment CRUD, publish, analytics, clone, question management
+- `/api/submissions/*` - Start, save, submit, grade, focus events
+- `/api/questions/*` - Question CRUD, import/export
+- `/api/auto-grade/*` - Batch/single AI grading, queue, accept/reject, stats
+- `/api/admin/*` - User CRUD, bulk create, password reset
+- `/api/settings/*` - LLM provider configuration
+- `/api/notifications/*` - List, mark read, unread count
+- `/api/tags/*` - Tag management
+- `/api/users/*` - User lookup
 
-**Middleware**: All routes except `/api/auth/*` require authentication via `src/server/middleware/auth.ts`
+**Middleware**: All routes except public auth endpoints require authentication via `src/server/middleware/auth.ts`
 
 ## Database Schema Patterns
 
 See [database.md](database.md) for detailed schema conventions.
 
-Key tables:
-- `users` - Extended user profiles (synced with Supabase auth)
-- `courses` - Course definitions
-- `enrollments` - Student-course relationships with role-based access
-- `assignments` - Assignment configurations (MCQ, written; coding/UML planned)
-- `questions` - Question bank linked to assignments
-- `submissions` - Student submission records
-- `answers` - Individual question answers within submissions
+16 tables — see [database.md](database.md) for full details. Key ones:
+- `users`, `passwordResetTokens`, `refreshTokens` - Auth & user management
+- `courses`, `enrollments` - Course structure with course-scoped roles
+- `assignments`, `assignmentQuestions`, `questions` - Assessment content
+- `submissions`, `answers`, `marks` - Student work & grading
+- `rubrics` - Rubric criteria per question
+- `aiGradingJobs`, `aiUsageStats` - LLM grading pipeline
+- `staffNotifications`, `systemSettings` - Platform infrastructure
 
 ## Role-Based Access Control
 
@@ -102,10 +110,13 @@ Standard responses:
 
 ## Authentication Flow
 
-1. User logs in via Supabase (email/password or magic link)
-2. Supabase creates session (stored in localStorage)
-3. Client sends session token in `Authorization: Bearer <token>` header
-4. Server middleware validates token with Supabase
+Dual authentication — custom JWT (fast, on-premise) + Supabase JWT (cloud, magic links):
+
+1. User logs in via custom password auth or Supabase magic link
+2. Server issues custom JWT (HS256) or Supabase provides session token
+3. Client sends token in `Authorization: Bearer <token>` header
+4. Server middleware tries custom JWT first (no network call), falls back to Supabase verification
 5. User data attached to Hono context: `c.get('user')`
+6. Token refresh with rotation via `refreshTokens` table
 
 See [auth.md](auth.md) for detailed auth patterns.

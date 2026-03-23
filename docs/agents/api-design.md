@@ -28,12 +28,18 @@ serve({ fetch: app.fetch, port });
 
 ## Route File Structure
 
-Each resource gets its own file in `src/server/routes/`:
-- `auth.ts` - Authentication endpoints
-- `courses.ts` - Course CRUD
-- `assignments.ts` - Assignment management
-- `submissions.ts` - Submission handling
-- `questions.ts` - Question bank
+Each resource gets its own subdirectory in `src/server/routes/`:
+- `auth/` - Authentication (signin, signup, magic link, password reset, refresh)
+- `courses/` - Course CRUD, enrollments, bulk enroll, grade export
+- `assignments/` - Assignment CRUD, publish, analytics, clone, question management
+- `submissions/` - Start, save, submit, grade, focus events
+- `questions/` - Question CRUD, import/export
+- `auto-grade/` - Batch/single AI grading, accept/reject, stats
+- `admin/` - User management
+- `settings/` - LLM provider configuration
+- `notifications/` - Notification management
+- `tags/` - Tag endpoints
+- `users/` - User lookup
 
 ## Route Patterns
 

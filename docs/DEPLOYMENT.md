@@ -101,7 +101,7 @@ using (
 );
 ```
 
-See [docs/SUPABASE_STORAGE_SETUP.md](./SUPABASE_STORAGE_SETUP.md) for detailed instructions.
+See Supabase's official documentation for detailed storage setup instructions.
 
 ### 3. Create Users
 
@@ -378,7 +378,5 @@ See [supabase.com/pricing](https://supabase.com/pricing)
 
 ## Additional Resources
 
-- [API Documentation](./API.md)
 - [Architecture Guide](./agents/architecture.md)
 - [Database Schema](./agents/database.md)
-- [Supabase Storage Setup](./SUPABASE_STORAGE_SETUP.md)

@@ -1,6 +1,6 @@
 # API Routes
 
-Resource-based Hono route handlers — one file per resource, ~15 files total.
+Resource-based Hono route handlers — organized as subdirectories per resource.
 
 ## Design Decisions
 
@@ -10,11 +10,11 @@ Resource-based Hono route handlers — one file per resource, ~15 files total.
 
 Each resource (courses, assignments, submissions, questions, etc.) has its own route file. This keeps individual files manageable (100-300 lines) and makes it easy to find the handler for any endpoint by resource name. The alternative — a single monolithic router — becomes unreadable past ~500 lines.
 
-### Flat Route Structure (No Nested Routers)
+### Subdirectory-Per-Resource Structure
 
-**Trade-off:** Some URL path duplication, but simpler to trace request flow.
+**Trade-off:** More directories, but each handler file stays small and focused.
 
-Routes are registered on a flat Hono app rather than using nested sub-routers. This means each handler file defines the full path (`/api/courses/:courseId/enrollments`) rather than relying on router composition. The trade-off is slight path duplication, but any developer can read a route file and immediately know the full URL — no need to trace through parent routers.
+Routes are organized into subdirectories by resource (e.g., `routes/courses/`, `routes/submissions/`). Each subdirectory contains individual handler files for specific operations. This keeps files small and makes it easy to find any endpoint. The index file in each subdirectory composes the handlers into a single router.
 
 ### Zod Validation at the Boundary
 
