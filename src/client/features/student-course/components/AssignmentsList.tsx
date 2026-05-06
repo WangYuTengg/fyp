@@ -9,12 +9,12 @@ type AssignmentsListProps = {
 export function AssignmentsList({ assignments }: AssignmentsListProps) {
   const navigate = useNavigate();
 
+  const isFinalStatus = (status: StudentAssignment['submissionStatus']) =>
+    status === 'submitted' || status === 'late' || status === 'grading' || status === 'graded';
+
   const startAssignment = (assignment: StudentAssignment) => {
-    // If already submitted/late, navigate to submission review instead of starting a new attempt
-    if (
-      (assignment.submissionStatus === 'submitted' || assignment.submissionStatus === 'late') &&
-      assignment.submissionId
-    ) {
+    // If already submitted (or beyond), navigate to submission review instead of starting a new attempt
+    if (isFinalStatus(assignment.submissionStatus) && assignment.submissionId) {
       navigate({
         to: '/student/submissions/$submissionId',
         params: { submissionId: assignment.submissionId },
@@ -62,6 +62,16 @@ export function AssignmentsList({ assignments }: AssignmentsListProps) {
                           Late
                         </span>
                       )}
+                      {assignment.submissionStatus === 'grading' && (
+                        <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                          Grading
+                        </span>
+                      )}
+                      {assignment.submissionStatus === 'graded' && (
+                        <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded">
+                          Graded
+                        </span>
+                      )}
                     </div>
                     <p className="text-gray-600 mt-1">{assignment.description}</p>
                     <div className="mt-2 flex gap-4 text-sm text-gray-500">
@@ -89,7 +99,7 @@ export function AssignmentsList({ assignments }: AssignmentsListProps) {
                     onClick={() => startAssignment(assignment)}
                     className="ml-4 bg-blue-500 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
                   >
-                    {assignment.submissionStatus === 'submitted' || assignment.submissionStatus === 'late' ? 'View' : assignment.submissionStatus === 'draft' ? 'Resume' : 'Start'}
+                    {isFinalStatus(assignment.submissionStatus) ? 'View' : assignment.submissionStatus === 'draft' ? 'Resume' : 'Start'}
                   </button>
                 </div>
               </div>
