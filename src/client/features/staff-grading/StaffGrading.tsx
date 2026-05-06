@@ -1,4 +1,4 @@
-import { useNavigate, useSearch, Link } from '@tanstack/react-router';
+import { useNavigate, useSearch, Link, Outlet, useChildMatches } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDownTrayIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { downloadFile } from '../../lib/api';
@@ -18,6 +18,11 @@ export function StaffGrading() {
   const search = useSearch({ strict: false }) as SearchParams;
   const { assignmentId, submissionId } = search;
   const [searchQuery, setSearchQuery] = useState('');
+
+  // When a child route (e.g. /staff/grading/review) is matched, defer entirely
+  // to its component via <Outlet />. Without this, this component's auto-select
+  // effect below would race the child render and redirect the URL back here.
+  const isOnChildRoute = useChildMatches().length > 0;
 
   const {
     assignment,
@@ -74,12 +79,13 @@ export function StaffGrading() {
 
   // Auto-select first submission to reduce clicks when opening manual grading.
   useEffect(() => {
+    if (isOnChildRoute) return;
     if (selectedSubmission || filteredSubmissions.length === 0) {
       return;
     }
 
     handleSelectSubmission(filteredSubmissions[0].id);
-  }, [filteredSubmissions, handleSelectSubmission, selectedSubmission]);
+  }, [filteredSubmissions, handleSelectSubmission, selectedSubmission, isOnChildRoute]);
 
   const selectedSubmissionIndex = useMemo(() => {
     if (!selectedSubmission) return -1;
@@ -108,6 +114,10 @@ export function StaffGrading() {
       handleSelectSubmission(nextSubmission.id);
     }
   }, [filteredSubmissions, handleSelectSubmission, hasNextSubmission, selectedSubmissionIndex]);
+
+  if (isOnChildRoute) {
+    return <Outlet />;
+  }
 
   if (authLoading || loading) {
     return <div className="text-center py-8">Loading...</div>;

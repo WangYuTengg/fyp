@@ -1,11 +1,14 @@
 import { useState, useEffect, Fragment } from 'react';
+import { Link } from '@tanstack/react-router';
 import { Listbox, Transition } from '@headlessui/react';
-import { 
-  PlayIcon, 
-  CheckIcon, 
+import {
+  PlayIcon,
+  CheckIcon,
   ChevronUpDownIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
+  SparklesIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 import { CostEstimateModal } from './components/CostEstimateModal';
 import { apiClient } from '../../lib/api';
@@ -21,6 +24,7 @@ type Assignment = {
   gradableQuestions: number;
   totalSubmissions: number;
   ungradedAnswers: number;
+  pendingReview: number;
   missingModelAnswers: string[];
   canAutoGrade: boolean;
 };
@@ -402,6 +406,9 @@ export function AssignmentAutoGradingList({ courseId }: AssignmentAutoGradingLis
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ungraded
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Pending Review
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
@@ -419,7 +426,13 @@ export function AssignmentAutoGradingList({ courseId }: AssignmentAutoGradingLis
                       </td>
                     )}
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">{assignment.title}</div>
+                      <Link
+                        to="/staff/grading"
+                        search={{ assignmentId: assignment.id, submissionId: undefined }}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {assignment.title}
+                      </Link>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(assignment.dueDate)}
@@ -442,25 +455,55 @@ export function AssignmentAutoGradingList({ courseId }: AssignmentAutoGradingLis
                         {assignment.ungradedAnswers}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                      {!assignment.canAutoGrade ? (
-                        <div className="inline-flex items-center gap-2">
-                          <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
-                          <span className="text-yellow-700 text-xs">
-                            {assignment.missingModelAnswers.length} question(s) missing model answers
-                          </span>
-                        </div>
-                      ) : assignment.ungradedAnswers === 0 ? (
-                        <span className="text-gray-500 text-xs">Fully graded</span>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {assignment.pendingReview > 0 ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          {assignment.pendingReview}
+                        </span>
                       ) : (
-                        <button
-                          onClick={() => handleRunAutoGrader(assignment)}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-                        >
-                          <PlayIcon className="h-4 w-4" />
-                          Run Auto-Grader
-                        </button>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          0
+                        </span>
                       )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <div className="flex items-center justify-end gap-2">
+                        {!assignment.canAutoGrade ? (
+                          <div className="inline-flex items-center gap-2">
+                            <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
+                            <span className="text-yellow-700 text-xs">
+                              {assignment.missingModelAnswers.length} question(s) missing model answers
+                            </span>
+                          </div>
+                        ) : assignment.ungradedAnswers > 0 ? (
+                          <button
+                            onClick={() => handleRunAutoGrader(assignment)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                          >
+                            <PlayIcon className="h-4 w-4" />
+                            Run Auto-Grader
+                          </button>
+                        ) : null}
+                        {assignment.pendingReview > 0 ? (
+                          <Link
+                            to="/staff/grading/review"
+                            search={{ assignmentId: assignment.id, submissionId: undefined }}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
+                          >
+                            <SparklesIcon className="h-4 w-4" />
+                            Review AI Grades
+                          </Link>
+                        ) : assignment.ungradedAnswers === 0 && assignment.pendingReview === 0 ? (
+                          <Link
+                            to="/staff/grading"
+                            search={{ assignmentId: assignment.id, submissionId: undefined }}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                            View Grades
+                          </Link>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
