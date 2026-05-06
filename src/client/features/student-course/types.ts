@@ -16,7 +16,7 @@ export type StudentAssignment = {
   dueDate: string | null;
   maxAttempts: number | null;
   mcqPenaltyPerWrongSelection: number;
-  submissionStatus?: 'draft' | 'submitted' | 'late' | null;
+  submissionStatus?: 'draft' | 'submitted' | 'late' | 'grading' | 'graded' | null;
   submissionId?: string | null;
   questionCount: number;
   questionTypeCounts: QuestionTypeCounts;

@@ -383,7 +383,7 @@ export function StaffCourseDetail({ courseId }: StaffCourseDetailProps) {
                   Configure course-level automatic grading behavior.
                 </p>
               </div>
-              <SettingsTab />
+              <SettingsTab courseId={courseId} />
             </div>
           )}
         </div>

@@ -111,6 +111,8 @@ export function Sidebar() {
 
   const filteredNavigation = navigation.filter((item) => {
     const role = effectiveRole ?? dbUser.role;
+    // Admins always see admin-only items, regardless of view-as.
+    if (dbUser.role === 'admin' && item.roles.includes('admin')) return true;
     return item.roles.includes(role);
   });
 

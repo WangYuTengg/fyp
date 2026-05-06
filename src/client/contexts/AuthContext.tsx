@@ -78,14 +78,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
+      const hasCustomToken = !!localStorage.getItem(CUSTOM_TOKEN_KEY);
+
       if (session?.access_token) {
         fetchDbUser(session.access_token);
-      } else {
+        setLoading(false);
+      } else if (!hasCustomToken) {
+        // No Supabase session and no custom JWT → fully signed out.
         setDbUser(null);
+        setLoading(false);
       }
-      
-      setLoading(false);
+      // else: custom-JWT login is in flight; let its fetchDbUser.finally flip loading.
     });
 
     return () => subscription.unsubscribe();

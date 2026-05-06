@@ -29,7 +29,7 @@ npm run build:server     # Server only
 npm run db:generate      # Generate migration from schema changes
 npm run db:migrate       # Apply migrations
 npm run db:studio        # Open Drizzle Studio
-npm run db:seed-passwords # Seed test user passwords
+npm run db:seed          # Seed users, courses, questions, assignments
 
 # Lint
 npm run lint             # ESLint (no auto-fix)

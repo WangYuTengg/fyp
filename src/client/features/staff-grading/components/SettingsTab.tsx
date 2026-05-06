@@ -1,8 +1,58 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { apiClient } from '../../../lib/api';
 
-export function SettingsTab() {
+type AutomationSettings = {
+  autoGradeOnSubmit: boolean;
+  autoGradeMcqOnly: boolean;
+};
+
+type SettingsTabProps = {
+  courseId: string;
+};
+
+export function SettingsTab({ courseId }: SettingsTabProps) {
   const [autoGradeOnSubmit, setAutoGradeOnSubmit] = useState(false);
-  const [autoGradeMCQOnly, setAutoGradeMCQOnly] = useState(true);
+  const [autoGradeMcqOnly, setAutoGradeMcqOnly] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    apiClient<AutomationSettings>(`/api/courses/${courseId}/automation-settings`)
+      .then((data) => {
+        if (cancelled) return;
+        setAutoGradeOnSubmit(data.autoGradeOnSubmit);
+        setAutoGradeMcqOnly(data.autoGradeMcqOnly);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setFeedback({ kind: 'error', message: err instanceof Error ? err.message : 'Failed to load settings' });
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setFeedback(null);
+    try {
+      await apiClient<AutomationSettings>(`/api/courses/${courseId}/automation-settings`, {
+        method: 'PUT',
+        body: JSON.stringify({ autoGradeOnSubmit, autoGradeMcqOnly }),
+      });
+      setFeedback({ kind: 'success', message: 'Settings saved.' });
+    } catch (err) {
+      setFeedback({ kind: 'error', message: err instanceof Error ? err.message : 'Failed to save settings' });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -13,7 +63,7 @@ export function SettingsTab() {
           Configure automatic grading to run when submissions are received
         </p>
 
-        <div className="space-y-4">
+        <fieldset disabled={loading || saving} className="space-y-4">
           {/* Auto-grade on submit toggle */}
           <div className="flex items-start justify-between p-4 bg-gray-50 rounded-lg">
             <div className="flex-1">
@@ -21,7 +71,7 @@ export function SettingsTab() {
                 Auto-grade on submission
               </label>
               <p className="text-sm text-gray-600">
-                Automatically grade MCQ questions when a student submits their assignment
+                Automatically grade questions when a student submits their assignment
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer ml-4">
@@ -50,25 +100,36 @@ export function SettingsTab() {
               <input
                 id="mcq-only"
                 type="checkbox"
-                checked={autoGradeMCQOnly}
-                onChange={(e) => setAutoGradeMCQOnly(e.target.checked)}
+                checked={autoGradeMcqOnly}
+                onChange={(e) => setAutoGradeMcqOnly(e.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
-        </div>
+        </fieldset>
+
+        {feedback && (
+          <div
+            role="status"
+            className={`mt-4 px-4 py-2 rounded-md text-sm ${
+              feedback.kind === 'success'
+                ? 'bg-green-50 border border-green-200 text-green-800'
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}
+          >
+            {feedback.message}
+          </div>
+        )}
 
         <div className="mt-6 flex justify-end">
           <button
             type="button"
-            onClick={() => {
-              // TODO: Save settings to backend
-              alert('Settings saved! (This is a placeholder - functionality to be implemented)');
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+            onClick={handleSave}
+            disabled={loading || saving}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-2 px-6 rounded-lg transition-colors"
           >
-            Save Settings
+            {saving ? 'Saving…' : 'Save Settings'}
           </button>
         </div>
       </div>
