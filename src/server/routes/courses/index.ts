@@ -8,6 +8,7 @@ import listEnrollmentsRoute from './list-enrollments.js';
 import bulkEnrollRoute from './bulk-enroll.js';
 import removeEnrollmentRoute from './remove-enrollment.js';
 import exportGradesRoute from './export-grades.js';
+import automationSettingsRoute from './automation-settings.js';
 
 const courses = new Hono<AuthContext>();
 
@@ -19,5 +20,6 @@ courses.route('/', listEnrollmentsRoute);
 courses.route('/', bulkEnrollRoute);
 courses.route('/', removeEnrollmentRoute);
 courses.route('/', exportGradesRoute);
+courses.route('/', automationSettingsRoute);
 
 export default courses;
