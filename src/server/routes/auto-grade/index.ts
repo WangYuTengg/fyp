@@ -8,6 +8,7 @@ import acceptRoute from './accept.js';
 import rejectRoute from './reject.js';
 import assignmentsRoute from './assignments.js';
 import batchAcceptRoute from './batch-accept.js';
+import gradingStatsRoute from './grading-stats.js';
 
 const autoGrade = new Hono<AuthContext>();
 
@@ -19,5 +20,6 @@ autoGrade.route('/', acceptRoute);
 autoGrade.route('/', rejectRoute);
 autoGrade.route('/', assignmentsRoute);
 autoGrade.route('/', batchAcceptRoute);
+autoGrade.route('/', gradingStatsRoute);
 
 export default autoGrade;
