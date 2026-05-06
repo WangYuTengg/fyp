@@ -447,7 +447,9 @@ export function AssignmentAutoGradingList({ courseId }: AssignmentAutoGradingLis
                         <div className="inline-flex items-center gap-2">
                           <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
                           <span className="text-yellow-700 text-xs">
-                            {assignment.missingModelAnswers.length} question(s) missing model answers
+                            {assignment.missingModelAnswers.length > 0
+                              ? `${assignment.missingModelAnswers.length} question(s) missing model answers`
+                              : 'No auto-gradable questions'}
                           </span>
                         </div>
                       ) : assignment.ungradedAnswers === 0 ? (
