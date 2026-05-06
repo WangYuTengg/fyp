@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, inArray, isNull } from 'drizzle-orm';
+import { eq, and, inArray, isNull, isNotNull } from 'drizzle-orm';
 import { db } from '../../../db/index.js';
 import {
   assignments,
@@ -8,6 +8,7 @@ import {
   questions,
   assignmentQuestions,
   courses,
+  marks,
 } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
 import { getQuestionContent } from '../../lib/content-utils.js';
@@ -102,19 +103,44 @@ assignmentsRoute.get('/assignments', authMiddleware, async (c) => {
 
         // Count ungraded answers (written/UML only, no aiGradingSuggestion)
         let ungradedCount = 0;
+        let pendingReviewCount = 0;
         if (gradableCount > 0 && totalSubmissions > 0) {
+          const submissionIds = submissionList.map(s => s.id);
+
           const ungradedAnswers = await db
             .select({ id: answers.id })
             .from(answers)
             .innerJoin(questions, eq(answers.questionId, questions.id))
             .where(
               and(
-                inArray(answers.submissionId, submissionList.map(s => s.id)),
+                inArray(answers.submissionId, submissionIds),
                 inArray(questions.type, ['written', 'uml']),
                 isNull(answers.aiGradingSuggestion)
               )
             );
           ungradedCount = ungradedAnswers.length;
+
+          // Count answers with AI suggestions but no mark yet (pending human review)
+          const markedAnswerIds = await db
+            .select({ answerId: marks.answerId })
+            .from(marks)
+            .where(inArray(marks.submissionId, submissionIds));
+
+          const markedSet = new Set(markedAnswerIds.map(m => m.answerId));
+
+          const aiGradedAnswers = await db
+            .select({ id: answers.id })
+            .from(answers)
+            .innerJoin(questions, eq(answers.questionId, questions.id))
+            .where(
+              and(
+                inArray(answers.submissionId, submissionIds),
+                inArray(questions.type, ['written', 'uml']),
+                isNotNull(answers.aiGradingSuggestion)
+              )
+            );
+
+          pendingReviewCount = aiGradedAnswers.filter(a => !markedSet.has(a.id)).length;
         }
 
         return {
@@ -128,6 +154,7 @@ assignmentsRoute.get('/assignments', authMiddleware, async (c) => {
           gradableQuestions: gradableCount,
           totalSubmissions,
           ungradedAnswers: ungradedCount,
+          pendingReview: pendingReviewCount,
           missingModelAnswers,
           canAutoGrade: missingModelAnswers.length === 0 && gradableCount > 0,
         };

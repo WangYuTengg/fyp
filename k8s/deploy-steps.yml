@@ -1,0 +1,34 @@
+# kubectl deploy steps for GitHub Actions
+# Add these back to .github/workflows/build-deploy.yml deploy job
+# when migrating from Render to Kubernetes.
+#
+# Prerequisites:
+# - KUBECONFIG secret (base64-encoded kubeconfig) in GitHub repo settings
+# - K8s cluster with namespace 'uml-assessment'
+
+# Add these steps to the deploy job, after "Run database migrations":
+
+#      - name: Set up kubectl
+#        uses: azure/setup-kubectl@v3
+#
+#      - name: Configure kubeconfig
+#        env:
+#          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+#        run: |
+#          mkdir -p ~/.kube
+#          echo "${KUBECONFIG_DATA}" | base64 -d > ~/.kube/config
+#
+#      - name: Deploy web and worker
+#        env:
+#          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+#        run: |
+#          SHORT_SHA="${IMAGE_TAG##*:sha-}"
+#          SHORT_SHA="${SHORT_SHA:0:7}"
+#          FULL_TAG="${IMAGE_TAG%:*}:sha-${SHORT_SHA}"
+#          kubectl set image deployment/web web="${FULL_TAG}" -n uml-assessment
+#          kubectl set image deployment/worker worker="${FULL_TAG}" -n uml-assessment
+#
+#      - name: Wait for rollout
+#        run: |
+#          kubectl rollout status deployment/web -n uml-assessment --timeout=300s
+#          kubectl rollout status deployment/worker -n uml-assessment --timeout=300s
