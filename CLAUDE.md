@@ -7,7 +7,7 @@ Automated assessment platform for educational institutions — supports MCQ, wri
 - **Frontend**: Vite 7 + React 19 + TypeScript + TanStack Router (file-based) + TanStack Query + Tailwind CSS 4 + Headless UI
 - **Backend**: Hono + Node.js + TypeScript
 - **Auth**: Supabase (email/password + magic links) + custom JWT
-- **Database**: PostgreSQL + Drizzle ORM
+- **Database**: Supabase PostgreSQL + Drizzle ORM (NOT Neon — this project uses Supabase for both auth and DB)
 - **Background Jobs**: Graphile Worker (concurrency=1)
 - **LLM**: Vercel AI SDK 6 → OpenAI (GPT-4o) or Anthropic (Claude 3.5 Sonnet), configurable per institution
 - **DevOps**: Docker + GitHub Actions → ghcr.io
@@ -146,3 +146,15 @@ See `.env.example`. Key variables:
 - `VITE_APP_URL` — frontend URL (default `http://localhost:5173`)
 - `PORT` — server port (default 3000)
 - `OPENAI_API_KEY` / Anthropic key — LLM grading
+
+
+## E2E Testing (agent-browser)
+
+Any change touching `src/`, routes, pages, or user-facing flows must be verified via the **agent-browser** skill before commit:
+
+1. Start dev server (`bun run dev`) — or hit the deployed URL
+2. Drive the golden path of the changed feature (navigate → primary action → assert outcome)
+3. Capture a screenshot of the final state as evidence
+4. If the flow fails, the task is NOT done — do not commit/ship
+
+Backend-only changes may skip; state the skip explicitly ("Skipped E2E: backend-only change to <files>").
