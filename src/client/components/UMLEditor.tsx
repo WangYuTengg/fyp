@@ -3,6 +3,7 @@ import plantumlEncoder from 'plantuml-encoder';
 import { ClassDiagramEditor } from './uml/ClassDiagramEditor';
 import {
   generateClassDiagramPlantUml,
+  normalizeClassDiagramState,
   type ClassDiagramState,
 } from './uml/classDiagram';
 
@@ -52,8 +53,10 @@ function UMLEditorInner({
   const [activeTab, setActiveTab] = useState<EditorMode>(() =>
     initialDiagramState || !hasInitialText ? 'visual' : 'preview'
   );
-  const [diagramState, setDiagramState] = useState<ClassDiagramState>(
-    () => initialDiagramState ?? EMPTY_CLASS_DIAGRAM_STATE
+  const [diagramState, setDiagramState] = useState<ClassDiagramState>(() =>
+    initialDiagramState
+      ? normalizeClassDiagramState(initialDiagramState)
+      : EMPTY_CLASS_DIAGRAM_STATE
   );
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
 

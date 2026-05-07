@@ -18,13 +18,20 @@ import '@xyflow/react/dist/style.css';
 import {
   DEFAULT_CLASS_DIAGRAM_STATE,
   generateClassDiagramPlantUml,
+  generateMemberId,
+  normalizeClassDiagramState,
+  normalizeElementType,
+  VISIBILITY_OPTIONS,
+  type ClassAttribute,
   type ClassDiagramEdge,
   type ClassDiagramEdgeData,
   type ClassDiagramNode,
   type ClassDiagramNodeData,
   type ClassDiagramState,
+  type ClassMethod,
   type RelationshipType,
   type UmlElementType,
+  type Visibility,
 } from './classDiagram';
 
 const RELATIONSHIP_OPTIONS: Array<{ value: RelationshipType; label: string }> = [
@@ -43,36 +50,52 @@ const ELEMENT_OPTIONS: Array<{ value: UmlElementType; label: string }> = [
   { value: 'enum', label: 'Enum' },
 ];
 
-const normalizeElementType = (value?: UmlElementType): UmlElementType => value ?? 'class';
-
 const buildNodeDefaults = (elementType: UmlElementType, count: number): ClassDiagramNodeData => {
   switch (elementType) {
     case 'interface':
       return {
         name: `Interface${count}`,
         attributes: [],
-        methods: ['+ operation()'],
+        methods: [
+          { id: generateMemberId('method'), visibility: '+', name: 'operation' },
+        ],
         elementType,
       };
     case 'abstractClass':
       return {
         name: `AbstractClass${count}`,
-        attributes: ['# sharedField: Type'],
-        methods: ['+ abstractOperation()'],
+        attributes: [
+          { id: generateMemberId('attr'), visibility: '#', name: 'sharedField', type: 'Type' },
+        ],
+        methods: [
+          {
+            id: generateMemberId('method'),
+            visibility: '+',
+            name: 'abstractOperation',
+            isAbstract: true,
+          },
+        ],
         elementType,
       };
     case 'enum':
       return {
         name: `Enum${count}`,
-        attributes: ['VALUE_ONE', 'VALUE_TWO'],
+        attributes: [
+          { id: generateMemberId('attr'), visibility: '+', name: 'VALUE_ONE' },
+          { id: generateMemberId('attr'), visibility: '+', name: 'VALUE_TWO' },
+        ],
         methods: [],
         elementType,
       };
     default:
       return {
         name: `Class${count}`,
-        attributes: ['+ attribute: Type'],
-        methods: ['+ method()'],
+        attributes: [
+          { id: generateMemberId('attr'), visibility: '+', name: 'attribute', type: 'Type' },
+        ],
+        methods: [
+          { id: generateMemberId('method'), visibility: '+', name: 'method' },
+        ],
         elementType: 'class',
       };
   }
@@ -129,6 +152,19 @@ const getEdgeVisuals = (relationship: RelationshipType): EdgeVisuals => {
   }
 };
 
+const formatEdgeLabel = (data: ClassDiagramEdgeData | undefined): string => {
+  if (!data) return '';
+  const sm = data.sourceMultiplicity?.trim();
+  const tm = data.targetMultiplicity?.trim();
+  const label = data.label?.trim();
+  const segments: string[] = [];
+  if (sm || tm) {
+    segments.push(`${sm ?? ''} … ${tm ?? ''}`.trim());
+  }
+  if (label) segments.push(label);
+  return segments.join(' · ');
+};
+
 const mapStateToNodes = (state: ClassDiagramState): Node<ClassDiagramNodeData>[] =>
   state.nodes.map((node) => ({
     id: node.id,
@@ -145,12 +181,18 @@ const mapStateToNodes = (state: ClassDiagramState): Node<ClassDiagramNodeData>[]
 const mapStateToEdges = (state: ClassDiagramState): Edge<ClassDiagramEdgeData>[] =>
   state.edges.map((edge) => {
     const relationship = edge.data?.relationship ?? 'association';
+    const data: ClassDiagramEdgeData = {
+      relationship,
+      label: edge.data?.label,
+      sourceMultiplicity: edge.data?.sourceMultiplicity,
+      targetMultiplicity: edge.data?.targetMultiplicity,
+    };
     return {
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      data: { relationship, label: edge.data?.label ?? '' },
-      label: edge.data?.label ?? '',
+      data,
+      label: formatEdgeLabel(data),
       ...getEdgeVisuals(relationship),
     };
   });
@@ -172,7 +214,9 @@ const mapEdgesToState = (edges: Edge<ClassDiagramEdgeData>[]): ClassDiagramEdge[
     target: edge.target,
     data: {
       relationship: edge.data?.relationship ?? 'association',
-      label: edge.data?.label ?? '',
+      label: edge.data?.label,
+      sourceMultiplicity: edge.data?.sourceMultiplicity,
+      targetMultiplicity: edge.data?.targetMultiplicity,
     },
   }));
 
@@ -189,21 +233,40 @@ const NODE_ACCENT_CLASS: Record<UmlElementType, string> = {
 };
 
 const STEREOTYPE_LABEL: Partial<Record<UmlElementType, string>> = {
-  interface: '\u00abinterface\u00bb',
-  abstractClass: '\u00ababstract\u00bb',
-  enum: '\u00abenum\u00bb',
+  interface: '«interface»',
+  abstractClass: '«abstract»',
+  enum: '«enum»',
+};
+
+const renderAttributeText = (attr: ClassAttribute, isEnum: boolean): string => {
+  if (isEnum) return attr.name || 'value';
+  let line = `${attr.visibility} ${attr.name || 'attribute'}`;
+  if (attr.type) line += `: ${attr.type}`;
+  if (attr.defaultValue) line += ` = ${attr.defaultValue}`;
+  return line;
+};
+
+const renderMethodText = (method: ClassMethod): string => {
+  const flags: string[] = [];
+  if (method.isStatic) flags.push('{static}');
+  if (method.isAbstract) flags.push('{abstract}');
+  const flagsText = flags.length > 0 ? `${flags.join(' ')} ` : '';
+  const ret = method.returnType ? `: ${method.returnType}` : '';
+  return `${method.visibility} ${flagsText}${method.name || 'method'}(${method.parameters ?? ''})${ret}`;
 };
 
 function ClassNode({ data, selected }: ClassNodeProps) {
   const elementType = normalizeElementType(data.elementType);
+  const isEnum = elementType === 'enum';
   const attributes = data.attributes ?? [];
   const methods = data.methods ?? [];
-  const primaryLabel = elementType === 'enum' ? 'Values' : 'Attributes';
+  const primaryLabel = isEnum ? 'Values' : 'Attributes';
   const stereotype = STEREOTYPE_LABEL[elementType];
+  const generics = data.generics?.trim();
 
   return (
     <div
-      className={`rounded-md border bg-white shadow-sm min-w-[200px] text-sm ${
+      className={`rounded-md border bg-white shadow-sm min-w-[220px] text-sm ${
         selected ? 'ring-2 ring-blue-300 border-blue-500' : NODE_ACCENT_CLASS[elementType]
       }`}
     >
@@ -218,9 +281,12 @@ function ClassNode({ data, selected }: ClassNodeProps) {
         style={{ width: 8, height: 8, background: '#64748b', border: '1px solid #fff' }}
       />
       <div className="border-b border-gray-200 px-3 py-1.5 text-gray-900">
-        {stereotype && <div className="text-[10px] uppercase tracking-wide text-gray-500">{stereotype}</div>}
+        {stereotype ? (
+          <div className="text-[10px] uppercase tracking-wide text-gray-500">{stereotype}</div>
+        ) : null}
         <div className={`font-semibold ${elementType === 'abstractClass' ? 'italic' : ''}`}>
           {data.name || 'Element'}
+          {generics ? <span className="text-gray-500 font-normal">{`<${generics}>`}</span> : null}
         </div>
       </div>
       <div className="px-3 py-2">
@@ -229,35 +295,205 @@ function ClassNode({ data, selected }: ClassNodeProps) {
           <p className="mt-1 text-xs italic text-gray-400">None</p>
         ) : (
           <ul className="mt-1 space-y-1">
-            {attributes.map((attr, index) => (
-              <li key={`${attr}-${index}`} className="text-gray-700">
-                {attr}
+            {attributes.map((attr) => (
+              <li
+                key={attr.id}
+                className={`text-gray-700 ${attr.isStatic ? 'underline decoration-dotted' : ''}`}
+              >
+                {renderAttributeText(attr, isEnum)}
               </li>
             ))}
           </ul>
         )}
-        {elementType !== 'enum' && (
+        {!isEnum ? (
           <>
             <div className="mt-2 text-xs uppercase text-gray-400">Methods</div>
             {methods.length === 0 ? (
               <p className="mt-1 text-xs italic text-gray-400">None</p>
             ) : (
               <ul className="mt-1 space-y-1">
-                {methods.map((method, index) => (
-                  <li key={`${method}-${index}`} className="text-gray-700">
-                    {method}
+                {methods.map((method) => (
+                  <li
+                    key={method.id}
+                    className={`text-gray-700 ${method.isStatic ? 'underline decoration-dotted' : ''} ${
+                      method.isAbstract ? 'italic' : ''
+                    }`}
+                  >
+                    {renderMethodText(method)}
                   </li>
                 ))}
               </ul>
             )}
           </>
-        )}
+        ) : null}
+        {data.note?.trim() ? (
+          <div className="mt-2 rounded border border-yellow-200 bg-yellow-50 px-2 py-1 text-[11px] text-yellow-800 whitespace-pre-line">
+            {data.note.trim()}
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
 const nodeTypes = { classNode: ClassNode };
+
+type AttributeRowProps = {
+  attribute: ClassAttribute;
+  isEnum: boolean;
+  readOnly: boolean;
+  onChange: (patch: Partial<ClassAttribute>) => void;
+  onRemove: () => void;
+};
+
+function AttributeRow({ attribute, isEnum, readOnly, onChange, onRemove }: AttributeRowProps) {
+  return (
+    <div className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2">
+      <div className="flex items-center gap-1.5">
+        {!isEnum ? (
+          <select
+            value={attribute.visibility}
+            onChange={(event) => onChange({ visibility: event.target.value as Visibility })}
+            disabled={readOnly}
+            className="rounded border border-slate-300 bg-white px-1.5 py-1 text-xs font-mono text-slate-700 disabled:bg-slate-100"
+            title="Visibility"
+          >
+            {VISIBILITY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.value} {option.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        <input
+          type="text"
+          value={attribute.name}
+          onChange={(event) => onChange({ name: event.target.value })}
+          placeholder={isEnum ? 'VALUE' : 'name'}
+          disabled={readOnly}
+          className="flex-1 rounded border border-slate-300 px-2 py-1 text-xs disabled:bg-slate-100"
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={readOnly}
+          className="text-rose-600 text-sm leading-none px-1 hover:text-rose-700 disabled:opacity-40"
+          aria-label="Remove"
+        >
+          ×
+        </button>
+      </div>
+      {!isEnum ? (
+        <div className="flex items-center gap-1.5">
+          <span className="text-slate-400 text-xs px-1">:</span>
+          <input
+            type="text"
+            value={attribute.type ?? ''}
+            onChange={(event) => onChange({ type: event.target.value || undefined })}
+            placeholder="Type"
+            disabled={readOnly}
+            className="flex-1 rounded border border-slate-300 px-2 py-1 text-xs disabled:bg-slate-100"
+          />
+          <label className="flex items-center gap-1 text-xs text-slate-600 whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={attribute.isStatic ?? false}
+              onChange={(event) => onChange({ isStatic: event.target.checked || undefined })}
+              disabled={readOnly}
+              className="h-3 w-3"
+            />
+            static
+          </label>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type MethodRowProps = {
+  method: ClassMethod;
+  readOnly: boolean;
+  onChange: (patch: Partial<ClassMethod>) => void;
+  onRemove: () => void;
+};
+
+function MethodRow({ method, readOnly, onChange, onRemove }: MethodRowProps) {
+  return (
+    <div className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2">
+      <div className="flex items-center gap-1.5">
+        <select
+          value={method.visibility}
+          onChange={(event) => onChange({ visibility: event.target.value as Visibility })}
+          disabled={readOnly}
+          className="rounded border border-slate-300 bg-white px-1.5 py-1 text-xs font-mono text-slate-700 disabled:bg-slate-100"
+          title="Visibility"
+        >
+          {VISIBILITY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.value} {option.label}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          value={method.name}
+          onChange={(event) => onChange({ name: event.target.value })}
+          placeholder="name"
+          disabled={readOnly}
+          className="flex-1 rounded border border-slate-300 px-2 py-1 text-xs disabled:bg-slate-100"
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={readOnly}
+          className="text-rose-600 text-sm leading-none px-1 hover:text-rose-700 disabled:opacity-40"
+          aria-label="Remove"
+        >
+          ×
+        </button>
+      </div>
+      <input
+        type="text"
+        value={method.parameters ?? ''}
+        onChange={(event) => onChange({ parameters: event.target.value || undefined })}
+        placeholder="parameters (e.g. x: int, y: int)"
+        disabled={readOnly}
+        className="w-full rounded border border-slate-300 px-2 py-1 text-xs disabled:bg-slate-100"
+      />
+      <div className="flex items-center gap-2">
+        <span className="text-slate-400 text-xs">→</span>
+        <input
+          type="text"
+          value={method.returnType ?? ''}
+          onChange={(event) => onChange({ returnType: event.target.value || undefined })}
+          placeholder="return type"
+          disabled={readOnly}
+          className="flex-1 rounded border border-slate-300 px-2 py-1 text-xs disabled:bg-slate-100"
+        />
+        <label className="flex items-center gap-1 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={method.isStatic ?? false}
+            onChange={(event) => onChange({ isStatic: event.target.checked || undefined })}
+            disabled={readOnly}
+            className="h-3 w-3"
+          />
+          static
+        </label>
+        <label className="flex items-center gap-1 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={method.isAbstract ?? false}
+            onChange={(event) => onChange({ isAbstract: event.target.checked || undefined })}
+            disabled={readOnly}
+            className="h-3 w-3"
+          />
+          abstract
+        </label>
+      </div>
+    </div>
+  );
+}
 
 type ClassDiagramEditorProps = {
   initialState?: ClassDiagramState;
@@ -272,32 +508,33 @@ export function ClassDiagramEditor({
   readOnly = false,
   height = '420px',
 }: ClassDiagramEditorProps) {
-  const initialDiagram = initialState ?? DEFAULT_CLASS_DIAGRAM_STATE;
-  const [nodes, setNodes, onNodesChange] = useNodesState(mapStateToNodes(initialDiagram));
-  const [edges, setEdges, onEdgesChange] = useEdgesState(mapStateToEdges(initialDiagram));
+  const [nodes, setNodes, onNodesChange] = useNodesState(
+    mapStateToNodes(normalizeClassDiagramState(initialState ?? DEFAULT_CLASS_DIAGRAM_STATE))
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState(
+    mapStateToEdges(normalizeClassDiagramState(initialState ?? DEFAULT_CLASS_DIAGRAM_STATE))
+  );
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const hasMountedRef = useRef(false);
+  const onChangeRef = useRef(onChange);
 
-  const propagateChange = useCallback(
-    (nextNodes: Node<ClassDiagramNodeData>[], nextEdges: Edge<ClassDiagramEdgeData>[]) => {
-      const state: ClassDiagramState = {
-        nodes: mapNodesToState(nextNodes),
-        edges: mapEdgesToState(nextEdges),
-      };
-      const uml = generateClassDiagramPlantUml(state);
-      onChange?.(state, uml);
-    },
-    [onChange]
-  );
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     if (!hasMountedRef.current) {
       hasMountedRef.current = true;
       return;
     }
-    propagateChange(nodes, edges);
-  }, [edges, nodes, propagateChange]);
+    const state: ClassDiagramState = {
+      nodes: mapNodesToState(nodes),
+      edges: mapEdgesToState(edges),
+    };
+    const uml = generateClassDiagramPlantUml(state);
+    onChangeRef.current?.(state, uml);
+  }, [edges, nodes]);
 
   const handleConnect: OnConnect = useCallback(
     (connection: Connection) => {
@@ -336,28 +573,31 @@ export function ClassDiagramEditor({
   const selectedElementType: UmlElementType = selectedNode
     ? normalizeElementType(selectedNode.data.elementType)
     : 'class';
+  const selectedIsEnum = selectedElementType === 'enum';
 
   const updateSelectedNode = (patch: Partial<ClassDiagramNodeData>) => {
     if (!selectedNode || readOnly) return;
     const nextNodes = nodes.map((node) =>
-      node.id === selectedNode.id
-        ? { ...node, data: { ...node.data, ...patch } }
-        : node
+      node.id === selectedNode.id ? { ...node, data: { ...node.data, ...patch } } : node
     );
     setNodes(nextNodes);
   };
 
   const updateSelectedEdge = (patch: Partial<ClassDiagramEdgeData>) => {
     if (!selectedEdge || readOnly) return;
-    const relationship = patch.relationship ?? selectedEdge.data?.relationship ?? 'association';
-    const label = patch.label ?? selectedEdge.data?.label ?? '';
+    const merged: ClassDiagramEdgeData = {
+      relationship: patch.relationship ?? selectedEdge.data?.relationship ?? 'association',
+      label: patch.label ?? selectedEdge.data?.label,
+      sourceMultiplicity: patch.sourceMultiplicity ?? selectedEdge.data?.sourceMultiplicity,
+      targetMultiplicity: patch.targetMultiplicity ?? selectedEdge.data?.targetMultiplicity,
+    };
     const nextEdges = edges.map((edge) => {
       if (edge.id !== selectedEdge.id) return edge;
       return {
         ...edge,
-        data: { relationship, label },
-        label,
-        ...getEdgeVisuals(relationship),
+        data: merged,
+        label: formatEdgeLabel(merged),
+        ...getEdgeVisuals(merged.relationship),
       };
     });
     setEdges(nextEdges);
@@ -366,12 +606,13 @@ export function ClassDiagramEditor({
   const addElement = (elementType: UmlElementType) => {
     if (readOnly) return;
     const sameTypeCount =
-      nodes.filter((node) => normalizeElementType(node.data.elementType) === elementType).length + 1;
+      nodes.filter((node) => normalizeElementType(node.data.elementType) === elementType).length +
+      1;
 
     const nextNodes = [
       ...nodes,
       {
-        id: `${elementType}-${crypto.randomUUID()}`,
+        id: `${elementType}-${generateMemberId('class').slice('class-'.length)}`,
         position: { x: 80 + nodes.length * 40, y: 80 + nodes.length * 30 },
         data: buildNodeDefaults(elementType, sameTypeCount),
         type: 'classNode',
@@ -402,38 +643,57 @@ export function ClassDiagramEditor({
     }
   };
 
-  const addAttribute = (value: string) => {
+  const updateAttribute = (index: number, patch: Partial<ClassAttribute>) => {
     if (!selectedNode || readOnly) return;
-    const attributes = [...(selectedNode.data.attributes ?? []), value];
+    const attributes = (selectedNode.data.attributes ?? []).map((attr, i) =>
+      i === index ? { ...attr, ...patch } : attr
+    );
     updateSelectedNode({ attributes });
   };
 
-  const addMethod = (value: string) => {
+  const removeAttribute = (index: number) => {
     if (!selectedNode || readOnly) return;
-    const methods = [...(selectedNode.data.methods ?? []), value];
+    const attributes = (selectedNode.data.attributes ?? []).filter((_, i) => i !== index);
+    updateSelectedNode({ attributes });
+  };
+
+  const addAttribute = () => {
+    if (!selectedNode || readOnly) return;
+    const newAttr: ClassAttribute = selectedIsEnum
+      ? { id: generateMemberId('attr'), visibility: '+', name: 'VALUE' }
+      : { id: generateMemberId('attr'), visibility: '+', name: 'attribute', type: 'Type' };
+    updateSelectedNode({
+      attributes: [...(selectedNode.data.attributes ?? []), newAttr],
+    });
+  };
+
+  const updateMethod = (index: number, patch: Partial<ClassMethod>) => {
+    if (!selectedNode || readOnly) return;
+    const methods = (selectedNode.data.methods ?? []).map((method, i) =>
+      i === index ? { ...method, ...patch } : method
+    );
     updateSelectedNode({ methods });
   };
 
-  const updateListItem = (
-    type: 'attributes' | 'methods',
-    index: number,
-    value: string
-  ) => {
+  const removeMethod = (index: number) => {
     if (!selectedNode || readOnly) return;
-    const list = [...(selectedNode.data[type] ?? [])];
-    list[index] = value;
-    updateSelectedNode({ [type]: list } as Partial<ClassDiagramNodeData>);
+    const methods = (selectedNode.data.methods ?? []).filter((_, i) => i !== index);
+    updateSelectedNode({ methods });
   };
 
-  const removeListItem = (type: 'attributes' | 'methods', index: number) => {
+  const addMethod = () => {
     if (!selectedNode || readOnly) return;
-    const list = [...(selectedNode.data[type] ?? [])];
-    list.splice(index, 1);
-    updateSelectedNode({ [type]: list } as Partial<ClassDiagramNodeData>);
+    const newMethod: ClassMethod = {
+      id: generateMemberId('method'),
+      visibility: '+',
+      name: 'method',
+    };
+    updateSelectedNode({
+      methods: [...(selectedNode.data.methods ?? []), newMethod],
+    });
   };
 
-  const primaryListLabel = selectedElementType === 'enum' ? 'Values' : 'Attributes';
-  const primaryAddTemplate = selectedElementType === 'enum' ? 'VALUE' : '+ attribute: Type';
+  const primaryListLabel = selectedIsEnum ? 'Values' : 'Attributes';
   const selectedItemLabel = selectedNode
     ? `${selectedNode.data.name || 'Unnamed element'} selected`
     : selectedEdge
@@ -503,7 +763,7 @@ export function ClassDiagramEditor({
         )}
       </div>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_340px]">
         <div
           className="border-b border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.14),_transparent_45%),linear-gradient(180deg,_rgba(248,250,252,0.95),_rgba(255,255,255,1))] lg:border-b-0 lg:border-r"
           style={{ minHeight: height, height }}
@@ -575,65 +835,64 @@ export function ClassDiagramEditor({
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
               />
 
+              {!selectedIsEnum ? (
+                <>
+                  <label className="mt-4 block text-xs font-medium text-slate-500">
+                    Generics (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedNode.data.generics ?? ''}
+                    onChange={(event) =>
+                      updateSelectedNode({ generics: event.target.value || undefined })
+                    }
+                    placeholder="T, U extends Comparable"
+                    disabled={readOnly}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
+                  />
+                </>
+              ) : null}
+
               <div className="mt-4">
                 <label className="block text-xs font-medium text-slate-500">{primaryListLabel}</label>
                 <div className="mt-2 space-y-2">
                   {(selectedNode.data.attributes ?? []).map((attr, index) => (
-                    <div key={`${attr}-${index}`} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={attr}
-                        onChange={(event) => updateListItem('attributes', index, event.target.value)}
-                        disabled={readOnly}
-                        className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeListItem('attributes', index)}
-                        disabled={readOnly}
-                        className="text-xs font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
-                      >
-                        Remove
-                      </button>
-                    </div>
+                    <AttributeRow
+                      key={attr.id}
+                      attribute={attr}
+                      isEnum={selectedIsEnum}
+                      readOnly={readOnly}
+                      onChange={(patch) => updateAttribute(index, patch)}
+                      onRemove={() => removeAttribute(index)}
+                    />
                   ))}
                   <button
                     type="button"
-                    onClick={() => addAttribute(primaryAddTemplate)}
+                    onClick={addAttribute}
                     disabled={readOnly}
                     className="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50"
                   >
-                    + Add {selectedElementType === 'enum' ? 'value' : 'attribute'}
+                    + Add {selectedIsEnum ? 'value' : 'attribute'}
                   </button>
                 </div>
               </div>
 
-              {selectedElementType !== 'enum' && (
+              {!selectedIsEnum ? (
                 <div className="mt-4">
                   <label className="block text-xs font-medium text-slate-500">Methods</label>
                   <div className="mt-2 space-y-2">
                     {(selectedNode.data.methods ?? []).map((method, index) => (
-                      <div key={`${method}-${index}`} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={method}
-                          onChange={(event) => updateListItem('methods', index, event.target.value)}
-                          disabled={readOnly}
-                          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeListItem('methods', index)}
-                          disabled={readOnly}
-                          className="text-xs font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
-                        >
-                          Remove
-                        </button>
-                      </div>
+                      <MethodRow
+                        key={method.id}
+                        method={method}
+                        readOnly={readOnly}
+                        onChange={(patch) => updateMethod(index, patch)}
+                        onRemove={() => removeMethod(index)}
+                      />
                     ))}
                     <button
                       type="button"
-                      onClick={() => addMethod('+ method()')}
+                      onClick={addMethod}
                       disabled={readOnly}
                       className="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50"
                     >
@@ -641,7 +900,21 @@ export function ClassDiagramEditor({
                     </button>
                   </div>
                 </div>
-              )}
+              ) : null}
+
+              <label className="mt-4 block text-xs font-medium text-slate-500">
+                Note (optional)
+              </label>
+              <textarea
+                value={selectedNode.data.note ?? ''}
+                onChange={(event) =>
+                  updateSelectedNode({ note: event.target.value || undefined })
+                }
+                placeholder="Anchored note shown beneath the element"
+                rows={2}
+                disabled={readOnly}
+                className="mt-1 w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
+              />
             </div>
           )}
 
@@ -664,11 +937,44 @@ export function ClassDiagramEditor({
                 ))}
               </select>
 
-              <label className="mt-4 block text-xs font-medium text-slate-500">Label (optional)</label>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500">Source mult.</label>
+                  <input
+                    type="text"
+                    value={selectedEdge.data?.sourceMultiplicity ?? ''}
+                    onChange={(event) =>
+                      updateSelectedEdge({ sourceMultiplicity: event.target.value || undefined })
+                    }
+                    placeholder="1"
+                    disabled={readOnly}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500">Target mult.</label>
+                  <input
+                    type="text"
+                    value={selectedEdge.data?.targetMultiplicity ?? ''}
+                    onChange={(event) =>
+                      updateSelectedEdge({ targetMultiplicity: event.target.value || undefined })
+                    }
+                    placeholder="*"
+                    disabled={readOnly}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
+                  />
+                </div>
+              </div>
+
+              <label className="mt-4 block text-xs font-medium text-slate-500">
+                Label (optional)
+              </label>
               <input
                 type="text"
                 value={selectedEdge.data?.label ?? ''}
-                onChange={(event) => updateSelectedEdge({ label: event.target.value })}
+                onChange={(event) =>
+                  updateSelectedEdge({ label: event.target.value || undefined })
+                }
                 disabled={readOnly}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100"
               />
@@ -689,13 +995,15 @@ export function ClassDiagramEditor({
                 <div>
                   <p className="font-semibold text-slate-700">Quick guide</p>
                   <p className="mt-1">
-                    Add elements first, arrange them on the canvas, then connect the side handles to define how they relate.
+                    Add elements first, arrange them on the canvas, then connect the side handles to
+                    define how they relate.
                   </p>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-700">Common arrows</p>
                   <p className="mt-1">
-                    Association uses A --&gt; B, inheritance uses Parent &lt;|-- Child, and dependency uses A ..&gt; B.
+                    Association uses A --&gt; B, inheritance uses Parent &lt;|-- Child, and
+                    dependency uses A ..&gt; B.
                   </p>
                 </div>
               </div>
