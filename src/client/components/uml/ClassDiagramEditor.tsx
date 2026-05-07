@@ -517,7 +517,8 @@ export function ClassDiagramEditor({
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const hasMountedRef = useRef(false);
+  const initialNodesRef = useRef(nodes);
+  const initialEdgesRef = useRef(edges);
   const onChangeRef = useRef(onChange);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -526,14 +527,8 @@ export function ClassDiagramEditor({
   }, [onChange]);
 
   useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      // Reset on cleanup so StrictMode's simulated remount starts fresh and
-      // doesn't fire onChange on the second mount with stale state.
-      return () => {
-        hasMountedRef.current = false;
-      };
-    }
+    // Skip the initial state and StrictMode's simulated remount (same references).
+    if (nodes === initialNodesRef.current && edges === initialEdgesRef.current) return;
     const state: ClassDiagramState = {
       nodes: mapNodesToState(nodes),
       edges: mapEdgesToState(edges),

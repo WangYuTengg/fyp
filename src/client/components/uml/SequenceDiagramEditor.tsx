@@ -49,7 +49,7 @@ export function SequenceDiagramEditor({
     normalizeSequenceDiagramState(initialState ?? DEFAULT_SEQUENCE_DIAGRAM_STATE)
   );
   const [selectedLifelineId, setSelectedLifelineId] = useState<string | null>(null);
-  const hasMountedRef = useRef(false);
+  const initialStateRef = useRef(state);
   const onChangeRef = useRef(onChange);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -58,14 +58,8 @@ export function SequenceDiagramEditor({
   }, [onChange]);
 
   useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      // Reset on cleanup so StrictMode's simulated remount starts fresh and
-      // doesn't fire onChange on the second mount with stale state.
-      return () => {
-        hasMountedRef.current = false;
-      };
-    }
+    // Skip the initial state and StrictMode's simulated remount (same reference).
+    if (state === initialStateRef.current) return;
     onChangeRef.current?.(state, generateSequenceDiagramPlantUml(state));
   }, [state]);
 
