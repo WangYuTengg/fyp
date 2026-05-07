@@ -10,7 +10,7 @@ Automated assessment platform for educational institutions — supports MCQ, wri
 - **Database**: Supabase PostgreSQL + Drizzle ORM (NOT Neon — this project uses Supabase for both auth and DB)
 - **Background Jobs**: Graphile Worker (concurrency=1)
 - **LLM**: Vercel AI SDK 6 → OpenAI (GPT-4o) or Anthropic (Claude 3.5 Sonnet), configurable per institution
-- **DevOps**: Docker + GitHub Actions → ghcr.io
+- **Deployment**: **Railway** (managed, primary) + Kubernetes manifests in `k8s/` (on-prem reference, not actively deployed). GitHub Actions publishes the Docker image to `ghcr.io`. See **Deployment** section below.
 
 ## Commands
 
@@ -147,6 +147,25 @@ See `.env.example`. Key variables:
 - `PORT` — server port (default 3000)
 - `OPENAI_API_KEY` / Anthropic key — LLM grading
 
+
+## Deployment
+
+**Primary: Railway (managed)** — 2 services build from the same `Dockerfile`. Region: `asia-southeast1` (Singapore). Plan: Hobby. 1 replica each. Auto-deploys on push to `main`.
+
+- `web` — Hono API + SPA static files. Config: [railway.toml](railway.toml). Healthcheck: `/api/health/ready`. `preDeployCommand`: `node dist/db/migrate.js` (gates rollout on migration success).
+- `worker` — Graphile Worker. No HTTP server, no public domain. Start command: `node dist/server/worker.js`. Config: [railway.worker.toml](railway.worker.toml) — set via Railway dashboard → service → Settings → Config-as-Code path.
+
+**Env var scope on Railway** (set the same vars on both services since the CLI is per-service):
+- *Both services*: `DATABASE_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `JWT_SECRET`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `NODE_ENV=production`.
+- *Web-only*: `PORT`, `VITE_APP_URL`, `VITE_API_URL`, `SMTP_*`.
+
+**Database connection**: Supabase Postgres. Use the **pooled** connection string (port 6543, transaction mode) for `DATABASE_URL`. Both runtime queries and migrations use this pooled URL with `prepare: false` (see [src/db/migrate.ts](src/db/migrate.ts) and [src/server/lib/worker.ts](src/server/lib/worker.ts) — `noPreparedStatements: true`). The codebase does not currently use a separate `DIRECT_DATABASE_URL`, despite [k8s/secrets.yaml](k8s/secrets.yaml) referencing one.
+
+**Migration command in production**: must be `node dist/db/migrate.js`, NOT `npm run db:migrate`. The npm script uses `tsx`, which is a dev dependency and is not installed in the production Docker image.
+
+**Secondary: Kubernetes (on-prem reference)** — manifests in [k8s/](k8s/). Same Docker image, published to `ghcr.io` by [.github/workflows/build-deploy.yml](.github/workflows/build-deploy.yml). Intended for schools self-hosting on their own cluster (k3s or full k8s). Not actively deployed; serves as reference architecture for the on-prem story. Replica scaling for exam-period traffic is handled by `k8s/hpa.yaml` (HPA 2→6) on this path; on Railway, scale by manually setting `numReplicas` in `railway.toml`.
+
+**Worker SIGTERM grace on Railway**: 30s default. LLM grading calls can run up to 60s — if a deploy lands during active grading, the in-flight job is killed at 30s, the Graphile advisory lock releases, and a replacement worker retries it. No data loss, but possible duplicate LLM API spend. Avoid deploying during active exam grading windows.
 
 ## E2E Testing (agent-browser)
 
