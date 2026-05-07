@@ -21,6 +21,8 @@ type UpdateQuestionBody = {
   tags?: string[];
   referenceDiagram?: string;
   modelAnswer?: string;
+  modelAnswerEditorState?: unknown;
+  referenceDiagramEditorState?: unknown;
 };
 
 const updateQuestionRoute = new Hono<AuthContext>();
@@ -85,9 +87,23 @@ updateQuestionRoute.put('/:id', requireAuth, async (c) => {
     const modelAnswer = typeof body.modelAnswer === 'string'
       ? body.modelAnswer.trim()
       : (existingContent.modelAnswer as string | undefined) ?? undefined;
+    const modelAnswerEditorState =
+      body.modelAnswerEditorState !== undefined
+        ? body.modelAnswerEditorState
+        : existingContent.modelAnswerEditorState;
+    const referenceDiagramEditorState =
+      body.referenceDiagramEditorState !== undefined
+        ? body.referenceDiagramEditorState
+        : existingContent.referenceDiagramEditorState;
     const updatedPrompt = prompt ?? (existingContent.prompt as string | undefined) ?? '';
 
-    if (prompt !== undefined || body.referenceDiagram !== undefined || body.modelAnswer !== undefined) {
+    if (
+      prompt !== undefined ||
+      body.referenceDiagram !== undefined ||
+      body.modelAnswer !== undefined ||
+      body.modelAnswerEditorState !== undefined ||
+      body.referenceDiagramEditorState !== undefined
+    ) {
       const hasAnyDiagram =
         (referenceDiagram && referenceDiagram.trim().length > 0) ||
         (modelAnswer && modelAnswer.trim().length > 0);
@@ -99,6 +115,8 @@ updateQuestionRoute.put('/:id', requireAuth, async (c) => {
         prompt: updatedPrompt,
         referenceDiagram,
         modelAnswer,
+        modelAnswerEditorState: modelAnswerEditorState ?? undefined,
+        referenceDiagramEditorState: referenceDiagramEditorState ?? undefined,
       };
     }
   }

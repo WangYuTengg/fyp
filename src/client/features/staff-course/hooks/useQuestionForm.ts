@@ -94,7 +94,20 @@ export function useQuestionForm(courseId: string) {
     const tags = JSON.parse(tagsJson) as string[];
     const umlTemplateDiagram = String(formData.get('umlTemplateDiagram') || '');
     const umlModelAnswer = String(formData.get('umlModelAnswer') || '');
+    const umlModelDiagramStateJson = String(formData.get('umlModelDiagramState') || '');
+    const umlTemplateDiagramStateJson = String(formData.get('umlTemplateDiagramState') || '');
     const modelAnswer = String(formData.get('modelAnswer') || '').trim();
+
+    const tryParseEditorState = (json: string): unknown => {
+      if (!json) return undefined;
+      try {
+        return JSON.parse(json);
+      } catch {
+        return undefined;
+      }
+    };
+    const modelAnswerEditorState = tryParseEditorState(umlModelDiagramStateJson);
+    const referenceDiagramEditorState = tryParseEditorState(umlTemplateDiagramStateJson);
 
     if (questionType === 'mcq') {
       const mcqOptionsJson = String(formData.get('mcqOptions') || '[]');
@@ -145,6 +158,8 @@ export function useQuestionForm(courseId: string) {
         points,
         modelAnswer: umlModelAnswer,
         referenceDiagram: umlTemplateDiagram || undefined,
+        modelAnswerEditorState,
+        referenceDiagramEditorState,
         assignmentId: selectedAssignmentId || undefined,
         tags: tags.length > 0 ? tags : undefined,
       } as Parameters<typeof questionsApi.create>[0]);

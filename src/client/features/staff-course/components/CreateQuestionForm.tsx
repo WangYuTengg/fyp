@@ -176,6 +176,16 @@ export function CreateQuestionForm({
       <input type="hidden" name="tags" value={JSON.stringify(selectedTags)} />
       <input type="hidden" name="umlTemplateDiagram" value={umlTemplateDiagram} />
       <input type="hidden" name="umlModelAnswer" value={umlModelAnswer} />
+      <input
+        type="hidden"
+        name="umlModelDiagramState"
+        value={umlModelDiagramState ? JSON.stringify(umlModelDiagramState) : ''}
+      />
+      <input
+        type="hidden"
+        name="umlTemplateDiagramState"
+        value={umlTemplateDiagramState ? JSON.stringify(umlTemplateDiagramState) : ''}
+      />
       <input type="hidden" name="modelAnswer" value={modelAnswer} />
       <input type="hidden" name="mcqOptions" value={JSON.stringify(mcqOptions)} />
 

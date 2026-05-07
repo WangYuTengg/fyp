@@ -15,6 +15,8 @@ type EditQuestionFormProps = {
     referenceDiagram?: string;
     showCorrectAnswers?: boolean;
     modelAnswer?: string;
+    modelAnswerEditorState?: unknown;
+    referenceDiagramEditorState?: unknown;
   }) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
@@ -33,6 +35,8 @@ function getContent(content: unknown): {
   options?: McqOption[];
   referenceDiagram?: string;
   modelAnswer?: string;
+  modelAnswerEditorState?: ClassDiagramState;
+  referenceDiagramEditorState?: ClassDiagramState;
 } {
   if (typeof content !== 'object' || content === null) return { prompt: '' };
   const record = content as Record<string, unknown>;
@@ -40,7 +44,22 @@ function getContent(content: unknown): {
   const options = Array.isArray(record.options) ? record.options as McqOption[] : undefined;
   const referenceDiagram = typeof record.referenceDiagram === 'string' ? record.referenceDiagram : undefined;
   const modelAnswer = typeof record.modelAnswer === 'string' ? record.modelAnswer : '';
-  return { prompt, options, referenceDiagram, modelAnswer };
+  const modelAnswerEditorState =
+    typeof record.modelAnswerEditorState === 'object' && record.modelAnswerEditorState !== null
+      ? (record.modelAnswerEditorState as ClassDiagramState)
+      : undefined;
+  const referenceDiagramEditorState =
+    typeof record.referenceDiagramEditorState === 'object' && record.referenceDiagramEditorState !== null
+      ? (record.referenceDiagramEditorState as ClassDiagramState)
+      : undefined;
+  return {
+    prompt,
+    options,
+    referenceDiagram,
+    modelAnswer,
+    modelAnswerEditorState,
+    referenceDiagramEditorState,
+  };
 }
 
 export function EditQuestionForm({
@@ -59,8 +78,12 @@ export function EditQuestionForm({
   );
   const [referenceDiagram, setReferenceDiagram] = useState(content.referenceDiagram || '');
   const [modelAnswer, setModelAnswer] = useState(content.modelAnswer || '');
-  const [referenceDiagramState, setReferenceDiagramState] = useState<ClassDiagramState | undefined>(undefined);
-  const [modelAnswerDiagramState, setModelAnswerDiagramState] = useState<ClassDiagramState | undefined>(undefined);
+  const [referenceDiagramState, setReferenceDiagramState] = useState<ClassDiagramState | undefined>(
+    content.referenceDiagramEditorState
+  );
+  const [modelAnswerDiagramState, setModelAnswerDiagramState] = useState<ClassDiagramState | undefined>(
+    content.modelAnswerEditorState
+  );
   const [selectedTags, setSelectedTags] = useState<string[]>(question.tags || []);
   const [newTagInput, setNewTagInput] = useState('');
 
@@ -127,6 +150,8 @@ export function EditQuestionForm({
       // modelAnswer is used for grading; referenceDiagram is optional template shown to students.
       updateData.modelAnswer = modelAnswer.trim() || undefined;
       updateData.referenceDiagram = referenceDiagram.trim() || undefined;
+      updateData.modelAnswerEditorState = modelAnswerDiagramState;
+      updateData.referenceDiagramEditorState = referenceDiagramState;
     }
 
     onSubmit(question.id, updateData);

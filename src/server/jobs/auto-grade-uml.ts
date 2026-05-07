@@ -4,12 +4,28 @@ import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { answers, aiGradingJobs, aiUsageStats, questions } from '../../db/schema.js';
 import type { RubricCriterion } from '../../lib/assessment.js';
+import {
+  normalizeClassDiagramState,
+  type ClassDiagramState,
+} from '../../client/components/uml/classDiagram.js';
+import {
+  diffClassDiagrams,
+  formatDiffForPrompt,
+  type ClassDiagramDiffResult,
+} from '../../lib/uml-diff.js';
 import { generateAIObject } from '../lib/ai.js';
 import { getPrompt } from '../config/prompts.js';
 import { calculateCost } from '../config/pricing.js';
 import { getAnswerContent, getQuestionContent, getRubricCriteria } from '../lib/content-utils.js';
 import { getErrorMessage, getErrorStack } from '../lib/error-utils.js';
 import { checkBatchCompletion, notifyGradingFailed } from '../lib/notifications.js';
+
+const tryNormalizeEditorState = (raw: unknown): ClassDiagramState | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const normalized = normalizeClassDiagramState(raw);
+  if (normalized.nodes.length === 0 && normalized.edges.length === 0) return null;
+  return normalized;
+};
 
 /**
  * Graphile Worker task: auto-grade-uml
@@ -103,26 +119,54 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
       throw new Error('No UML text provided in answer');
     }
 
-    helpers.logger.info('Using text comparison path (PlantUML code)');
     const studentUml = studentUmlText;
 
-    // 3. Get prompt template
+    // 3. Compute structural diff if both sides have editorState
+    const studentEditorState = tryNormalizeEditorState(answerContent.editorState);
+    const referenceEditorState =
+      tryNormalizeEditorState(questionContent.modelAnswerEditorState) ??
+      tryNormalizeEditorState(questionContent.referenceDiagramEditorState);
+
+    let structuralDiff: ClassDiagramDiffResult | null = null;
+    if (studentEditorState && referenceEditorState) {
+      structuralDiff = diffClassDiagrams(studentEditorState, referenceEditorState);
+      helpers.logger.info(
+        `Structural diff computed: ${(structuralDiff.score * 100).toFixed(1)}% baseline`
+      );
+    } else {
+      helpers.logger.info(
+        'Structural diff unavailable (missing editor state) — using text-only path'
+      );
+    }
+
+    // 4. Get prompt template
     const promptTemplate = getPrompt('uml');
     const systemPrompt = promptTemplate.system;
-    const promptVersion = promptTemplate.version;
+    const promptVersion = structuralDiff
+      ? `${promptTemplate.version}-with-diff`
+      : promptTemplate.version;
 
     // Use rubric override if provided, otherwise use question rubric
     const rubric = rubricOverride || getRubricCriteria(questionData.rubric);
 
-    // Build user prompt (function-based)
-    const userPrompt = promptTemplate.userText({
-      studentUML: studentUml,
-      referenceUML: referenceDiagram,
-      maxPoints,
-      rubric: rubric ?? undefined,
-    });
+    // 5. Build user prompt — diff-aware if available
+    const userPrompt = structuralDiff
+      ? promptTemplate.userTextWithDiff({
+          studentUML: studentUml,
+          referenceUML: referenceDiagram,
+          maxPoints,
+          rubric: rubric ?? undefined,
+          diffSummary: formatDiffForPrompt(structuralDiff),
+          structuralScore: structuralDiff.score,
+        })
+      : promptTemplate.userText({
+          studentUML: studentUml,
+          referenceUML: referenceDiagram,
+          maxPoints,
+          rubric: rubric ?? undefined,
+        });
 
-    // 4. Call LLM with structured output for grading
+    // 6. Call LLM with structured output for grading
     const gradingResult = await generateAIObject(
       userPrompt,
       UMLGradingResponseSchema,
@@ -141,7 +185,7 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
     // 5. Calculate cost
     const cost = calculateCost(provider, model, totalTokens, 0);
 
-    // 6. Update answer with AI grading suggestion
+    // 7. Update answer with AI grading suggestion (include structural diff for staff transparency)
     await db.update(answers)
       .set({
         aiGradingSuggestion: {
@@ -154,6 +198,14 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
           promptVersion,
           gradedAt: new Date().toISOString(),
           criteriaScores: result.criteriaScores || null,
+          structuralDiff: structuralDiff
+            ? {
+                score: structuralDiff.score,
+                summary: structuralDiff.summary,
+                classes: structuralDiff.classes,
+                edges: structuralDiff.edges,
+              }
+            : null,
         },
         updatedAt: new Date(),
       })

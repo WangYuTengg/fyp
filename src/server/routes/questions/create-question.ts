@@ -23,6 +23,8 @@ type CreateQuestionBody = {
   tags?: string[];
   referenceDiagram?: string;
   modelAnswer?: string;
+  modelAnswerEditorState?: unknown;
+  referenceDiagramEditorState?: unknown;
 };
 
 const createQuestionRoute = new Hono<AuthContext>();
@@ -109,6 +111,8 @@ createQuestionRoute.post('/', requireAuth, async (c) => {
       prompt,
       referenceDiagram: body.referenceDiagram?.trim() || '',
       modelAnswer: body.modelAnswer?.trim() || undefined,
+      modelAnswerEditorState: body.modelAnswerEditorState ?? undefined,
+      referenceDiagramEditorState: body.referenceDiagramEditorState ?? undefined,
     };
 
     const hasAnyDiagram =

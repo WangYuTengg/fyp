@@ -27,6 +27,11 @@ type UMLImagePromptParams = {
   maxPoints: number;
 };
 
+type UMLDiffPromptParams = UMLTextPromptParams & {
+  diffSummary: string;
+  structuralScore: number;
+};
+
 type WrittenPromptDefinition = {
   system: string;
   user: (params: WrittenPromptParams) => string;
@@ -36,6 +41,7 @@ type UMLPromptDefinition = {
   system: string;
   userText: (params: UMLTextPromptParams) => string;
   userImage: (params: UMLImagePromptParams) => string;
+  userTextWithDiff: (params: UMLDiffPromptParams) => string;
 };
 
 export const prompts = {
@@ -179,6 +185,42 @@ Provide:
 1. Extracted PlantUML code from the image
 2. Comparison analysis
 3. Grade (0-${params.maxPoints}) with reasoning`,
+
+      userTextWithDiff: (params: UMLDiffPromptParams) => {
+        let prompt = `Grade the following student UML diagram. A deterministic structural diff has already been computed comparing the student's diagram structure to the reference. Use this diff as authoritative ground truth for structural facts (classes, relationships, attributes, methods present or missing). Your judgment should focus on naming quality, semantic appropriateness, design choices, and any nuance the structural diff may not capture.
+
+**Structural diff:**
+\`\`\`
+${params.diffSummary}
+\`\`\`
+
+The structural diff already establishes coverage at ${(params.structuralScore * 100).toFixed(1)}%. Treat this number as the structural baseline. Adjust upward for excellent naming/design choices or downward for poor naming, misleading semantics, or missing nuance the diff did not catch.
+
+**Student PlantUML Code:**
+\`\`\`plantuml
+${params.studentUML}
+\`\`\`
+
+**Reference PlantUML Code:**
+\`\`\`plantuml
+${params.referenceUML}
+\`\`\`
+
+**Maximum Points:** ${params.maxPoints}
+`;
+
+        if (params.rubric && params.rubric.length > 0) {
+          prompt += `\n**Grading Rubric:**\n`;
+          params.rubric.forEach((criterion, idx) => {
+            prompt += `${idx + 1}. ${criterion.description} (${criterion.maxPoints} points)\n`;
+          });
+          prompt += `\nProvide scores for each criterion. Anchor structural criteria to the diff above; reserve subjective judgment for naming/design quality.\n`;
+        } else {
+          prompt += `\nProvide a final score (0-${params.maxPoints}) anchored to the structural baseline, with reasoning that distinguishes structural facts (from the diff) from semantic judgments.`;
+        }
+
+        return prompt;
+      },
     } satisfies UMLPromptDefinition,
 
     // v2: More detailed UML analysis with pattern recognition
@@ -252,6 +294,44 @@ Deliverables:
 1. Extracted PlantUML code
 2. Detailed comparison analysis
 3. Grade (0-${params.maxPoints}) with comprehensive reasoning`,
+
+      userTextWithDiff: (params: UMLDiffPromptParams) => {
+        let prompt = `Comprehensively evaluate this UML diagram. A deterministic structural diff has been computed and is authoritative on structural facts. Your evaluation should focus on architectural quality, naming, design intent, and standard compliance — areas where the diff cannot judge.
+
+**Structural diff (deterministic baseline):**
+\`\`\`
+${params.diffSummary}
+\`\`\`
+
+The structural baseline is ${(params.structuralScore * 100).toFixed(1)}%. Treat any structural facts in the diff as established. Apply expert judgment for:
+- Naming quality and clarity
+- Pattern recognition and design intent
+- UML standard compliance beyond what the diff captured
+- Architectural soundness
+
+**Student Submission (PlantUML):**
+\`\`\`plantuml
+${params.studentUML}
+\`\`\`
+
+**Reference Solution:**
+\`\`\`plantuml
+${params.referenceUML}
+\`\`\`
+
+**Maximum Points:** ${params.maxPoints}
+
+Provide a detailed score (0-${params.maxPoints}). When awarding or deducting points, distinguish "structural" reasons (cite the diff) from "semantic/design" reasons (your expert judgment).`;
+
+        if (params.rubric && params.rubric.length > 0) {
+          prompt += `\n\n**Rubric:**\n`;
+          params.rubric.forEach((criterion, index) => {
+            prompt += `${index + 1}. ${criterion.description} (${criterion.maxPoints} points)\n`;
+          });
+        }
+
+        return prompt;
+      },
     } satisfies UMLPromptDefinition,
   },
 } as const;

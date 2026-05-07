@@ -324,8 +324,9 @@ export const questionsApi = {
     assignmentId?: string;
     tags?: string[];
     referenceDiagram?: string;
-
     modelAnswer?: string;
+    modelAnswerEditorState?: unknown;
+    referenceDiagramEditorState?: unknown;
   }) =>
     apiClient<Question>('/api/questions', {
       method: 'POST',
@@ -340,8 +341,9 @@ export const questionsApi = {
     allowMultiple?: boolean;
     tags?: string[];
     referenceDiagram?: string;
-
     modelAnswer?: string;
+    modelAnswerEditorState?: unknown;
+    referenceDiagramEditorState?: unknown;
   }) =>
     apiClient<Question>(`/api/questions/${id}`, {
       method: 'PUT',

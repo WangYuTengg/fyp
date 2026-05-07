@@ -31,6 +31,10 @@ export type UMLContent = {
   prompt: string;
   referenceDiagram?: string;
   modelAnswer?: string;
+  /** Optional structured editor state mirroring `modelAnswer`. Used for grading diffs. */
+  modelAnswerEditorState?: unknown;
+  /** Optional structured editor state mirroring `referenceDiagram`. Falls back to `modelAnswerEditorState` if absent. */
+  referenceDiagramEditorState?: unknown;
 };
 
 export type QuestionContent = McqContent | WrittenContent | UMLContent | Record<string, unknown>;
@@ -38,6 +42,13 @@ export type QuestionContent = McqContent | WrittenContent | UMLContent | Record<
 export type StudentAnswerContent = Record<string, unknown> & {
   text?: string;
   umlText?: string;
+};
+
+export type StructuralDiffSnapshot = {
+  score: number;
+  summary: string;
+  classes: unknown;
+  edges: unknown;
 };
 
 export type AiGradingSuggestion = {
@@ -51,6 +62,7 @@ export type AiGradingSuggestion = {
   gradedAt: string;
   extractedUml?: string | null;
   criteriaScores?: GradingCriterionScore[] | null;
+  structuralDiff?: StructuralDiffSnapshot | null;
 };
 
 export type NotificationType = 'grading_failed' | 'grading_completed' | 'batch_completed' | 'auto_submitted';
