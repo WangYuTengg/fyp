@@ -99,12 +99,12 @@ Visual style throughout: **dark background, orange/gold accents, numbered cards*
 #### Slide 4 — The Grading Bottleneck
 **Visual:** Left half: illustration of a TA buried under a stack of papers + diagram printouts. Right half: stat callouts in cards.
 **On-slide (callouts):**
-- ⏱️ **~15 min** to grade a single class diagram
+- ⏱️ **~5 min** per diagram (conservative pace)
 - 📚 **200 students × 5 diagrams = 1,000 diagrams** per assignment
 - 🔥 **≈83 hours** of TA effort per cohort
 - 🎲 **Inconsistency**: different graders interpret rubrics differently — a recognised threat to assessment validity
 
-**Speaker:** "Computer-science enrollments have more than doubled in the last decade. UML is still core to software-engineering curricula, but it's the worst-case grading workload — a single class diagram takes about 15 minutes to evaluate, and a 200-student cohort with five diagrams produces a thousand artifacts. That's roughly 83 hours of TA grading per assignment. And that's before we factor in inconsistency between graders."
+**Speaker:** "Computer-science enrollments have more than doubled in the last decade. UML is still core to software-engineering curricula, but it's the worst-case grading workload. Even at a conservative pace of five minutes per diagram, a 200-student cohort with five diagrams produces a thousand artifacts — roughly 83 hours of TA grading per assignment. And that's before we factor in inconsistency between graders."
 **Time:** 45s
 
 ---
