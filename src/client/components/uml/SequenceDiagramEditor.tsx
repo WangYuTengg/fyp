@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_SEQUENCE_DIAGRAM_STATE,
   generateSequenceDiagramPlantUml,
@@ -12,6 +12,7 @@ import {
   type SequenceMessage,
   type SequenceMessageType,
 } from './sequenceDiagram';
+import { useDebouncedHistory, useUndoRedoHotkeys } from './useDebouncedHistory';
 
 type SequenceDiagramEditorProps = {
   initialState?: SequenceDiagramState;
@@ -47,6 +48,7 @@ export function SequenceDiagramEditor({
   const [selectedLifelineId, setSelectedLifelineId] = useState<string | null>(null);
   const hasMountedRef = useRef(false);
   const onChangeRef = useRef(onChange);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -59,6 +61,12 @@ export function SequenceDiagramEditor({
     }
     onChangeRef.current?.(state, generateSequenceDiagramPlantUml(state));
   }, [state]);
+
+  const applyHistoryState = useCallback((next: SequenceDiagramState) => setState(next), []);
+  const history = useDebouncedHistory<SequenceDiagramState>(state, {
+    applyState: applyHistoryState,
+  });
+  useUndoRedoHotkeys(containerRef, history, !readOnly);
 
   const reorderLifelines = (lifelines: SequenceLifeline[]): SequenceLifeline[] =>
     lifelines.map((l, idx) => ({ ...l, data: { ...l.data, order: idx } }));
@@ -174,7 +182,11 @@ export function SequenceDiagramEditor({
   const sortedMessages = [...state.messages].sort((a, b) => a.data.order - b.data.order);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div
+      ref={containerRef}
+      tabIndex={-1}
+      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm focus:outline-none"
+    >
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Sequence diagram</h3>
@@ -184,6 +196,28 @@ export function SequenceDiagramEditor({
               : 'Add lifelines (left-to-right), then sequence messages (top-to-bottom). Self-messages are allowed.'}
           </p>
         </div>
+        {!readOnly && (
+          <div className="inline-flex rounded-full border border-slate-200 bg-white">
+            <button
+              type="button"
+              onClick={history.undo}
+              disabled={!history.canUndo}
+              title="Undo (Cmd/Ctrl+Z)"
+              className="rounded-l-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+            >
+              ↶ Undo
+            </button>
+            <button
+              type="button"
+              onClick={history.redo}
+              disabled={!history.canRedo}
+              title="Redo (Cmd/Ctrl+Shift+Z)"
+              className="rounded-r-full border-l border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+            >
+              ↷ Redo
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-2" style={{ minHeight: height }}>

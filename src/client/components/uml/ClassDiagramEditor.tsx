@@ -33,6 +33,7 @@ import {
   type UmlElementType,
   type Visibility,
 } from './classDiagram';
+import { useDebouncedHistory, useUndoRedoHotkeys } from './useDebouncedHistory';
 
 const RELATIONSHIP_OPTIONS: Array<{ value: RelationshipType; label: string }> = [
   { value: 'association', label: 'Association (A --> B)' },
@@ -518,6 +519,7 @@ export function ClassDiagramEditor({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const hasMountedRef = useRef(false);
   const onChangeRef = useRef(onChange);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -535,6 +537,25 @@ export function ClassDiagramEditor({
     const uml = generateClassDiagramPlantUml(state);
     onChangeRef.current?.(state, uml);
   }, [edges, nodes]);
+
+  const historyState = useMemo<ClassDiagramState>(
+    () => ({ nodes: mapNodesToState(nodes), edges: mapEdgesToState(edges) }),
+    [nodes, edges]
+  );
+
+  const applyHistoryState = useCallback(
+    (state: ClassDiagramState) => {
+      setNodes(mapStateToNodes(state));
+      setEdges(mapStateToEdges(state));
+    },
+    [setNodes, setEdges]
+  );
+
+  const history = useDebouncedHistory<ClassDiagramState>(historyState, {
+    applyState: applyHistoryState,
+  });
+
+  useUndoRedoHotkeys(containerRef, history, !readOnly);
 
   const handleConnect: OnConnect = useCallback(
     (connection: Connection) => {
@@ -706,7 +727,7 @@ export function ClassDiagramEditor({
       : 'Delete selected';
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div ref={containerRef} tabIndex={-1} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm focus:outline-none">
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Canvas</h3>
@@ -719,6 +740,26 @@ export function ClassDiagramEditor({
 
         {!readOnly && (
           <div className="flex flex-wrap gap-2">
+            <div className="inline-flex rounded-full border border-slate-200 bg-white">
+              <button
+                type="button"
+                onClick={history.undo}
+                disabled={!history.canUndo}
+                title="Undo (Cmd/Ctrl+Z)"
+                className="rounded-l-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+              >
+                ↶ Undo
+              </button>
+              <button
+                type="button"
+                onClick={history.redo}
+                disabled={!history.canRedo}
+                title="Redo (Cmd/Ctrl+Shift+Z)"
+                className="rounded-r-full border-l border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+              >
+                ↷ Redo
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => addElement('class')}
