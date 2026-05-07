@@ -12,6 +12,7 @@ import {
   normalizeSequenceDiagramState,
   type SequenceDiagramState,
 } from './uml/sequenceDiagram';
+import { validatePlantUml } from './uml/plantUmlValidation';
 
 export type UmlDiagramType = 'class' | 'sequence';
 
@@ -119,6 +120,13 @@ function UMLEditorInner({
       return { encodedUml: '', hasEncodingError: true };
     }
   }, [umlText]);
+
+  const validationIssues = useMemo(
+    () => validatePlantUml(umlText, diagramType),
+    [umlText, diagramType]
+  );
+  const errorCount = validationIssues.filter((issue) => issue.severity === 'error').length;
+  const warningCount = validationIssues.filter((issue) => issue.severity === 'warning').length;
 
   const handleChange = (value: string) => {
     setUmlText(value);
@@ -251,22 +259,69 @@ function UMLEditorInner({
             )
           ) : activeTab === 'text' ? (
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-200 px-4 py-3">
-                <h3 className="text-sm font-semibold text-slate-900">PlantUML source</h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  {diagramType === 'sequence'
-                    ? 'Use sequence-diagram syntax directly when you need fine control.'
-                    : 'Use class-diagram syntax directly when you need finer control than the visual builder provides.'}
-                </p>
+              <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">PlantUML source</h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {diagramType === 'sequence'
+                      ? 'Use sequence-diagram syntax directly when you need fine control.'
+                      : 'Use class-diagram syntax directly when you need finer control than the visual builder provides.'}
+                  </p>
+                </div>
+                {validationIssues.length > 0 ? (
+                  <div className="flex items-center gap-2 text-xs">
+                    {errorCount > 0 ? (
+                      <span className="rounded-full bg-rose-100 px-2 py-1 font-semibold text-rose-700">
+                        {errorCount} error{errorCount === 1 ? '' : 's'}
+                      </span>
+                    ) : null}
+                    {warningCount > 0 ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-700">
+                        {warningCount} warning{warningCount === 1 ? '' : 's'}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : umlText.trim().length > 0 ? (
+                  <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
+                    No issues detected
+                  </span>
+                ) : null}
               </div>
               <textarea
                 value={umlText}
                 onChange={(e) => handleChange(e.target.value)}
                 readOnly={readOnly}
-                className="min-h-[240px] w-full resize-y rounded-b-xl border-0 p-4 font-mono text-sm text-slate-800 focus:ring-2 focus:ring-blue-500"
+                className="min-h-[240px] w-full resize-y border-0 p-4 font-mono text-sm text-slate-800 focus:ring-2 focus:ring-blue-500"
                 style={{ minHeight: height }}
                 placeholder={placeholder}
               />
+              {validationIssues.length > 0 ? (
+                <ul className="divide-y divide-slate-100 border-t border-slate-200 text-xs">
+                  {validationIssues.map((issue, idx) => (
+                    <li
+                      key={`${issue.line}-${idx}`}
+                      className={`flex items-start gap-2 px-4 py-2 ${
+                        issue.severity === 'error' ? 'text-rose-700' : 'text-amber-700'
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                          issue.severity === 'error'
+                            ? 'bg-rose-100 text-rose-700'
+                            : 'bg-amber-100 text-amber-700'
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {issue.severity === 'error' ? '!' : '?'}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="font-mono text-[10px] text-slate-500">line {issue.line}</span>{' '}
+                        <span>{issue.message}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ) : (
             previewPanel
