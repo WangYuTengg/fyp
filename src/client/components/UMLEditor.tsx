@@ -6,31 +6,41 @@ import {
   normalizeClassDiagramState,
   type ClassDiagramState,
 } from './uml/classDiagram';
+import { SequenceDiagramEditor } from './uml/SequenceDiagramEditor';
+import {
+  generateSequenceDiagramPlantUml,
+  normalizeSequenceDiagramState,
+  type SequenceDiagramState,
+} from './uml/sequenceDiagram';
+
+export type UmlDiagramType = 'class' | 'sequence';
+
+export type UmlEditorState = ClassDiagramState | SequenceDiagramState;
 
 type UMLEditorProps = {
+  diagramType?: UmlDiagramType;
   initialValue?: string;
-  initialDiagramState?: ClassDiagramState;
-  onChange?: (value: string, editorState?: ClassDiagramState) => void;
+  initialDiagramState?: UmlEditorState;
+  onChange?: (value: string, editorState?: UmlEditorState) => void;
   readOnly?: boolean;
   height?: string;
 };
 
 type UMLEditorInnerProps = {
+  diagramType: UmlDiagramType;
   initialValue: string;
-  initialDiagramState?: ClassDiagramState;
-  onChange?: (value: string, editorState?: ClassDiagramState) => void;
+  initialDiagramState?: UmlEditorState;
+  onChange?: (value: string, editorState?: UmlEditorState) => void;
   readOnly: boolean;
   height: string;
 };
 
 type EditorMode = 'visual' | 'text' | 'preview';
 
-const EMPTY_CLASS_DIAGRAM_STATE: ClassDiagramState = {
-  nodes: [],
-  edges: [],
-};
+const EMPTY_CLASS_DIAGRAM_STATE: ClassDiagramState = { nodes: [], edges: [] };
+const EMPTY_SEQUENCE_DIAGRAM_STATE: SequenceDiagramState = { lifelines: [], messages: [] };
 
-const PLANTUML_EXAMPLE = `@startuml
+const CLASS_PLANTUML_EXAMPLE = `@startuml
 class Student {
   + matricNo: String
   + submitDiagram()
@@ -39,9 +49,49 @@ class Student {
 Student --> "1" Assignment : completes
 @enduml`;
 
+const SEQUENCE_PLANTUML_EXAMPLE = `@startuml
+actor User
+participant Browser
+database Database
+
+User -> Browser : Enter credentials
+Browser -> Database : query
+Database --> Browser : result
+Browser --> User : display
+@enduml`;
+
+const SYNTAX_REFERENCE_URL: Record<UmlDiagramType, string> = {
+  class: 'https://plantuml.com/class-diagram',
+  sequence: 'https://plantuml.com/sequence-diagram',
+};
+
+const SYNTAX_REFERENCE_LABEL: Record<UmlDiagramType, string> = {
+  class: 'Class diagram syntax reference',
+  sequence: 'Sequence diagram syntax reference',
+};
+
 const isNonEmptyText = (value?: string) => Boolean(value?.trim().length);
 
+const normaliseInitialState = (
+  diagramType: UmlDiagramType,
+  initial: UmlEditorState | undefined
+): UmlEditorState => {
+  if (!initial) {
+    return diagramType === 'sequence' ? EMPTY_SEQUENCE_DIAGRAM_STATE : EMPTY_CLASS_DIAGRAM_STATE;
+  }
+  return diagramType === 'sequence'
+    ? normalizeSequenceDiagramState(initial)
+    : normalizeClassDiagramState(initial);
+};
+
+const generateVisualPlantUml = (diagramType: UmlDiagramType, state: UmlEditorState): string => {
+  return diagramType === 'sequence'
+    ? generateSequenceDiagramPlantUml(state as SequenceDiagramState)
+    : generateClassDiagramPlantUml(state as ClassDiagramState);
+};
+
 function UMLEditorInner({
+  diagramType,
   initialValue,
   initialDiagramState,
   onChange,
@@ -53,32 +103,20 @@ function UMLEditorInner({
   const [activeTab, setActiveTab] = useState<EditorMode>(() =>
     initialDiagramState || !hasInitialText ? 'visual' : 'preview'
   );
-  const [diagramState, setDiagramState] = useState<ClassDiagramState>(() =>
-    initialDiagramState
-      ? normalizeClassDiagramState(initialDiagramState)
-      : EMPTY_CLASS_DIAGRAM_STATE
+  const [diagramState, setDiagramState] = useState<UmlEditorState>(() =>
+    normaliseInitialState(diagramType, initialDiagramState)
   );
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
 
   const previewState = useMemo(() => {
     if (!umlText.trim()) {
-      return {
-        encodedUml: '',
-        hasEncodingError: false,
-      };
+      return { encodedUml: '', hasEncodingError: false };
     }
-
     try {
-      return {
-        encodedUml: plantumlEncoder.encode(umlText),
-        hasEncodingError: false,
-      };
+      return { encodedUml: plantumlEncoder.encode(umlText), hasEncodingError: false };
     } catch (error) {
       console.error('Failed to encode UML:', error);
-      return {
-        encodedUml: '',
-        hasEncodingError: true,
-      };
+      return { encodedUml: '', hasEncodingError: true };
     }
   }, [umlText]);
 
@@ -87,21 +125,24 @@ function UMLEditorInner({
     onChange?.(value);
   };
 
-  const handleDiagramChange = (state: ClassDiagramState, plantUml: string) => {
+  const handleDiagramChange = (state: UmlEditorState, plantUml: string) => {
     setDiagramState(state);
     setUmlText(plantUml);
     onChange?.(plantUml, state);
   };
 
   const visualUml = useMemo(
-    () => (diagramState ? generateClassDiagramPlantUml(diagramState) : ''),
-    [diagramState]
+    () => (diagramState ? generateVisualPlantUml(diagramType, diagramState) : ''),
+    [diagramState, diagramType]
   );
 
   const imageUrl = previewState.encodedUml
     ? `https://www.plantuml.com/plantuml/svg/${previewState.encodedUml}`
     : '';
   const imageError = previewState.hasEncodingError || failedImageUrl === imageUrl;
+
+  const placeholder =
+    diagramType === 'sequence' ? SEQUENCE_PLANTUML_EXAMPLE : CLASS_PLANTUML_EXAMPLE;
 
   const previewPanel = (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -112,7 +153,9 @@ function UMLEditorInner({
       <div className="overflow-auto p-4" style={{ minHeight: height }}>
         {!umlText.trim() ? (
           <div className="flex h-full min-h-[180px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-6 text-center text-sm text-slate-500">
-            Add a class, interface, or PlantUML block to generate a preview.
+            {diagramType === 'sequence'
+              ? 'Add a lifeline or PlantUML block to generate a preview.'
+              : 'Add a class, interface, or PlantUML block to generate a preview.'}
           </div>
         ) : imageError ? (
           <div className="flex h-full min-h-[180px] items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-6 text-center text-sm text-rose-700">
@@ -137,10 +180,15 @@ function UMLEditorInner({
           <div>
             <h2 className="text-sm font-semibold text-slate-900">
               {readOnly ? 'Diagram workspace' : 'Diagram builder'}
+              <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
+                {diagramType === 'sequence' ? 'Sequence' : 'Class'}
+              </span>
             </h2>
             <p className="mt-1 text-xs text-slate-500">
               {activeTab === 'visual'
-                ? 'Use the canvas for structure and relationships.'
+                ? diagramType === 'sequence'
+                  ? 'Define lifelines and order the messages between them.'
+                  : 'Use the canvas for structure and relationships.'
                 : activeTab === 'text'
                   ? 'Paste or refine PlantUML directly when you need precise syntax control.'
                   : 'Review the rendered diagram without compressing the editor layout.'}
@@ -186,18 +234,29 @@ function UMLEditorInner({
 
         <div className="p-4">
           {activeTab === 'visual' ? (
-            <ClassDiagramEditor
-              initialState={diagramState}
-              onChange={handleDiagramChange}
-              readOnly={readOnly}
-              height={height}
-            />
+            diagramType === 'sequence' ? (
+              <SequenceDiagramEditor
+                initialState={diagramState as SequenceDiagramState}
+                onChange={handleDiagramChange}
+                readOnly={readOnly}
+                height={height}
+              />
+            ) : (
+              <ClassDiagramEditor
+                initialState={diagramState as ClassDiagramState}
+                onChange={handleDiagramChange}
+                readOnly={readOnly}
+                height={height}
+              />
+            )
           ) : activeTab === 'text' ? (
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-200 px-4 py-3">
                 <h3 className="text-sm font-semibold text-slate-900">PlantUML source</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  Use class-diagram syntax directly when you need finer control than the visual builder provides.
+                  {diagramType === 'sequence'
+                    ? 'Use sequence-diagram syntax directly when you need fine control.'
+                    : 'Use class-diagram syntax directly when you need finer control than the visual builder provides.'}
                 </p>
               </div>
               <textarea
@@ -206,7 +265,7 @@ function UMLEditorInner({
                 readOnly={readOnly}
                 className="min-h-[240px] w-full resize-y rounded-b-xl border-0 p-4 font-mono text-sm text-slate-800 focus:ring-2 focus:ring-blue-500"
                 style={{ minHeight: height }}
-                placeholder={PLANTUML_EXAMPLE}
+                placeholder={placeholder}
               />
             </div>
           ) : (
@@ -218,24 +277,24 @@ function UMLEditorInner({
       <div className="flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
         <p>
           {activeTab === 'visual'
-            ? 'Visual mode keeps the canvas primary and exports PlantUML in the background.'
+            ? 'Visual mode is the source of truth and exports PlantUML in the background.'
             : activeTab === 'text'
               ? 'PlantUML changes update the preview tab, so syntax issues are visible immediately.'
               : 'Preview mode lets you inspect the rendered diagram without compressing the editor layout.'}
         </p>
         <a
-          href="https://plantuml.com/class-diagram"
+          href={SYNTAX_REFERENCE_URL[diagramType]}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
         >
-          Class diagram syntax reference
+          {SYNTAX_REFERENCE_LABEL[diagramType]}
         </a>
       </div>
 
       {activeTab === 'visual' && umlText.trim().length > 0 && umlText !== visualUml && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700">
-          The canvas is the source of truth in visual mode. Open the PlantUML tab when you want to inspect or refine the exported text.
+          The visual builder is the source of truth. Open the PlantUML tab when you want to inspect or refine the exported text.
         </div>
       )}
     </div>
@@ -243,6 +302,7 @@ function UMLEditorInner({
 }
 
 export function UMLEditor({
+  diagramType = 'class',
   initialValue = '',
   initialDiagramState,
   onChange,
@@ -253,6 +313,7 @@ export function UMLEditor({
 
   return (
     <UMLEditorInner
+      diagramType={diagramType}
       initialValue={normalizedInitialValue}
       initialDiagramState={initialDiagramState}
       onChange={onChange}

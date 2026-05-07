@@ -25,6 +25,7 @@ type CreateQuestionBody = {
   modelAnswer?: string;
   modelAnswerEditorState?: unknown;
   referenceDiagramEditorState?: unknown;
+  umlSubtype?: 'class' | 'sequence';
 };
 
 const createQuestionRoute = new Hono<AuthContext>();
@@ -107,8 +108,11 @@ createQuestionRoute.post('/', requireAuth, async (c) => {
   }
 
   if (body.type === 'uml') {
+    const umlSubtype: 'class' | 'sequence' =
+      body.umlSubtype === 'sequence' ? 'sequence' : 'class';
     content = {
       prompt,
+      umlSubtype,
       referenceDiagram: body.referenceDiagram?.trim() || '',
       modelAnswer: body.modelAnswer?.trim() || undefined,
       modelAnswerEditorState: body.modelAnswerEditorState ?? undefined,

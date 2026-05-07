@@ -1,5 +1,5 @@
 import type { AnswerState, AssignmentQuestion } from '../types';
-import { getPrompt, getMcqAllowMultiple, getMcqOptions } from '../utils/questionHelpers';
+import { getPrompt, getMcqAllowMultiple, getMcqOptions, getUmlSubtype } from '../utils/questionHelpers';
 import { UMLEditor } from '../../../components/UMLEditor';
 import { UMLViewer } from '../../../components/UMLViewer';
 
@@ -124,6 +124,7 @@ export function QuestionCard({
 
           <UMLEditor
             key={question.id}
+            diagramType={getUmlSubtype(question.content)}
             initialValue={answer?.type === 'uml' ? answer.umlText : ''}
             initialDiagramState={answer?.type === 'uml' ? answer.editorState : undefined}
             onChange={(value, editorState) => {

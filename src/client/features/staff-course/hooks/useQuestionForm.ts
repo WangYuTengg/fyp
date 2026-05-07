@@ -96,6 +96,8 @@ export function useQuestionForm(courseId: string) {
     const umlModelAnswer = String(formData.get('umlModelAnswer') || '');
     const umlModelDiagramStateJson = String(formData.get('umlModelDiagramState') || '');
     const umlTemplateDiagramStateJson = String(formData.get('umlTemplateDiagramState') || '');
+    const umlSubtypeRaw = String(formData.get('umlSubtype') || 'class');
+    const umlSubtype: 'class' | 'sequence' = umlSubtypeRaw === 'sequence' ? 'sequence' : 'class';
     const modelAnswer = String(formData.get('modelAnswer') || '').trim();
 
     const tryParseEditorState = (json: string): unknown => {
@@ -160,6 +162,7 @@ export function useQuestionForm(courseId: string) {
         referenceDiagram: umlTemplateDiagram || undefined,
         modelAnswerEditorState,
         referenceDiagramEditorState,
+        umlSubtype,
         assignmentId: selectedAssignmentId || undefined,
         tags: tags.length > 0 ? tags : undefined,
       } as Parameters<typeof questionsApi.create>[0]);

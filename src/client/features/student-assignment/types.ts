@@ -1,5 +1,8 @@
 import type { ClassDiagramState } from '../../components/uml/classDiagram';
+import type { SequenceDiagramState } from '../../components/uml/sequenceDiagram';
 import type { QuestionTypeCounts } from '../../lib/question-types';
+
+export type UmlEditorState = ClassDiagramState | SequenceDiagramState;
 
 export type AssignmentQuestion = {
   id: string;
@@ -47,7 +50,7 @@ export type Answer = {
     text?: string;
     selectedOptionIds?: string[];
     umlText?: string;
-    editorState?: ClassDiagramState;
+    editorState?: UmlEditorState;
   };
   createdAt: string;
   updatedAt: string;
@@ -57,4 +60,4 @@ export type AnswerState =
   | { type: 'written'; text: string }
   | { type: 'coding'; text: string }
   | { type: 'mcq'; selectedOptionIds: string[] }
-  | { type: 'uml'; umlText: string; editorState?: ClassDiagramState };
+  | { type: 'uml'; umlText: string; editorState?: UmlEditorState };

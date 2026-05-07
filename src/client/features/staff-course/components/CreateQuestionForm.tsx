@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { McqOption } from '../../../lib/api';
 import type { StaffAssignment } from '../types';
-import { UMLEditor } from '../../../components/UMLEditor';
-import type { ClassDiagramState } from '../../../components/uml/classDiagram';
+import { UMLEditor, type UmlDiagramType, type UmlEditorState } from '../../../components/UMLEditor';
 
 type QuestionType = 'mcq' | 'written' | 'uml';
 
@@ -76,10 +75,11 @@ export function CreateQuestionForm({
   const [points, setPoints] = useState(10);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
+  const [umlSubtype, setUmlSubtype] = useState<UmlDiagramType>('class');
   const [umlTemplateDiagram, setUmlTemplateDiagram] = useState('');
   const [umlModelAnswer, setUmlModelAnswer] = useState('');
-  const [umlTemplateDiagramState, setUmlTemplateDiagramState] = useState<ClassDiagramState | undefined>(undefined);
-  const [umlModelDiagramState, setUmlModelDiagramState] = useState<ClassDiagramState | undefined>(undefined);
+  const [umlTemplateDiagramState, setUmlTemplateDiagramState] = useState<UmlEditorState | undefined>(undefined);
+  const [umlModelDiagramState, setUmlModelDiagramState] = useState<UmlEditorState | undefined>(undefined);
   const [modelAnswer, setModelAnswer] = useState('');
 
   const availableAssignments = useMemo(
@@ -186,6 +186,7 @@ export function CreateQuestionForm({
         name="umlTemplateDiagramState"
         value={umlTemplateDiagramState ? JSON.stringify(umlTemplateDiagramState) : ''}
       />
+      <input type="hidden" name="umlSubtype" value={umlSubtype} />
       <input type="hidden" name="modelAnswer" value={modelAnswer} />
       <input type="hidden" name="mcqOptions" value={JSON.stringify(mcqOptions)} />
 
@@ -405,6 +406,33 @@ export function CreateQuestionForm({
                     Hidden from students
                   </span>
                 </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-slate-500">Diagram type:</span>
+                  <div className="inline-flex rounded-full border border-slate-200 bg-white p-1">
+                    <button
+                      type="button"
+                      onClick={() => setUmlSubtype('class')}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                        umlSubtype === 'class'
+                          ? 'bg-slate-900 text-white'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      Class diagram
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUmlSubtype('sequence')}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                        umlSubtype === 'sequence'
+                          ? 'bg-slate-900 text-white'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      Sequence diagram
+                    </button>
+                  </div>
+                </div>
 
                 <div className="mt-4 grid gap-3 md:grid-cols-3">
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
@@ -429,6 +457,8 @@ export function CreateQuestionForm({
               </div>
 
               <UMLEditor
+                key={`model-${umlSubtype}`}
+                diagramType={umlSubtype}
                 initialValue={umlModelAnswer}
                 initialDiagramState={umlModelDiagramState}
                 onChange={(value, editorState) => {
@@ -486,6 +516,8 @@ export function CreateQuestionForm({
           </div>
 
           <UMLEditor
+            key={`template-${umlSubtype}`}
+            diagramType={umlSubtype}
             initialValue={umlTemplateDiagram}
             initialDiagramState={umlTemplateDiagramState}
             onChange={(value, editorState) => {

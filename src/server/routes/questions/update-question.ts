@@ -113,6 +113,8 @@ updateQuestionRoute.put('/:id', requireAuth, async (c) => {
 
       patch.content = {
         prompt: updatedPrompt,
+        umlSubtype:
+          (existingContent.umlSubtype === 'sequence' ? 'sequence' : 'class') as 'class' | 'sequence',
         referenceDiagram,
         modelAnswer,
         modelAnswerEditorState: modelAnswerEditorState ?? undefined,

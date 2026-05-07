@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { McqOption, Question } from '../../../lib/api';
-import { UMLEditor } from '../../../components/UMLEditor';
-import type { ClassDiagramState } from '../../../components/uml/classDiagram';
+import { UMLEditor, type UmlDiagramType, type UmlEditorState } from '../../../components/UMLEditor';
 
 type EditQuestionFormProps = {
   question: Question;
@@ -35,10 +34,11 @@ function getContent(content: unknown): {
   options?: McqOption[];
   referenceDiagram?: string;
   modelAnswer?: string;
-  modelAnswerEditorState?: ClassDiagramState;
-  referenceDiagramEditorState?: ClassDiagramState;
+  modelAnswerEditorState?: UmlEditorState;
+  referenceDiagramEditorState?: UmlEditorState;
+  umlSubtype: UmlDiagramType;
 } {
-  if (typeof content !== 'object' || content === null) return { prompt: '' };
+  if (typeof content !== 'object' || content === null) return { prompt: '', umlSubtype: 'class' };
   const record = content as Record<string, unknown>;
   const prompt = typeof record.prompt === 'string' ? record.prompt : '';
   const options = Array.isArray(record.options) ? record.options as McqOption[] : undefined;
@@ -46,12 +46,13 @@ function getContent(content: unknown): {
   const modelAnswer = typeof record.modelAnswer === 'string' ? record.modelAnswer : '';
   const modelAnswerEditorState =
     typeof record.modelAnswerEditorState === 'object' && record.modelAnswerEditorState !== null
-      ? (record.modelAnswerEditorState as ClassDiagramState)
+      ? (record.modelAnswerEditorState as UmlEditorState)
       : undefined;
   const referenceDiagramEditorState =
     typeof record.referenceDiagramEditorState === 'object' && record.referenceDiagramEditorState !== null
-      ? (record.referenceDiagramEditorState as ClassDiagramState)
+      ? (record.referenceDiagramEditorState as UmlEditorState)
       : undefined;
+  const umlSubtype: UmlDiagramType = record.umlSubtype === 'sequence' ? 'sequence' : 'class';
   return {
     prompt,
     options,
@@ -59,6 +60,7 @@ function getContent(content: unknown): {
     modelAnswer,
     modelAnswerEditorState,
     referenceDiagramEditorState,
+    umlSubtype,
   };
 }
 
@@ -78,12 +80,13 @@ export function EditQuestionForm({
   );
   const [referenceDiagram, setReferenceDiagram] = useState(content.referenceDiagram || '');
   const [modelAnswer, setModelAnswer] = useState(content.modelAnswer || '');
-  const [referenceDiagramState, setReferenceDiagramState] = useState<ClassDiagramState | undefined>(
+  const [referenceDiagramState, setReferenceDiagramState] = useState<UmlEditorState | undefined>(
     content.referenceDiagramEditorState
   );
-  const [modelAnswerDiagramState, setModelAnswerDiagramState] = useState<ClassDiagramState | undefined>(
+  const [modelAnswerDiagramState, setModelAnswerDiagramState] = useState<UmlEditorState | undefined>(
     content.modelAnswerEditorState
   );
+  const umlSubtype: UmlDiagramType = content.umlSubtype;
   const [selectedTags, setSelectedTags] = useState<string[]>(question.tags || []);
   const [newTagInput, setNewTagInput] = useState('');
 
@@ -328,6 +331,7 @@ export function EditQuestionForm({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Answer UML Diagram (for grading)</label>
               <UMLEditor
+                diagramType={umlSubtype}
                 initialValue={modelAnswer}
                 initialDiagramState={modelAnswerDiagramState}
                 onChange={(value, editorState) => {
@@ -341,6 +345,7 @@ export function EditQuestionForm({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Template / Reference Diagram (optional)</label>
               <UMLEditor
+                diagramType={umlSubtype}
                 initialValue={referenceDiagram}
                 initialDiagramState={referenceDiagramState}
                 onChange={(value, editorState) => {

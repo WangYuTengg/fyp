@@ -27,8 +27,12 @@ export type WrittenContent = {
   modelAnswer?: string;
 };
 
+export type UmlSubtype = 'class' | 'sequence';
+
 export type UMLContent = {
   prompt: string;
+  /** Defaults to 'class' when unset (legacy questions are class diagrams). */
+  umlSubtype?: UmlSubtype;
   referenceDiagram?: string;
   modelAnswer?: string;
   /** Optional structured editor state mirroring `modelAnswer`. Used for grading diffs. */

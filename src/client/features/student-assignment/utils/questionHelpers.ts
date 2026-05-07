@@ -21,3 +21,9 @@ export function getMcqAllowMultiple(content: unknown): boolean {
   const record = content as Record<string, unknown>;
   return record.allowMultiple === true;
 }
+
+export function getUmlSubtype(content: unknown): 'class' | 'sequence' {
+  if (typeof content !== 'object' || content === null) return 'class';
+  const record = content as Record<string, unknown>;
+  return record.umlSubtype === 'sequence' ? 'sequence' : 'class';
+}

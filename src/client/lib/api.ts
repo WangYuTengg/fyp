@@ -327,6 +327,7 @@ export const questionsApi = {
     modelAnswer?: string;
     modelAnswerEditorState?: unknown;
     referenceDiagramEditorState?: unknown;
+    umlSubtype?: 'class' | 'sequence';
   }) =>
     apiClient<Question>('/api/questions', {
       method: 'POST',
