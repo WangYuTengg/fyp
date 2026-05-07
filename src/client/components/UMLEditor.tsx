@@ -112,6 +112,10 @@ function UMLEditorInner({
     normaliseInitialState(diagramType, initialDiagramState)
   );
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  // Bumped whenever we replace diagramState from outside the visual builder
+  // (e.g. "Sync from text"). The visual editors key off this so a new mount
+  // picks up the freshly-parsed state instead of keeping their stale internal copy.
+  const [visualKey, setVisualKey] = useState(0);
 
   const previewState = useMemo(() => {
     if (!umlText.trim()) {
@@ -154,6 +158,7 @@ function UMLEditorInner({
         ? parseSequenceDiagramPlantUml(umlText)
         : parseClassDiagramPlantUml(umlText);
     setDiagramState(result.state);
+    setVisualKey((v) => v + 1);
     setSyncWarnings(result.warnings);
     onChange?.(umlText, result.state);
   };
@@ -263,6 +268,7 @@ function UMLEditorInner({
           {activeTab === 'visual' ? (
             diagramType === 'sequence' ? (
               <SequenceDiagramEditor
+                key={`sequence-${visualKey}`}
                 initialState={diagramState as SequenceDiagramState}
                 onChange={handleDiagramChange}
                 readOnly={readOnly}
@@ -270,6 +276,7 @@ function UMLEditorInner({
               />
             ) : (
               <ClassDiagramEditor
+                key={`class-${visualKey}`}
                 initialState={diagramState as ClassDiagramState}
                 onChange={handleDiagramChange}
                 readOnly={readOnly}

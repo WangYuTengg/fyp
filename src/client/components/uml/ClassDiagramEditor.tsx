@@ -528,7 +528,11 @@ export function ClassDiagramEditor({
   useEffect(() => {
     if (!hasMountedRef.current) {
       hasMountedRef.current = true;
-      return;
+      // Reset on cleanup so StrictMode's simulated remount starts fresh and
+      // doesn't fire onChange on the second mount with stale state.
+      return () => {
+        hasMountedRef.current = false;
+      };
     }
     const state: ClassDiagramState = {
       nodes: mapNodesToState(nodes),
