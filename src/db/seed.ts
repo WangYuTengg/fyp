@@ -63,7 +63,7 @@ type UmlQuestion = {
   description: string;
   points: number;
   tags: string[];
-  content: { diagramType: string; prompt: string; modelAnswer: string };
+  content: { umlSubtype: 'class' | 'sequence'; prompt: string; modelAnswer: string };
   rubric: { criteria: Array<{ description: string; maxPoints: number }> };
 };
 
@@ -168,24 +168,8 @@ const WRITTEN_QUESTIONS: WrittenQuestion[] = [
 ];
 
 const UML_QUESTIONS: UmlQuestion[] = [
-  { title: 'Use Case Diagram: Student Portal', description: 'Design a use case diagram for a student portal', points: 15, tags: ['uml', 'use-case-diagram'],
-    content: { diagramType: 'usecase', prompt: 'Design a UML use case diagram for a university student portal. Include actors such as Student, Professor, and Admin. Include use cases for enrollment, grade viewing, course management, and assignment submission.',
-      modelAnswer: '@startuml\nleft to right direction\nactor Student\nactor Professor\nactor Admin\nrectangle "Student Portal" {\n  usecase "Enroll in Course" as UC1\n  usecase "View Grades" as UC2\n  usecase "Submit Assignment" as UC3\n  usecase "Manage Courses" as UC4\n  usecase "Grade Assignments" as UC5\n  usecase "Manage Users" as UC6\n  usecase "Authenticate" as UC7\n}\nStudent --> UC1\nStudent --> UC2\nStudent --> UC3\nProfessor --> UC4\nProfessor --> UC5\nAdmin --> UC6\nStudent --> UC7\nProfessor --> UC7\nAdmin --> UC7\nUC3 ..> UC7 : <<include>>\nUC1 ..> UC7 : <<include>>\n@enduml' },
-    rubric: { criteria: [
-      { description: 'Correct actor identification', maxPoints: 5 },
-      { description: 'Comprehensive use cases', maxPoints: 5 },
-      { description: 'Proper relationships (include, extend, generalization)', maxPoints: 5 },
-    ] } },
-  { title: 'Activity Diagram: Bug Fix Process', description: 'Model the bug fix workflow as an activity diagram', points: 15, tags: ['uml', 'activity-diagram'],
-    content: { diagramType: 'activity', prompt: 'Create a UML activity diagram for the bug fix process in a software team. Include bug reporting, triage, assignment, fixing, code review, testing, and deployment stages. Show decision points and parallel activities.',
-      modelAnswer: '@startuml\nstart\n:Report Bug;\n:Triage Bug;\nif (Severity?) then (Critical)\n  :Assign to Senior Dev;\nelse (Normal)\n  :Assign to Developer;\nendif\n:Fix Bug;\nfork\n  :Code Review;\nfork again\n  :Write Tests;\nend fork\nif (Review Passed?) then (Yes)\n  :Run Test Suite;\n  if (Tests Pass?) then (Yes)\n    :Deploy to Staging;\n    :Verify Fix;\n    :Deploy to Production;\n  else (No)\n    :Return to Developer;\n    :Fix Bug;\n  endif\nelse (No)\n  :Address Review Comments;\n  :Fix Bug;\nendif\nstop\n@enduml' },
-    rubric: { criteria: [
-      { description: 'Complete activity flow', maxPoints: 5 },
-      { description: 'Correct decision points and forks/joins', maxPoints: 5 },
-      { description: 'Proper UML notation', maxPoints: 5 },
-    ] } },
   { title: 'Class Diagram: Hospital System', description: 'Design a class diagram for hospital management', points: 20, tags: ['uml', 'class-diagram'],
-    content: { diagramType: 'class', prompt: 'Design a UML class diagram for a hospital management system. Include Patient, Doctor, Nurse, Appointment, MedicalRecord, Ward, and Prescription classes. Show inheritance, composition, and association relationships.',
+    content: { umlSubtype: 'class', prompt: 'Design a UML class diagram for a hospital management system. Include Patient, Doctor, Nurse, Appointment, MedicalRecord, Ward, and Prescription classes. Show inheritance, composition, and association relationships.',
       modelAnswer: '@startuml\nabstract class Person {\n  -id: String\n  -name: String\n  -phone: String\n}\nclass Patient extends Person {\n  -patientId: String\n  -dateOfBirth: Date\n  -bloodType: String\n}\nclass Doctor extends Person {\n  -specialization: String\n  -licenseNo: String\n}\nclass Nurse extends Person {\n  -department: String\n  -shift: String\n}\nclass Appointment {\n  -dateTime: DateTime\n  -status: String\n}\nclass MedicalRecord {\n  -diagnosis: String\n  -treatment: String\n  -date: Date\n}\nclass Ward {\n  -wardNo: String\n  -capacity: int\n  -type: String\n}\nclass Prescription {\n  -medication: String\n  -dosage: String\n  -duration: String\n}\nPatient "1" -- "0..*" Appointment\nDoctor "1" -- "0..*" Appointment\nPatient "1" *-- "0..*" MedicalRecord\nDoctor "1" -- "0..*" MedicalRecord\nMedicalRecord "1" *-- "0..*" Prescription\nWard "1" -- "0..*" Patient\nWard "1" -- "0..*" Nurse\n@enduml' },
     rubric: { criteria: [
       { description: 'Complete class definitions with attributes and methods', maxPoints: 8 },
@@ -193,20 +177,12 @@ const UML_QUESTIONS: UmlQuestion[] = [
       { description: 'Proper use of inheritance and composition', maxPoints: 5 },
     ] } },
   { title: 'Sequence Diagram: Login Flow', description: 'Draw a sequence diagram for user login', points: 15, tags: ['uml', 'sequence-diagram'],
-    content: { diagramType: 'sequence', prompt: 'Draw a UML sequence diagram showing the login process for a web application. Include the User, Browser, Web Server, Authentication Service, and Database as participants.',
+    content: { umlSubtype: 'sequence', prompt: 'Draw a UML sequence diagram showing the login process for a web application. Include the User, Browser, Web Server, Authentication Service, and Database as participants.',
       modelAnswer: '@startuml\nactor User\nparticipant Browser\nparticipant "Web Server" as WS\nparticipant "Auth Service" as Auth\ndatabase Database\n\nUser -> Browser: Enter credentials\nBrowser -> WS: POST /login (email, password)\nWS -> Auth: validateCredentials(email, password)\nAuth -> Database: SELECT user WHERE email = ?\nDatabase --> Auth: user record\nAuth -> Auth: verify password hash\nalt valid credentials\n  Auth --> WS: auth token\n  WS --> Browser: 200 OK + JWT\n  Browser --> User: Redirect to dashboard\nelse invalid credentials\n  Auth --> WS: authentication failed\n  WS --> Browser: 401 Unauthorized\n  Browser --> User: Show error message\nend\n@enduml' },
     rubric: { criteria: [
       { description: 'Correct participants and lifelines', maxPoints: 5 },
       { description: 'Proper message sequencing', maxPoints: 5 },
       { description: 'Correct notation (synchronous, asynchronous, return)', maxPoints: 5 },
-    ] } },
-  { title: 'State Diagram: Order Lifecycle', description: 'Design a state diagram for order processing', points: 20, tags: ['uml', 'state-diagram'],
-    content: { diagramType: 'state', prompt: 'Create a UML state diagram showing the lifecycle of an order in an e-commerce system. Include states such as Created, Confirmed, Processing, Shipped, Delivered, Cancelled, and Returned.',
-      modelAnswer: '@startuml\n[*] --> Created\nCreated --> Confirmed : payment received\nCreated --> Cancelled : user cancels\nConfirmed --> Processing : warehouse picks order\nProcessing --> Shipped : handed to courier\nShipped --> Delivered : delivery confirmed\nDelivered --> Returned : return requested\nReturned --> [*]\nDelivered --> [*]\nCancelled --> [*]\nConfirmed --> Cancelled : cancel before processing\n@enduml' },
-    rubric: { criteria: [
-      { description: 'Complete state identification', maxPoints: 7 },
-      { description: 'Correct transitions and guards', maxPoints: 7 },
-      { description: 'Initial/final states and proper notation', maxPoints: 6 },
     ] } },
 ];
 
