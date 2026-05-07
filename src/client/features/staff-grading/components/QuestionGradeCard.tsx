@@ -3,7 +3,9 @@ import type { RefObject } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { GradingAnswer, GradingMark, QuestionGrade } from '../types';
 import { UMLViewer } from '../../../components/UMLViewer';
-import { UMLAnnotationOverlay, AnnotationSidebar, type AnnotationPin } from './UMLAnnotationOverlay';
+import { UMLAnnotationOverlay, AnnotationSidebar } from './UMLAnnotationOverlay';
+import { normalizeAnnotationPins, type AnnotationPin } from './annotation-pin-types';
+import type { UmlEditorState } from '../../../components/UMLEditor';
 import { rubricsApi } from '../../../lib/api';
 import type { RubricCriterion } from '../../../lib/api';
 import {
@@ -196,12 +198,12 @@ export function QuestionGradeCard({
 
   // B3: UML Annotations
   const [annotations, setAnnotations] = useState<AnnotationPin[]>(() => {
-    // Parse existing annotations from feedback JSONB
+    // Parse existing annotations from feedback JSONB; tolerate legacy shape.
     if (existingMark?.feedback) {
       try {
         const parsed = JSON.parse(existingMark.feedback);
         if (parsed && Array.isArray(parsed.annotations)) {
-          return parsed.annotations as AnnotationPin[];
+          return normalizeAnnotationPins(parsed.annotations);
         }
       } catch {
         // Not JSON feedback, that's fine
@@ -449,6 +451,11 @@ export function QuestionGradeCard({
       const templateDiagram = question.content.referenceDiagram;
       const hasAnswerDiagram = answerDiagram && typeof answerDiagram === 'string';
 
+      const studentEditorState =
+        typeof answer.content.editorState === 'object' && answer.content.editorState !== null
+          ? (answer.content.editorState as UmlEditorState)
+          : undefined;
+
       const studentDiagram = (
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-gray-700 mb-2">Student Submission</h4>
@@ -460,6 +467,7 @@ export function QuestionGradeCard({
                   annotations={annotations}
                   onAnnotationsChange={isReadOnly ? undefined : handleAnnotationsChange}
                   readOnly={isReadOnly}
+                  editorState={studentEditorState}
                 />
               </>
             ) : (
@@ -472,11 +480,14 @@ export function QuestionGradeCard({
                 annotations={annotations}
                 selectedPin={null}
                 onSelectPin={() => {}}
+                editorState={studentEditorState}
               />
             </div>
           ) : null}
           {!isReadOnly && question.type === 'uml' ? (
-            <p className="text-xs text-gray-400 mt-2">Click on the diagram to place annotation pins.</p>
+            <p className="text-xs text-gray-400 mt-2">
+              Click the diagram for free pins, or anchor pins to specific elements below.
+            </p>
           ) : null}
         </div>
       );
