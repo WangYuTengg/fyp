@@ -6,9 +6,17 @@
 
 export const pricing = {
   openai: {
+    'gpt-5.4': {
+      input: 2.50,
+      output: 15.00,
+    },
+    'gpt-5.4-mini': {
+      input: 0.75,
+      output: 4.50,
+    },
     'gpt-4o': {
-      input: 2.50,   // $ per 1M input tokens
-      output: 10.00, // $ per 1M output tokens
+      input: 2.50,
+      output: 10.00,
     },
     'gpt-4o-2024-08-06': {
       input: 2.50,
@@ -20,6 +28,10 @@ export const pricing = {
     },
   },
   anthropic: {
+    'claude-opus-4-6': {
+      input: 5.00,
+      output: 25.00,
+    },
     'claude-3-5-sonnet-20241022': {
       input: 3.00,
       output: 15.00,

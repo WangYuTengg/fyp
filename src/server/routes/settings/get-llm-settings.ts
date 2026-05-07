@@ -61,7 +61,8 @@ getLlmSettingsRoute.get('/llm', authMiddleware, async (c) => {
 
   // Fall back to env vars if not set in DB
   const currentProvider = providerSetting[0]?.value || process.env.LLM_PROVIDER || 'openai';
-  const currentModel = modelSetting[0]?.value || process.env.LLM_MODEL || 'gpt-4o';
+  const defaultModel = currentProvider === 'anthropic' ? 'claude-opus-4-6' : 'gpt-5.4';
+  const currentModel = modelSetting[0]?.value || process.env.LLM_MODEL || defaultModel;
 
   return c.json({
     current: {

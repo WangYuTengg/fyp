@@ -42,15 +42,20 @@ async function getLLMSettings(): Promise<{ provider: string; model: string }> {
       .limit(1);
 
     const provider = providerSetting[0]?.value || process.env.LLM_PROVIDER || 'openai';
-    const model = modelSetting[0]?.value || process.env.LLM_MODEL || 'gpt-4o';
+    const defaultModel = (providerSetting[0]?.value || process.env.LLM_PROVIDER) === 'anthropic'
+      ? 'claude-opus-4-6'
+      : 'gpt-5.4';
+    const model = modelSetting[0]?.value || process.env.LLM_MODEL || defaultModel;
 
     settingsCache = { provider, model, lastFetch: Date.now() };
     return { provider, model };
   } catch {
     // Fall back to env vars if DB read fails
+    const provider = process.env.LLM_PROVIDER || 'openai';
+    const fallbackModel = provider === 'anthropic' ? 'claude-opus-4-6' : 'gpt-5.4';
     return {
-      provider: process.env.LLM_PROVIDER || 'openai',
-      model: process.env.LLM_MODEL || 'gpt-4o',
+      provider,
+      model: process.env.LLM_MODEL || fallbackModel,
     };
   }
 }
