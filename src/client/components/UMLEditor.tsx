@@ -13,6 +13,10 @@ import {
   type SequenceDiagramState,
 } from './uml/sequenceDiagram';
 import { validatePlantUml } from './uml/plantUmlValidation';
+import {
+  parseClassDiagramPlantUml,
+  parseSequenceDiagramPlantUml,
+} from './uml/plantUmlParser';
 
 export type UmlDiagramType = 'class' | 'sequence';
 
@@ -128,15 +132,30 @@ function UMLEditorInner({
   const errorCount = validationIssues.filter((issue) => issue.severity === 'error').length;
   const warningCount = validationIssues.filter((issue) => issue.severity === 'warning').length;
 
+  const [syncWarnings, setSyncWarnings] = useState<string[]>([]);
+
   const handleChange = (value: string) => {
     setUmlText(value);
     onChange?.(value);
+    setSyncWarnings([]);
   };
 
   const handleDiagramChange = (state: UmlEditorState, plantUml: string) => {
     setDiagramState(state);
     setUmlText(plantUml);
     onChange?.(plantUml, state);
+    setSyncWarnings([]);
+  };
+
+  const syncFromText = () => {
+    if (!umlText.trim()) return;
+    const result =
+      diagramType === 'sequence'
+        ? parseSequenceDiagramPlantUml(umlText)
+        : parseClassDiagramPlantUml(umlText);
+    setDiagramState(result.state);
+    setSyncWarnings(result.warnings);
+    onChange?.(umlText, result.state);
   };
 
   const visualUml = useMemo(
@@ -348,8 +367,31 @@ function UMLEditorInner({
       </div>
 
       {activeTab === 'visual' && umlText.trim().length > 0 && umlText !== visualUml && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700">
-          The visual builder is the source of truth. Open the PlantUML tab when you want to inspect or refine the exported text.
+        <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            PlantUML text differs from the visual builder. The visual builder is the source of truth on save —
+            click <strong>Sync from text</strong> to import the latest text into the canvas.
+          </p>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={syncFromText}
+              className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+            >
+              Sync from text
+            </button>
+          )}
+        </div>
+      )}
+
+      {syncWarnings.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          <p className="font-semibold">Imported from text with {syncWarnings.length} warning{syncWarnings.length === 1 ? '' : 's'}:</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            {syncWarnings.map((warning, idx) => (
+              <li key={`${idx}-${warning}`}>{warning}</li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
