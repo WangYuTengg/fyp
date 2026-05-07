@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_SEQUENCE_DIAGRAM_STATE,
   generateSequenceDiagramPlantUml,
   generateSequenceId,
   LIFELINE_KIND_OPTIONS,
   MESSAGE_TYPE_OPTIONS,
+  SEQUENCE_FRAGMENT_KIND_OPTIONS,
   normalizeSequenceDiagramState,
   type LifelineKind,
   type SequenceDiagramState,
+  type SequenceFragment,
+  type SequenceFragmentKind,
   type SequenceLifeline,
   type SequenceMessage,
   type SequenceMessageType,
@@ -73,6 +76,9 @@ export function SequenceDiagramEditor({
 
   const reorderMessages = (messages: SequenceMessage[]): SequenceMessage[] =>
     messages.map((m, idx) => ({ ...m, data: { ...m.data, order: idx } }));
+
+  const reorderFragments = (fragments: SequenceFragment[]): SequenceFragment[] =>
+    fragments.map((f, idx) => ({ ...f, data: { ...f.data, order: idx } }));
 
   const addLifeline = () => {
     if (readOnly) return;
@@ -178,8 +184,183 @@ export function SequenceDiagramEditor({
     });
   };
 
+  const fragments = state.fragments ?? [];
+
+  const addFragment = () => {
+    if (readOnly) return;
+    const newFragment: SequenceFragment = {
+      id: generateSequenceId('fragment'),
+      kind: 'opt',
+      data: { order: fragments.length },
+    };
+    setState((prev) => ({ ...prev, fragments: [...(prev.fragments ?? []), newFragment] }));
+  };
+
+  const removeFragment = (id: string) => {
+    if (readOnly) return;
+    setState((prev) => ({
+      ...prev,
+      fragments: reorderFragments((prev.fragments ?? []).filter((f) => f.id !== id)),
+      messages: prev.messages.map((m) =>
+        m.data.parentFragmentId === id
+          ? {
+              ...m,
+              data: {
+                ...m.data,
+                parentFragmentId: undefined,
+                parentBranchIndex: undefined,
+              },
+            }
+          : m
+      ),
+    }));
+  };
+
+  const updateFragment = (id: string, patch: Partial<SequenceFragment['data']> & { kind?: SequenceFragmentKind }) => {
+    if (readOnly) return;
+    setState((prev) => ({
+      ...prev,
+      fragments: (prev.fragments ?? []).map((f) => {
+        if (f.id !== id) return f;
+        const { kind, ...dataPatch } = patch;
+        return {
+          ...f,
+          kind: kind ?? f.kind,
+          data: { ...f.data, ...dataPatch },
+        };
+      }),
+    }));
+  };
+
+  const moveFragment = (id: string, direction: -1 | 1) => {
+    if (readOnly) return;
+    setState((prev) => {
+      const list = [...(prev.fragments ?? [])].sort((a, b) => a.data.order - b.data.order);
+      const idx = list.findIndex((f) => f.id === id);
+      const targetIdx = idx + direction;
+      if (idx < 0 || targetIdx < 0 || targetIdx >= list.length) return prev;
+      const swapped = [...list];
+      [swapped[idx], swapped[targetIdx]] = [swapped[targetIdx], swapped[idx]];
+      return { ...prev, fragments: reorderFragments(swapped) };
+    });
+  };
+
+  const addElseBranch = (fragmentId: string) => {
+    if (readOnly) return;
+    setState((prev) => ({
+      ...prev,
+      fragments: (prev.fragments ?? []).map((f) =>
+        f.id === fragmentId
+          ? {
+              ...f,
+              data: {
+                ...f.data,
+                elseLabels: [...(f.data.elseLabels ?? []), ''],
+              },
+            }
+          : f
+      ),
+    }));
+  };
+
+  const updateElseBranchLabel = (fragmentId: string, branchIdx: number, label: string) => {
+    if (readOnly) return;
+    setState((prev) => ({
+      ...prev,
+      fragments: (prev.fragments ?? []).map((f) => {
+        if (f.id !== fragmentId) return f;
+        const labels = [...(f.data.elseLabels ?? [])];
+        labels[branchIdx] = label;
+        return { ...f, data: { ...f.data, elseLabels: labels } };
+      }),
+    }));
+  };
+
+  const removeElseBranch = (fragmentId: string, branchIdx: number) => {
+    if (readOnly) return;
+    setState((prev) => {
+      const removedBranchIdx = branchIdx + 1; // elseLabels[i] corresponds to branchIndex i+1
+      const fragmentsAfter = (prev.fragments ?? []).map((f) => {
+        if (f.id !== fragmentId) return f;
+        const labels = [...(f.data.elseLabels ?? [])];
+        labels.splice(branchIdx, 1);
+        return {
+          ...f,
+          data: { ...f.data, elseLabels: labels.length > 0 ? labels : undefined },
+        };
+      });
+      const messagesAfter = prev.messages.map((m) => {
+        if (m.data.parentFragmentId !== fragmentId) return m;
+        const branch = m.data.parentBranchIndex ?? 0;
+        if (branch === removedBranchIdx) {
+          // Reassign to main branch
+          return {
+            ...m,
+            data: { ...m.data, parentBranchIndex: 0 },
+          };
+        }
+        if (branch > removedBranchIdx) {
+          return {
+            ...m,
+            data: { ...m.data, parentBranchIndex: branch - 1 },
+          };
+        }
+        return m;
+      });
+      return { ...prev, fragments: fragmentsAfter, messages: messagesAfter };
+    });
+  };
+
   const sortedLifelines = [...state.lifelines].sort((a, b) => a.data.order - b.data.order);
   const sortedMessages = [...state.messages].sort((a, b) => a.data.order - b.data.order);
+  const sortedFragments = [...fragments].sort((a, b) => a.data.order - b.data.order);
+
+  const fragmentOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string }> = [
+      { value: '__top__', label: 'Top level' },
+    ];
+    for (const fragment of sortedFragments) {
+      const fragmentLabel = fragment.data.label?.trim() || `(unlabeled ${fragment.kind})`;
+      options.push({
+        value: `${fragment.id}:0`,
+        label: `${fragment.kind} — ${fragmentLabel} (main)`,
+      });
+      const elseLabels = fragment.data.elseLabels ?? [];
+      elseLabels.forEach((elseLabel, idx) => {
+        const branchLabel = elseLabel.trim() || `else ${idx + 1}`;
+        options.push({
+          value: `${fragment.id}:${idx + 1}`,
+          label: `${fragment.kind} — ${fragmentLabel} (${branchLabel})`,
+        });
+      });
+    }
+    return options;
+  }, [sortedFragments]);
+
+  const messageParentValue = (m: SequenceMessage): string => {
+    if (!m.data.parentFragmentId) return '__top__';
+    return `${m.data.parentFragmentId}:${m.data.parentBranchIndex ?? 0}`;
+  };
+
+  const handleMessageParentChange = (messageId: string, value: string) => {
+    if (readOnly) return;
+    if (value === '__top__') {
+      updateMessage(messageId, {
+        parentFragmentId: undefined,
+        parentBranchIndex: undefined,
+      });
+      return;
+    }
+    const sepIdx = value.lastIndexOf(':');
+    if (sepIdx < 0) return;
+    const fragmentId = value.slice(0, sepIdx);
+    const branchIdx = parseInt(value.slice(sepIdx + 1), 10);
+    if (Number.isNaN(branchIdx)) return;
+    updateMessage(messageId, {
+      parentFragmentId: fragmentId,
+      parentBranchIndex: branchIdx,
+    });
+  };
 
   return (
     <div
@@ -457,12 +638,209 @@ export function SequenceDiagramEditor({
                       </div>
                     )}
                   </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                    <label className="flex items-center gap-2">
+                      <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                        Inside
+                      </span>
+                      <select
+                        value={messageParentValue(message)}
+                        onChange={(event) =>
+                          handleMessageParentChange(message.id, event.target.value)
+                        }
+                        disabled={readOnly || fragmentOptions.length <= 1}
+                        className="rounded border border-slate-300 px-2 py-1 text-xs disabled:bg-slate-100"
+                      >
+                        {fragmentOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="inline-flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(message.data.activatesTarget)}
+                        disabled={readOnly}
+                        onChange={(event) =>
+                          updateMessage(message.id, {
+                            activatesTarget: event.target.checked || undefined,
+                          })
+                        }
+                        className="h-3 w-3"
+                      />
+                      <span>activate target</span>
+                    </label>
+                    <label className="inline-flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(message.data.deactivatesSource)}
+                        disabled={readOnly}
+                        onChange={(event) =>
+                          updateMessage(message.id, {
+                            deactivatesSource: event.target.checked || undefined,
+                          })
+                        }
+                        className="h-3 w-3"
+                      />
+                      <span>deactivate source</span>
+                    </label>
+                  </div>
                 </li>
               ))}
             </ol>
           )}
         </section>
       </div>
+
+      <section className="border-t border-slate-200 p-4">
+        <header className="flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-900">
+              Fragments ({sortedFragments.length})
+            </h4>
+            <p className="mt-1 text-xs text-slate-500">
+              Group messages into <code>alt</code>, <code>opt</code>, <code>loop</code>, or{' '}
+              <code>par</code> blocks. Assign messages from the &ldquo;Inside&rdquo; selector above.
+            </p>
+          </div>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={addFragment}
+              className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+            >
+              + Fragment
+            </button>
+          )}
+        </header>
+
+        {sortedFragments.length === 0 ? (
+          <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500">
+            No fragments yet. Add one if your sequence has conditional or repeated steps.
+          </p>
+        ) : (
+          <ol className="mt-3 space-y-2">
+            {sortedFragments.map((fragment, idx) => {
+              const elseLabels = fragment.data.elseLabels ?? [];
+              return (
+                <li
+                  key={fragment.id}
+                  className="rounded-xl border border-slate-200 bg-white p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-600">
+                      F{idx + 1}
+                    </span>
+                    <select
+                      value={fragment.kind}
+                      onChange={(event) =>
+                        updateFragment(fragment.id, {
+                          kind: event.target.value as SequenceFragmentKind,
+                        })
+                      }
+                      disabled={readOnly}
+                      className="rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
+                      aria-label="Fragment kind"
+                    >
+                      {SEQUENCE_FRAGMENT_KIND_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={fragment.data.label ?? ''}
+                      onChange={(event) =>
+                        updateFragment(fragment.id, {
+                          label: event.target.value || undefined,
+                        })
+                      }
+                      readOnly={readOnly}
+                      placeholder="Header guard / condition (optional)"
+                      className="flex-1 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
+                    />
+                    {!readOnly && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveFragment(fragment.id, -1)}
+                          disabled={idx === 0}
+                          aria-label="Move up"
+                          className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-40 hover:bg-slate-50"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveFragment(fragment.id, 1)}
+                          disabled={idx === sortedFragments.length - 1}
+                          aria-label="Move down"
+                          className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-40 hover:bg-slate-50"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeFragment(fragment.id)}
+                          aria-label="Remove fragment"
+                          className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    {elseLabels.map((elseLabel, branchIdx) => (
+                      <div
+                        key={`${fragment.id}-else-${branchIdx}`}
+                        className="flex items-center gap-2 text-xs"
+                      >
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-600">
+                          else {branchIdx + 1}
+                        </span>
+                        <input
+                          type="text"
+                          value={elseLabel}
+                          onChange={(event) =>
+                            updateElseBranchLabel(fragment.id, branchIdx, event.target.value)
+                          }
+                          readOnly={readOnly}
+                          placeholder="Else branch label (optional)"
+                          className="flex-1 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
+                        />
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => removeElseBranch(fragment.id, branchIdx)}
+                            aria-label="Remove else branch"
+                            className="rounded border border-rose-200 bg-rose-50 px-2 py-1 font-semibold text-rose-700 hover:bg-rose-100"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => addElseBranch(fragment.id)}
+                        className="rounded border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        + Else branch
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
     </div>
   );
 }

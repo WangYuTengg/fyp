@@ -658,6 +658,148 @@ describe('diffSequenceDiagrams — order score', () => {
   });
 });
 
+describe('diffSequenceDiagrams — fragment context', () => {
+  it('rewards messages that share fragment context', () => {
+    const reference: SequenceDiagramState = {
+      lifelines: [
+        { id: 'r1', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 'r2', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      fragments: [{ id: 'rf', kind: 'opt', data: { order: 0, label: 'check' } }],
+      messages: [
+        {
+          id: 'rm',
+          source: 'r1',
+          target: 'r2',
+          data: {
+            messageType: 'sync',
+            label: 'go',
+            order: 0,
+            parentFragmentId: 'rf',
+            parentBranchIndex: 0,
+          },
+        },
+      ],
+    };
+    const student: SequenceDiagramState = {
+      lifelines: [
+        { id: 's1', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 's2', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      fragments: [{ id: 'sf', kind: 'opt', data: { order: 0 } }],
+      messages: [
+        {
+          id: 'sm',
+          source: 's1',
+          target: 's2',
+          data: {
+            messageType: 'sync',
+            label: 'go',
+            order: 0,
+            parentFragmentId: 'sf',
+            parentBranchIndex: 0,
+          },
+        },
+      ],
+    };
+    const result = diffSequenceDiagrams(student, reference);
+    expect(result.messages.matched[0].fragmentContextMatches).toBe(true);
+    expect(result.messages.matched[0].aspectScore).toBe(1);
+  });
+
+  it('penalises a message moved out of its expected fragment', () => {
+    const reference: SequenceDiagramState = {
+      lifelines: [
+        { id: 'r1', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 'r2', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      fragments: [{ id: 'rf', kind: 'alt', data: { order: 0, label: 'x > 0' } }],
+      messages: [
+        {
+          id: 'rm',
+          source: 'r1',
+          target: 'r2',
+          data: {
+            messageType: 'sync',
+            label: 'inside',
+            order: 0,
+            parentFragmentId: 'rf',
+            parentBranchIndex: 0,
+          },
+        },
+      ],
+    };
+    // Student emits the message at top level instead of inside an alt
+    const student: SequenceDiagramState = {
+      lifelines: [
+        { id: 's1', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 's2', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      fragments: [],
+      messages: [
+        {
+          id: 'sm',
+          source: 's1',
+          target: 's2',
+          data: { messageType: 'sync', label: 'inside', order: 0 },
+        },
+      ],
+    };
+    const result = diffSequenceDiagrams(student, reference);
+    expect(result.messages.matched[0].fragmentContextMatches).toBe(false);
+    expect(result.messages.matched[0].aspectScore).toBeLessThan(1);
+    // Message score should be discounted (not full coverage * full quality)
+    expect(result.messages.score).toBeLessThan(1);
+  });
+
+  it('penalises mismatched fragment kinds', () => {
+    const reference: SequenceDiagramState = {
+      lifelines: [
+        { id: 'r1', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 'r2', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      fragments: [{ id: 'rf', kind: 'alt', data: { order: 0 } }],
+      messages: [
+        {
+          id: 'rm',
+          source: 'r1',
+          target: 'r2',
+          data: {
+            messageType: 'sync',
+            label: 'go',
+            order: 0,
+            parentFragmentId: 'rf',
+            parentBranchIndex: 0,
+          },
+        },
+      ],
+    };
+    const student: SequenceDiagramState = {
+      lifelines: [
+        { id: 's1', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 's2', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      fragments: [{ id: 'sf', kind: 'opt', data: { order: 0 } }],
+      messages: [
+        {
+          id: 'sm',
+          source: 's1',
+          target: 's2',
+          data: {
+            messageType: 'sync',
+            label: 'go',
+            order: 0,
+            parentFragmentId: 'sf',
+            parentBranchIndex: 0,
+          },
+        },
+      ],
+    };
+    const result = diffSequenceDiagrams(student, reference);
+    expect(result.messages.matched[0].fragmentContextMatches).toBe(false);
+  });
+});
+
 describe('diffSequenceDiagrams — score aggregation', () => {
   it('returns 0 for empty student against non-empty reference', () => {
     const reference = buildSequenceState(

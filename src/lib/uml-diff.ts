@@ -10,6 +10,8 @@ import type {
 import type {
   LifelineKind,
   SequenceDiagramState,
+  SequenceFragment,
+  SequenceFragmentKind,
   SequenceLifeline,
   SequenceMessage,
   SequenceMessageType,
@@ -489,6 +491,8 @@ export type SequenceMessageRef = {
   label?: string;
   /** 0-indexed position in the original ordering. Used to score order preservation. */
   order: number;
+  /** Kind of the fragment this message is rendered inside, if any. */
+  parentKind: SequenceFragmentKind | null;
 };
 
 export type SequenceMessageMatch = {
@@ -496,7 +500,9 @@ export type SequenceMessageMatch = {
   student: SequenceMessageRef;
   typeMatches: boolean;
   labelMatches: boolean;
-  /** 0..1 — partial credit across (presence, type, label). */
+  /** True when both messages share fragment context (both top-level, or both inside same-kind fragment). */
+  fragmentContextMatches: boolean;
+  /** 0..1 — partial credit across (presence, type, label, fragment context). */
   aspectScore: number;
   /** Matched on (source, target, label); false when matched by endpoints only. */
   exactMatch: boolean;
@@ -545,18 +551,31 @@ const buildLifelineById = (
 const messageToRef = (
   msg: SequenceMessage,
   byId: Map<string, SequenceLifeline>,
+  fragmentsById: Map<string, SequenceFragment>,
   index: number
 ): SequenceMessageRef | null => {
   const source = byId.get(msg.source);
   const target = byId.get(msg.target);
   if (!source || !target) return null;
+  const parentId = msg.data.parentFragmentId;
+  const parentKind = parentId ? fragmentsById.get(parentId)?.kind ?? null : null;
   return {
     source: source.data.name,
     target: target.data.name,
     messageType: msg.data.messageType,
     label: msg.data.label,
     order: index,
+    parentKind,
   };
+};
+
+const fragmentContextMatches = (
+  refKind: SequenceFragmentKind | null,
+  studentKind: SequenceFragmentKind | null
+): boolean => {
+  if (refKind === null && studentKind === null) return true;
+  if (refKind !== null && studentKind !== null && refKind === studentKind) return true;
+  return false;
 };
 
 const messagePrimaryKey = (m: SequenceMessageRef): string =>
@@ -630,12 +649,14 @@ export function diffSequenceDiagrams(
   //    Endpoints-only matches still count as matched but score the label aspect as a miss.
   const refById = buildLifelineById(reference.lifelines);
   const studentById = buildLifelineById(student.lifelines);
+  const refFragsById = new Map((reference.fragments ?? []).map((f) => [f.id, f]));
+  const studentFragsById = new Map((student.fragments ?? []).map((f) => [f.id, f]));
 
   const refMessages = reference.messages
-    .map((msg, idx) => messageToRef(msg, refById, idx))
+    .map((msg, idx) => messageToRef(msg, refById, refFragsById, idx))
     .filter((m): m is SequenceMessageRef => m !== null);
   const studentMessages = student.messages
-    .map((msg, idx) => messageToRef(msg, studentById, idx))
+    .map((msg, idx) => messageToRef(msg, studentById, studentFragsById, idx))
     .filter((m): m is SequenceMessageRef => m !== null);
 
   const matchedMessages: SequenceMessageMatch[] = [];
@@ -654,6 +675,7 @@ export function diffSequenceDiagrams(
           student: sMsg,
           typeMatches: refMsg.messageType === sMsg.messageType,
           labelMatches: true,
+          fragmentContextMatches: fragmentContextMatches(refMsg.parentKind, sMsg.parentKind),
           aspectScore: 0,
           exactMatch: true,
         });
@@ -677,6 +699,7 @@ export function diffSequenceDiagrams(
           student: sMsg,
           typeMatches: refMsg.messageType === sMsg.messageType,
           labelMatches: normalizeName(refMsg.label ?? '') === normalizeName(sMsg.label ?? ''),
+          fragmentContextMatches: fragmentContextMatches(refMsg.parentKind, sMsg.parentKind),
           aspectScore: 0,
           exactMatch: false,
         });
@@ -687,9 +710,10 @@ export function diffSequenceDiagrams(
     }
   }
 
-  // Three aspects: presence (always 1), type, label.
+  // Four aspects: presence (always 1), type, label, fragment context.
   for (const m of matchedMessages) {
-    m.aspectScore = (1 + Number(m.typeMatches) + Number(m.labelMatches)) / 3;
+    m.aspectScore =
+      (1 + Number(m.typeMatches) + Number(m.labelMatches) + Number(m.fragmentContextMatches)) / 4;
   }
 
   const missingMessages: SequenceMessageRef[] = refMessages.filter(
@@ -798,7 +822,10 @@ export function formatSequenceDiffForPrompt(diff: SequenceDiagramDiffResult): st
       const labelTag = m.labelMatches
         ? ''
         : ` [label diff: "${m.ref.label ?? ''}" vs "${m.student.label ?? ''}"]`;
-      lines.push(`    - ${m.ref.source} → ${m.ref.target} ${typeTag}${labelTag}`);
+      const fragmentTag = m.fragmentContextMatches
+        ? ''
+        : ` [fragment: expected ${m.ref.parentKind ?? 'top-level'}, got ${m.student.parentKind ?? 'top-level'}]`;
+      lines.push(`    - ${m.ref.source} → ${m.ref.target} ${typeTag}${labelTag}${fragmentTag}`);
     }
   }
   if (diff.messages.missing.length > 0) {

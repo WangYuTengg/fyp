@@ -7,10 +7,11 @@ import {
 
 describe('normalizeSequenceDiagramState', () => {
   it('returns empty state for invalid input', () => {
-    expect(normalizeSequenceDiagramState(null)).toEqual({ lifelines: [], messages: [] });
-    expect(normalizeSequenceDiagramState(undefined)).toEqual({ lifelines: [], messages: [] });
-    expect(normalizeSequenceDiagramState('garbage')).toEqual({ lifelines: [], messages: [] });
-    expect(normalizeSequenceDiagramState({})).toEqual({ lifelines: [], messages: [] });
+    const empty = { lifelines: [], messages: [], fragments: [] };
+    expect(normalizeSequenceDiagramState(null)).toEqual(empty);
+    expect(normalizeSequenceDiagramState(undefined)).toEqual(empty);
+    expect(normalizeSequenceDiagramState('garbage')).toEqual(empty);
+    expect(normalizeSequenceDiagramState({})).toEqual(empty);
   });
 
   it('preserves valid lifelines and messages', () => {
@@ -170,5 +171,213 @@ describe('generateSequenceDiagramPlantUml', () => {
     const out = generateSequenceDiagramPlantUml(state);
     expect(out).toContain('A -> B');
     expect(out).not.toContain('A -> B :');
+  });
+
+  it('emits activate/deactivate lines following the message', () => {
+    const state = baseState({
+      lifelines: [
+        { id: 'a', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 'b', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      messages: [
+        {
+          id: 'm1',
+          source: 'a',
+          target: 'b',
+          data: { messageType: 'sync', label: 'do', order: 0, activatesTarget: true },
+        },
+        {
+          id: 'm2',
+          source: 'b',
+          target: 'a',
+          data: { messageType: 'reply', label: 'ok', order: 1, deactivatesSource: true },
+        },
+      ],
+    });
+    const out = generateSequenceDiagramPlantUml(state);
+    const lines = out.split('\n');
+    const doIdx = lines.findIndex((l) => l.includes('A -> B : do'));
+    const actIdx = lines.findIndex((l) => l.includes('activate B'));
+    const okIdx = lines.findIndex((l) => l.includes('B --> A : ok'));
+    const deactIdx = lines.findIndex((l) => l.includes('deactivate B'));
+    expect(actIdx).toBe(doIdx + 1);
+    expect(deactIdx).toBe(okIdx + 1);
+  });
+});
+
+describe('generateSequenceDiagramPlantUml — fragments', () => {
+  it('emits opt fragment with header label and end marker', () => {
+    const state: SequenceDiagramState = {
+      lifelines: [
+        { id: 'a', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 'b', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      fragments: [
+        { id: 'f1', kind: 'opt', data: { order: 0, label: 'logged in' } },
+      ],
+      messages: [
+        {
+          id: 'm1',
+          source: 'a',
+          target: 'b',
+          data: {
+            messageType: 'sync',
+            label: 'inside',
+            order: 0,
+            parentFragmentId: 'f1',
+            parentBranchIndex: 0,
+          },
+        },
+      ],
+    };
+    const out = generateSequenceDiagramPlantUml(state);
+    const lines = out.split('\n');
+    const optIdx = lines.findIndex((l) => l.trim() === 'opt logged in');
+    const insideIdx = lines.findIndex((l) => l.includes('A -> B : inside'));
+    const endIdx = lines.findIndex((l) => l.trim() === 'end');
+    expect(optIdx).toBeGreaterThanOrEqual(0);
+    expect(insideIdx).toBeGreaterThan(optIdx);
+    expect(endIdx).toBeGreaterThan(insideIdx);
+  });
+
+  it('emits alt with else branches in order', () => {
+    const state: SequenceDiagramState = {
+      lifelines: [
+        { id: 'a', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 'b', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      fragments: [
+        {
+          id: 'f1',
+          kind: 'alt',
+          data: { order: 0, label: 'x > 0', elseLabels: ['x < 0', 'x == 0'] },
+        },
+      ],
+      messages: [
+        {
+          id: 'm1',
+          source: 'a',
+          target: 'b',
+          data: {
+            messageType: 'sync',
+            label: 'positive',
+            order: 0,
+            parentFragmentId: 'f1',
+            parentBranchIndex: 0,
+          },
+        },
+        {
+          id: 'm2',
+          source: 'a',
+          target: 'b',
+          data: {
+            messageType: 'sync',
+            label: 'negative',
+            order: 0,
+            parentFragmentId: 'f1',
+            parentBranchIndex: 1,
+          },
+        },
+        {
+          id: 'm3',
+          source: 'a',
+          target: 'b',
+          data: {
+            messageType: 'sync',
+            label: 'zero',
+            order: 0,
+            parentFragmentId: 'f1',
+            parentBranchIndex: 2,
+          },
+        },
+      ],
+    };
+    const out = generateSequenceDiagramPlantUml(state);
+    expect(out).toContain('alt x > 0');
+    expect(out).toContain('A -> B : positive');
+    expect(out).toContain('else x < 0');
+    expect(out).toContain('A -> B : negative');
+    expect(out).toContain('else x == 0');
+    expect(out).toContain('A -> B : zero');
+    expect(out.indexOf('positive')).toBeLessThan(out.indexOf('negative'));
+    expect(out.indexOf('negative')).toBeLessThan(out.indexOf('zero'));
+  });
+
+  it('interleaves top-level messages with fragments based on order', () => {
+    const state: SequenceDiagramState = {
+      lifelines: [
+        { id: 'a', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 'b', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      fragments: [{ id: 'f1', kind: 'opt', data: { order: 1, label: 'check' } }],
+      messages: [
+        { id: 'm1', source: 'a', target: 'b', data: { messageType: 'sync', label: 'before', order: 0 } },
+        {
+          id: 'm2',
+          source: 'a',
+          target: 'b',
+          data: {
+            messageType: 'sync',
+            label: 'inside',
+            order: 0,
+            parentFragmentId: 'f1',
+            parentBranchIndex: 0,
+          },
+        },
+        { id: 'm3', source: 'a', target: 'b', data: { messageType: 'sync', label: 'after', order: 2 } },
+      ],
+    };
+    const out = generateSequenceDiagramPlantUml(state);
+    const idxBefore = out.indexOf(': before');
+    const idxOpt = out.indexOf('opt check');
+    const idxInside = out.indexOf(': inside');
+    const idxEnd = out.indexOf('\nend\n');
+    const idxAfter = out.indexOf(': after');
+    expect(idxBefore).toBeLessThan(idxOpt);
+    expect(idxOpt).toBeLessThan(idxInside);
+    expect(idxInside).toBeLessThan(idxEnd);
+    expect(idxEnd).toBeLessThan(idxAfter);
+  });
+
+  it('drops parentFragmentId on a message when the fragment is missing', () => {
+    const state = {
+      lifelines: [
+        { id: 'a', data: { name: 'A', kind: 'participant', order: 0 } },
+        { id: 'b', data: { name: 'B', kind: 'participant', order: 1 } },
+      ],
+      fragments: [],
+      messages: [
+        {
+          id: 'm1',
+          source: 'a',
+          target: 'b',
+          data: {
+            messageType: 'sync',
+            label: 'orphan',
+            order: 0,
+            parentFragmentId: 'gone',
+            parentBranchIndex: 1,
+          },
+        },
+      ],
+    };
+    const normalized = normalizeSequenceDiagramState(state);
+    expect(normalized.messages).toHaveLength(1);
+    expect(normalized.messages[0].data.parentFragmentId).toBeUndefined();
+    expect(normalized.messages[0].data.parentBranchIndex).toBeUndefined();
+  });
+
+  it('drops fragments with unknown kinds', () => {
+    const state = {
+      lifelines: [{ id: 'a', data: { name: 'A', kind: 'participant', order: 0 } }],
+      fragments: [
+        { id: 'f1', kind: 'opt', data: { order: 0 } },
+        { id: 'f2', kind: 'unknown', data: { order: 1 } },
+      ],
+      messages: [],
+    };
+    const normalized = normalizeSequenceDiagramState(state);
+    expect(normalized.fragments).toHaveLength(1);
+    expect(normalized.fragments?.[0].id).toBe('f1');
   });
 });
