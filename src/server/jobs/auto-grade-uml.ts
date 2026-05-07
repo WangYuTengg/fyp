@@ -3,15 +3,22 @@ import type { JobHelpers } from 'graphile-worker';
 import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { answers, aiGradingJobs, aiUsageStats, questions } from '../../db/schema.js';
-import type { RubricCriterion } from '../../lib/assessment.js';
+import type { RubricCriterion, StructuralDiffSnapshot } from '../../lib/assessment.js';
 import {
   normalizeClassDiagramState,
   type ClassDiagramState,
 } from '../../client/components/uml/classDiagram.js';
 import {
+  normalizeSequenceDiagramState,
+  type SequenceDiagramState,
+} from '../../client/components/uml/sequenceDiagram.js';
+import {
   diffClassDiagrams,
+  diffSequenceDiagrams,
   formatDiffForPrompt,
+  formatSequenceDiffForPrompt,
   type ClassDiagramDiffResult,
+  type SequenceDiagramDiffResult,
 } from '../../lib/uml-diff.js';
 import { generateAIObject } from '../lib/ai.js';
 import { getPrompt } from '../config/prompts.js';
@@ -20,10 +27,17 @@ import { getAnswerContent, getQuestionContent, getRubricCriteria } from '../lib/
 import { getErrorMessage, getErrorStack } from '../lib/error-utils.js';
 import { checkBatchCompletion, notifyGradingFailed } from '../lib/notifications.js';
 
-const tryNormalizeEditorState = (raw: unknown): ClassDiagramState | null => {
+const tryNormalizeClassState = (raw: unknown): ClassDiagramState | null => {
   if (!raw || typeof raw !== 'object') return null;
   const normalized = normalizeClassDiagramState(raw);
   if (normalized.nodes.length === 0 && normalized.edges.length === 0) return null;
+  return normalized;
+};
+
+const tryNormalizeSequenceState = (raw: unknown): SequenceDiagramState | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const normalized = normalizeSequenceDiagramState(raw);
+  if (normalized.lifelines.length === 0 && normalized.messages.length === 0) return null;
   return normalized;
 };
 
@@ -121,17 +135,43 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
 
     const studentUml = studentUmlText;
 
-    // 3. Compute structural diff if both sides have editorState
-    const studentEditorState = tryNormalizeEditorState(answerContent.editorState);
-    const referenceEditorState =
-      tryNormalizeEditorState(questionContent.modelAnswerEditorState) ??
-      tryNormalizeEditorState(questionContent.referenceDiagramEditorState);
+    // 3. Compute structural diff if both sides have editorState. Branch on declared subtype.
+    const umlSubtype: 'class' | 'sequence' =
+      questionContent.umlSubtype === 'sequence' ? 'sequence' : 'class';
 
-    let structuralDiff: ClassDiagramDiffResult | null = null;
-    if (studentEditorState && referenceEditorState) {
-      structuralDiff = diffClassDiagrams(studentEditorState, referenceEditorState);
+    type AnyDiff =
+      | { kind: 'class'; result: ClassDiagramDiffResult }
+      | { kind: 'sequence'; result: SequenceDiagramDiffResult };
+
+    let structuralDiff: AnyDiff | null = null;
+
+    if (umlSubtype === 'sequence') {
+      const studentState = tryNormalizeSequenceState(answerContent.editorState);
+      const referenceState =
+        tryNormalizeSequenceState(questionContent.modelAnswerEditorState) ??
+        tryNormalizeSequenceState(questionContent.referenceDiagramEditorState);
+      if (studentState && referenceState) {
+        structuralDiff = {
+          kind: 'sequence',
+          result: diffSequenceDiagrams(studentState, referenceState),
+        };
+      }
+    } else {
+      const studentState = tryNormalizeClassState(answerContent.editorState);
+      const referenceState =
+        tryNormalizeClassState(questionContent.modelAnswerEditorState) ??
+        tryNormalizeClassState(questionContent.referenceDiagramEditorState);
+      if (studentState && referenceState) {
+        structuralDiff = {
+          kind: 'class',
+          result: diffClassDiagrams(studentState, referenceState),
+        };
+      }
+    }
+
+    if (structuralDiff) {
       helpers.logger.info(
-        `Structural diff computed: ${(structuralDiff.score * 100).toFixed(1)}% baseline`
+        `Structural diff computed (${structuralDiff.kind}): ${(structuralDiff.result.score * 100).toFixed(1)}% baseline`
       );
     } else {
       helpers.logger.info(
@@ -143,7 +183,7 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
     const promptTemplate = getPrompt('uml');
     const systemPrompt = promptTemplate.system;
     const promptVersion = structuralDiff
-      ? `${promptTemplate.version}-with-diff`
+      ? `${promptTemplate.version}-with-diff-${structuralDiff.kind}`
       : promptTemplate.version;
 
     // Use rubric override if provided, otherwise use question rubric
@@ -156,8 +196,12 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
           referenceUML: referenceDiagram,
           maxPoints,
           rubric: rubric ?? undefined,
-          diffSummary: formatDiffForPrompt(structuralDiff),
-          structuralScore: structuralDiff.score,
+          diffSummary:
+            structuralDiff.kind === 'sequence'
+              ? formatSequenceDiffForPrompt(structuralDiff.result)
+              : formatDiffForPrompt(structuralDiff.result),
+          structuralScore: structuralDiff.result.score,
+          diagramSubtype: structuralDiff.kind,
         })
       : promptTemplate.userText({
           studentUML: studentUml,
@@ -186,6 +230,29 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
     const cost = calculateCost(provider, model, totalTokens, 0);
 
     // 7. Update answer with AI grading suggestion (include structural diff for staff transparency)
+    const structuralDiffSnapshot: StructuralDiffSnapshot | null = (() => {
+      if (!structuralDiff) return null;
+      if (structuralDiff.kind === 'sequence') {
+        const r = structuralDiff.result;
+        return {
+          type: 'sequence',
+          score: r.score,
+          summary: r.summary,
+          lifelines: r.lifelines,
+          messages: r.messages,
+          orderScore: r.orderScore,
+        };
+      }
+      const r = structuralDiff.result;
+      return {
+        type: 'class',
+        score: r.score,
+        summary: r.summary,
+        classes: r.classes,
+        edges: r.edges,
+      };
+    })();
+
     await db.update(answers)
       .set({
         aiGradingSuggestion: {
@@ -198,14 +265,7 @@ export default async function autoGradeUML(payload: AutoGradeUMLPayload, helpers
           promptVersion,
           gradedAt: new Date().toISOString(),
           criteriaScores: result.criteriaScores || null,
-          structuralDiff: structuralDiff
-            ? {
-                score: structuralDiff.score,
-                summary: structuralDiff.summary,
-                classes: structuralDiff.classes,
-                edges: structuralDiff.edges,
-              }
-            : null,
+          structuralDiff: structuralDiffSnapshot,
         },
         updatedAt: new Date(),
       })

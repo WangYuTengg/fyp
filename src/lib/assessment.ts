@@ -48,11 +48,22 @@ export type StudentAnswerContent = Record<string, unknown> & {
   umlText?: string;
 };
 
+/**
+ * Loose union — same payload field set covers class and sequence diffs.
+ * Legacy snapshots written before sequence support omit `type` and have only
+ * `classes` / `edges` populated; treat absent `type` as 'class'.
+ */
 export type StructuralDiffSnapshot = {
+  type?: 'class' | 'sequence';
   score: number;
   summary: string;
-  classes: unknown;
-  edges: unknown;
+  // class-diagram fields
+  classes?: unknown;
+  edges?: unknown;
+  // sequence-diagram fields
+  lifelines?: unknown;
+  messages?: unknown;
+  orderScore?: number;
 };
 
 export type AiGradingSuggestion = {

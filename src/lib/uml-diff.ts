@@ -7,6 +7,13 @@ import type {
   RelationshipType,
   UmlElementType,
 } from '../client/components/uml/classDiagram.js';
+import type {
+  LifelineKind,
+  SequenceDiagramState,
+  SequenceLifeline,
+  SequenceMessage,
+  SequenceMessageType,
+} from '../client/components/uml/sequenceDiagram.js';
 
 export type DiffStatus = 'matched' | 'missing' | 'extra';
 
@@ -462,6 +469,354 @@ const formatSummary = (input: {
     `Methods: ${input.methodMatched}/${input.methodTotal} matched.`,
   ].join(' ');
 };
+
+// =============================================================================
+// Sequence diagrams
+// =============================================================================
+
+export type LifelineMatch = {
+  refName: string;
+  studentName: string;
+  refKind: LifelineKind;
+  studentKind: LifelineKind;
+  kindMatches: boolean;
+};
+
+export type SequenceMessageRef = {
+  source: string;
+  target: string;
+  messageType: SequenceMessageType;
+  label?: string;
+  /** 0-indexed position in the original ordering. Used to score order preservation. */
+  order: number;
+};
+
+export type SequenceMessageMatch = {
+  ref: SequenceMessageRef;
+  student: SequenceMessageRef;
+  typeMatches: boolean;
+  labelMatches: boolean;
+  /** 0..1 — partial credit across (presence, type, label). */
+  aspectScore: number;
+  /** Matched on (source, target, label); false when matched by endpoints only. */
+  exactMatch: boolean;
+};
+
+export type SequenceDiagramDiffResult = {
+  /** Aggregate structural score, 0..1 */
+  score: number;
+  lifelines: {
+    matched: LifelineMatch[];
+    missing: string[];
+    extra: string[];
+    score: number;
+  };
+  messages: {
+    matched: SequenceMessageMatch[];
+    missing: SequenceMessageRef[];
+    extra: SequenceMessageRef[];
+    score: number;
+  };
+  /** Ordering preservation among matched messages, 0..1 (1 = identical order). */
+  orderScore: number;
+  summary: string;
+};
+
+const LIFELINE_WEIGHT = 0.3;
+const MESSAGE_WEIGHT = 0.5;
+const ORDER_WEIGHT = 0.2;
+
+const buildLifelineByName = (
+  lifelines: SequenceLifeline[]
+): Map<string, SequenceLifeline> => {
+  const idx = new Map<string, SequenceLifeline>();
+  for (const lifeline of lifelines) idx.set(normalizeName(lifeline.data.name), lifeline);
+  return idx;
+};
+
+const buildLifelineById = (
+  lifelines: SequenceLifeline[]
+): Map<string, SequenceLifeline> => {
+  const idx = new Map<string, SequenceLifeline>();
+  for (const lifeline of lifelines) idx.set(lifeline.id, lifeline);
+  return idx;
+};
+
+const messageToRef = (
+  msg: SequenceMessage,
+  byId: Map<string, SequenceLifeline>,
+  index: number
+): SequenceMessageRef | null => {
+  const source = byId.get(msg.source);
+  const target = byId.get(msg.target);
+  if (!source || !target) return null;
+  return {
+    source: source.data.name,
+    target: target.data.name,
+    messageType: msg.data.messageType,
+    label: msg.data.label,
+    order: index,
+  };
+};
+
+const messagePrimaryKey = (m: SequenceMessageRef): string =>
+  `${normalizeName(m.source)}|${normalizeName(m.target)}|${normalizeName(m.label ?? '')}`;
+
+const messageEndpointsKey = (m: SequenceMessageRef): string =>
+  `${normalizeName(m.source)}|${normalizeName(m.target)}`;
+
+/**
+ * Order score: count inversions in the student ordering of matched messages
+ * relative to the reference. 0 inversions = perfect order, max = fully reversed.
+ */
+const computeOrderScore = (matches: SequenceMessageMatch[]): number => {
+  if (matches.length < 2) return 1;
+  const sortedByRef = [...matches].sort((a, b) => a.ref.order - b.ref.order);
+  const studentOrders = sortedByRef.map((m) => m.student.order);
+
+  let inversions = 0;
+  for (let i = 0; i < studentOrders.length; i += 1) {
+    for (let j = i + 1; j < studentOrders.length; j += 1) {
+      if (studentOrders[i] > studentOrders[j]) inversions += 1;
+    }
+  }
+  const maxInversions = (studentOrders.length * (studentOrders.length - 1)) / 2;
+  return 1 - inversions / maxInversions;
+};
+
+export function diffSequenceDiagrams(
+  student: SequenceDiagramState,
+  reference: SequenceDiagramState
+): SequenceDiagramDiffResult {
+  // 1. Match lifelines by case-insensitive name; track kind agreement separately.
+  const refByName = buildLifelineByName(reference.lifelines);
+  const studentByName = buildLifelineByName(student.lifelines);
+
+  const matchedLifelines: LifelineMatch[] = [];
+  const missingLifelines: string[] = [];
+  const usedStudent = new Set<string>();
+
+  for (const [key, refLine] of refByName) {
+    const studentLine = studentByName.get(key);
+    if (studentLine) {
+      matchedLifelines.push({
+        refName: refLine.data.name,
+        studentName: studentLine.data.name,
+        refKind: refLine.data.kind,
+        studentKind: studentLine.data.kind,
+        kindMatches: refLine.data.kind === studentLine.data.kind,
+      });
+      usedStudent.add(key);
+    } else {
+      missingLifelines.push(refLine.data.name);
+    }
+  }
+
+  const extraLifelines: string[] = [];
+  for (const [key, line] of studentByName) {
+    if (!usedStudent.has(key)) extraLifelines.push(line.data.name);
+  }
+
+  const refLifelineTotal = reference.lifelines.length;
+  const lifelineCoverage = safeRatio(matchedLifelines.length, refLifelineTotal);
+  const lifelineQuality =
+    matchedLifelines.length === 0
+      ? 1
+      : matchedLifelines.reduce((acc, m) => acc + (m.kindMatches ? 1 : 0.7), 0) /
+        matchedLifelines.length;
+  const lifelineScore = lifelineCoverage * lifelineQuality;
+
+  // 2. Match messages — two-pass: exact (source, target, label) then endpoints fallback.
+  //    Endpoints-only matches still count as matched but score the label aspect as a miss.
+  const refById = buildLifelineById(reference.lifelines);
+  const studentById = buildLifelineById(student.lifelines);
+
+  const refMessages = reference.messages
+    .map((msg, idx) => messageToRef(msg, refById, idx))
+    .filter((m): m is SequenceMessageRef => m !== null);
+  const studentMessages = student.messages
+    .map((msg, idx) => messageToRef(msg, studentById, idx))
+    .filter((m): m is SequenceMessageRef => m !== null);
+
+  const matchedMessages: SequenceMessageMatch[] = [];
+  const usedStudentMessages = new Set<number>();
+  const matchedRefIdx = new Set<number>();
+
+  for (let r = 0; r < refMessages.length; r += 1) {
+    const refMsg = refMessages[r];
+    const refKey = messagePrimaryKey(refMsg);
+    for (let i = 0; i < studentMessages.length; i += 1) {
+      if (usedStudentMessages.has(i)) continue;
+      if (messagePrimaryKey(studentMessages[i]) === refKey) {
+        const sMsg = studentMessages[i];
+        matchedMessages.push({
+          ref: refMsg,
+          student: sMsg,
+          typeMatches: refMsg.messageType === sMsg.messageType,
+          labelMatches: true,
+          aspectScore: 0,
+          exactMatch: true,
+        });
+        usedStudentMessages.add(i);
+        matchedRefIdx.add(r);
+        break;
+      }
+    }
+  }
+
+  for (let r = 0; r < refMessages.length; r += 1) {
+    if (matchedRefIdx.has(r)) continue;
+    const refMsg = refMessages[r];
+    const refKey = messageEndpointsKey(refMsg);
+    for (let i = 0; i < studentMessages.length; i += 1) {
+      if (usedStudentMessages.has(i)) continue;
+      if (messageEndpointsKey(studentMessages[i]) === refKey) {
+        const sMsg = studentMessages[i];
+        matchedMessages.push({
+          ref: refMsg,
+          student: sMsg,
+          typeMatches: refMsg.messageType === sMsg.messageType,
+          labelMatches: normalizeName(refMsg.label ?? '') === normalizeName(sMsg.label ?? ''),
+          aspectScore: 0,
+          exactMatch: false,
+        });
+        usedStudentMessages.add(i);
+        matchedRefIdx.add(r);
+        break;
+      }
+    }
+  }
+
+  // Three aspects: presence (always 1), type, label.
+  for (const m of matchedMessages) {
+    m.aspectScore = (1 + Number(m.typeMatches) + Number(m.labelMatches)) / 3;
+  }
+
+  const missingMessages: SequenceMessageRef[] = refMessages.filter(
+    (_, idx) => !matchedRefIdx.has(idx)
+  );
+  const extraMessages: SequenceMessageRef[] = studentMessages.filter(
+    (_, idx) => !usedStudentMessages.has(idx)
+  );
+
+  const refMessageTotal = refMessages.length;
+  const messageCoverage = safeRatio(matchedMessages.length, refMessageTotal);
+  const messageQuality =
+    matchedMessages.length === 0
+      ? 1
+      : matchedMessages.reduce((acc, m) => acc + m.aspectScore, 0) / matchedMessages.length;
+  const messageScore = messageCoverage * messageQuality;
+
+  const orderScore = computeOrderScore(matchedMessages);
+
+  const totalScore =
+    lifelineScore * LIFELINE_WEIGHT + messageScore * MESSAGE_WEIGHT + orderScore * ORDER_WEIGHT;
+
+  const summary = formatSequenceSummary({
+    lifelinesMatched: matchedLifelines.length,
+    lifelinesMissing: missingLifelines.length,
+    lifelinesExtra: extraLifelines.length,
+    messagesMatched: matchedMessages.length,
+    messagesMissing: missingMessages.length,
+    messagesExtra: extraMessages.length,
+    orderScore,
+    score: totalScore,
+  });
+
+  return {
+    score: Math.max(0, Math.min(1, totalScore)),
+    lifelines: {
+      matched: matchedLifelines,
+      missing: missingLifelines,
+      extra: extraLifelines,
+      score: lifelineScore,
+    },
+    messages: {
+      matched: matchedMessages,
+      missing: missingMessages,
+      extra: extraMessages,
+      score: messageScore,
+    },
+    orderScore,
+    summary,
+  };
+}
+
+const formatSequenceSummary = (input: {
+  lifelinesMatched: number;
+  lifelinesMissing: number;
+  lifelinesExtra: number;
+  messagesMatched: number;
+  messagesMissing: number;
+  messagesExtra: number;
+  orderScore: number;
+  score: number;
+}): string => {
+  const pct = (input.score * 100).toFixed(1);
+  return [
+    `Structural score: ${pct}%.`,
+    `Lifelines: ${input.lifelinesMatched} matched, ${input.lifelinesMissing} missing, ${input.lifelinesExtra} extra.`,
+    `Messages: ${input.messagesMatched} matched, ${input.messagesMissing} missing, ${input.messagesExtra} extra.`,
+    `Message order: ${(input.orderScore * 100).toFixed(0)}% preserved.`,
+  ].join(' ');
+};
+
+/**
+ * Render a sequence-diagram diff as a compact textual block for the LLM prompt.
+ */
+export function formatSequenceDiffForPrompt(diff: SequenceDiagramDiffResult): string {
+  const lines: string[] = [];
+  lines.push(`Structural score (deterministic): ${(diff.score * 100).toFixed(1)}%`);
+  lines.push(`Message order preserved: ${(diff.orderScore * 100).toFixed(0)}%`);
+  lines.push('');
+  lines.push('LIFELINES:');
+  if (diff.lifelines.matched.length > 0) {
+    lines.push(`  Matched (${diff.lifelines.matched.length}):`);
+    for (const m of diff.lifelines.matched) {
+      const tag = m.kindMatches
+        ? `[${m.refKind}]`
+        : `[expected ${m.refKind}, got ${m.studentKind}]`;
+      lines.push(`    - ${m.refName} ${tag}`);
+    }
+  }
+  if (diff.lifelines.missing.length > 0) {
+    lines.push(
+      `  Missing (${diff.lifelines.missing.length}): ${diff.lifelines.missing.join(', ')}`
+    );
+  }
+  if (diff.lifelines.extra.length > 0) {
+    lines.push(`  Extra (${diff.lifelines.extra.length}): ${diff.lifelines.extra.join(', ')}`);
+  }
+  lines.push('');
+  lines.push('MESSAGES:');
+  if (diff.messages.matched.length > 0) {
+    lines.push(`  Matched (${diff.messages.matched.length}):`);
+    for (const m of diff.messages.matched) {
+      const typeTag = m.typeMatches
+        ? `[${m.ref.messageType}]`
+        : `[expected ${m.ref.messageType}, got ${m.student.messageType}]`;
+      const labelTag = m.labelMatches
+        ? ''
+        : ` [label diff: "${m.ref.label ?? ''}" vs "${m.student.label ?? ''}"]`;
+      lines.push(`    - ${m.ref.source} → ${m.ref.target} ${typeTag}${labelTag}`);
+    }
+  }
+  if (diff.messages.missing.length > 0) {
+    lines.push(`  Missing (${diff.messages.missing.length}):`);
+    for (const m of diff.messages.missing) {
+      const lbl = m.label ? ` : ${m.label}` : '';
+      lines.push(`    - ${m.source} → ${m.target} [${m.messageType}]${lbl}`);
+    }
+  }
+  if (diff.messages.extra.length > 0) {
+    lines.push(`  Extra (${diff.messages.extra.length}):`);
+    for (const m of diff.messages.extra) {
+      const lbl = m.label ? ` : ${m.label}` : '';
+      lines.push(`    - ${m.source} → ${m.target} [${m.messageType}]${lbl}`);
+    }
+  }
+  return lines.join('\n');
+}
 
 /**
  * Render the diff result as a compact textual block to embed in an LLM prompt.

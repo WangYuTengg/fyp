@@ -30,6 +30,8 @@ type UMLImagePromptParams = {
 type UMLDiffPromptParams = UMLTextPromptParams & {
   diffSummary: string;
   structuralScore: number;
+  /** Defaults to 'class' for legacy callers. Drives terminology in the prompt. */
+  diagramSubtype?: 'class' | 'sequence';
 };
 
 type WrittenPromptDefinition = {
@@ -187,7 +189,12 @@ Provide:
 3. Grade (0-${params.maxPoints}) with reasoning`,
 
       userTextWithDiff: (params: UMLDiffPromptParams) => {
-        let prompt = `Grade the following student UML diagram. A deterministic structural diff has already been computed comparing the student's diagram structure to the reference. Use this diff as authoritative ground truth for structural facts (classes, relationships, attributes, methods present or missing). Your judgment should focus on naming quality, semantic appropriateness, design choices, and any nuance the structural diff may not capture.
+        const subtype = params.diagramSubtype ?? 'class';
+        const factsLabel =
+          subtype === 'sequence'
+            ? 'lifelines, messages, message types, and message ordering'
+            : 'classes, relationships, attributes, methods';
+        let prompt = `Grade the following student UML diagram. A deterministic structural diff has already been computed comparing the student's diagram structure to the reference. Use this diff as authoritative ground truth for structural facts (${factsLabel} present or missing). Your judgment should focus on naming quality, semantic appropriateness, design choices, and any nuance the structural diff may not capture.
 
 **Structural diff:**
 \`\`\`
@@ -296,7 +303,12 @@ Deliverables:
 3. Grade (0-${params.maxPoints}) with comprehensive reasoning`,
 
       userTextWithDiff: (params: UMLDiffPromptParams) => {
-        let prompt = `Comprehensively evaluate this UML diagram. A deterministic structural diff has been computed and is authoritative on structural facts. Your evaluation should focus on architectural quality, naming, design intent, and standard compliance — areas where the diff cannot judge.
+        const subtype = params.diagramSubtype ?? 'class';
+        const focusLabel =
+          subtype === 'sequence'
+            ? 'lifeline naming, message clarity, ordering rationale, and protocol-design intent'
+            : 'architectural quality, naming, design intent, and standard compliance';
+        let prompt = `Comprehensively evaluate this UML diagram. A deterministic structural diff has been computed and is authoritative on structural facts. Your evaluation should focus on ${focusLabel} — areas where the diff cannot judge.
 
 **Structural diff (deterministic baseline):**
 \`\`\`
