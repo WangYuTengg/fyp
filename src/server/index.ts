@@ -45,7 +45,7 @@ app.use(
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"], // Tailwind needs inline styles
-          imgSrc: ["'self'", 'data:', 'blob:'],
+          imgSrc: ["'self'", 'data:', 'blob:', 'https://www.plantuml.com'],
           connectSrc: ["'self'", env.VITE_SUPABASE_URL],
           frameSrc: ["'none'"],
           frameAncestors: ["'none'"],
