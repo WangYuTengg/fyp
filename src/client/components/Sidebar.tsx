@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import {
   BookOpenIcon,
   AcademicCapIcon,
+  Cog6ToothIcon,
   UsersIcon,
 } from '@heroicons/react/24/outline';
 import { UserInfo } from './UserInfo';
@@ -31,6 +32,12 @@ const navigation: NavItem[] = [
     name: 'User Management',
     href: '/staff/admin/users',
     icon: UsersIcon,
+    roles: ['admin']
+  },
+  {
+    name: 'Settings',
+    href: '/staff/settings',
+    icon: Cog6ToothIcon,
     roles: ['admin']
   }
 ];
