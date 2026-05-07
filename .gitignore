@@ -25,3 +25,9 @@ dist-ssr
 .env
 .env.local
 .claude/worktrees/
+
+# Playwright MCP traces
+.playwright-mcp/
+
+# FYP presentation build artifacts
+docs/fyp-presentation/build/
