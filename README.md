@@ -2,7 +2,7 @@
 
 Full-stack web platform for automated assessment of UML diagrams with LLM-assisted grading. Built as the deliverable for **NTU CCDS FYP project CCDS25-0233** (Wang Yu Teng, U2122796L · Supervisor: Dr. Loke Yuan Ren · Examiner: Prof. Zhang Hanwang).
 
-The system supports the end-to-end assessment lifecycle — course setup, question authoring, timed student attempts, AI-assisted grading with human-in-the-loop review, and analytics — and embeds an empirically validated dual-modality grading pipeline.
+The system supports the end-to-end assessment lifecycle — course setup, question authoring, timed student attempts, AI-assisted grading with human-in-the-loop review, and analytics — and grounds LLM grading in a deterministic structural diff of student vs. reference diagrams.
 
 > **Headline empirical result.** Across 6 frontier LLMs × 32 submissions × 5 runs (960 API calls), **Claude Opus 4.6** leads with **Pearson r = 0.92** and **MAE = 0.68 / 10** against single-grader ground truth. This improves on Bouali et al.'s ICC = 0.76 with earlier-generation models. Full methodology and per-RQ results are in [`experiment/`](experiment/) and [the FYP report](fyp-report/Wang_Yu_Teng_FYP_Report_CCDS25-0233.pdf).
 
@@ -15,6 +15,14 @@ A 3-minute screen-recorded walkthrough (staff workflow → student attempt → A
 - [`fyp-report/Wang_Yu_Teng_FYP_Report_CCDS25-0233.pdf`](fyp-report/Wang_Yu_Teng_FYP_Report_CCDS25-0233.pdf) — submitted report
 
 GitHub README markdown does not render embedded video from a repository path, so the deck is the canonical place to view the recorded demo.
+
+## Project Context
+
+**FYP scope (CCDS25-0233).** Five objectives: (O1) full-stack assessment platform, (O2) LLM grading pipeline with structured-output enforcement, (O3) reduce TA grading effort via two-panel review UI, (O4) empirical evaluation of SOTA LLMs, (O5) containerised on-prem deployment. O1, O2, O4 are fully met; O3 designed for time-saving but pending a formal user study; O5 architecturally complete but pending realistic-load test.
+
+**Threats to validity.** The dataset is small and predominantly synthetic (30/32 submissions). Ground truth is single-grader. Only class diagrams are evaluated empirically (the editor and grading pipeline support sequence diagrams, but those weren't in the experiment). Detailed discussion in §4.4 of the report.
+
+**Future work** prioritises (a) real-student multi-grader benchmarks to recalibrate the −0.28 → −1.02 LLM bias estimates, (b) extending evaluation to sequence/activity/state/ER diagrams, (c) air-gapped deployment via Ollama / vLLM for schools that cannot permit outbound LLM traffic.
 
 ## Features
 
@@ -79,7 +87,7 @@ GitHub README markdown does not render embedded video from a repository path, so
 
 **Why monolith + dedicated worker.** LLM grading takes 5–60 s per call; running it inside the request cycle would block the event loop under exam-period load. Decoupling enqueue (web) from execution (worker) keeps the request path responsive while the worker drains the queue serially. Single Docker image, two CMD overrides — `node dist/server/index.js` for the web tier, `node dist/server/worker.js` for the worker.
 
-**Why dual-modality prompting.** UML is both structural and visual. The custom editor serialises its state to PlantUML DSL **and** to a rendered PNG; both go into the prompt, and the LLM cross-references them. This catches errors that either modality alone would miss (text-only loses notation/layout; vision-only hallucinates fine-grained labels). Output is enforced via Vercel AI SDK `generateObject()` + Zod schema with score clamping — Claude Opus and Sonnet hit a 100% parse rate in the experiment.
+**Why structural-diff-anchored grading.** Pure-LLM grading drifts; pure-rule grading misses semantic intent. The platform combines both. Before the LLM is invoked, [`diffClassDiagrams` / `diffSequenceDiagrams`](src/lib/uml-diff.ts) walk the normalised editor state of student and reference diagrams element-by-element and emit (a) a baseline structural score in `[0, 1]` and (b) a typed diff summary — matched / missing / extra classes, edges, attributes, methods, cardinalities, lifelines, message ordering. PlantUML text, the rubric, and that diff summary all flow into a single prompt, so the model evaluates against a concrete checklist instead of free-form judgment. Output is enforced via Vercel AI SDK `generateObject()` + Zod schema with score clamping — Claude Opus and Sonnet hit a 100% structured-output parse rate in the experiment. The diff snapshot is also persisted on the AI suggestion so staff can audit *why* a score landed where it did. (Note: the diff layer was added after the empirical evaluation, which used text-only PlantUML grading; see [`experiment/`](experiment/).)
 
 ## Tech Stack
 
@@ -179,7 +187,7 @@ src/
 │   │   └── users/                   # user metadata
 │   ├── jobs/                        # Graphile Worker tasks
 │   │   ├── auto-grade-written.ts    # LLM grading for essays
-│   │   ├── auto-grade-uml.ts        # Dual-modality (text + image) UML grading
+│   │   ├── auto-grade-uml.ts        # Structural-diff-anchored UML grading (class + sequence)
 │   │   └── auto-submit-expired.ts   # 60-second cron for expired drafts
 │   ├── middleware/
 │   │   ├── auth.ts                  # JWT validation (custom + Supabase)
@@ -330,14 +338,6 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python run.py all
 ```
-
-## Project Context
-
-**FYP scope (CCDS25-0233).** Five objectives: (O1) full-stack assessment platform, (O2) LLM grading pipeline with structured-output enforcement, (O3) reduce TA grading effort via two-panel review UI, (O4) empirical evaluation of SOTA LLMs, (O5) containerised on-prem deployment. O1, O2, O4 are fully met; O3 designed for time-saving but pending a formal user study; O5 architecturally complete but pending realistic-load test.
-
-**Threats to validity.** The dataset is small and predominantly synthetic (30/32 submissions). Ground truth is single-grader. Only class diagrams are evaluated empirically (the editor and grading pipeline support sequence diagrams, but those weren't in the experiment). Detailed discussion in §4.4 of the report.
-
-**Future work** prioritises (a) real-student multi-grader benchmarks to recalibrate the −0.28 → −1.02 LLM bias estimates, (b) extending evaluation to sequence/activity/state/ER diagrams, (c) air-gapped deployment via Ollama / vLLM for schools that cannot permit outbound LLM traffic.
 
 ## License
 
