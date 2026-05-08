@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { assignmentsApi, submissionsApi } from '../../../lib/api';
 import { useAuth } from '../../../hooks/useAuth';
 import type { AssignmentDetails, Submission } from '../types';
@@ -9,9 +9,15 @@ export function useAssignmentData(assignmentId: string) {
   const [error, setError] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<AssignmentDetails | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
+  // POST /start is non-idempotent without a DB unique constraint; React StrictMode's
+  // double-invocation in dev fires it twice and races the existing-draft check, creating
+  // duplicate attempt_number=1 rows. Guard with a ref keyed on assignmentId.
+  const startedForAssignmentId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!user && !dbUser) return;
+    if (startedForAssignmentId.current === assignmentId) return;
+    startedForAssignmentId.current = assignmentId;
 
     const run = async () => {
       try {

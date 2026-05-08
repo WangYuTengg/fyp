@@ -68,7 +68,7 @@ const UMLGradingResponseSchema = z.object({
       score: z.number(),
       comment: z.string(),
     })
-  ).optional().describe('Individual criterion scores if rubric provided'),
+  ).nullable().describe('Individual criterion scores if rubric provided, or null if not'),
 });
 
 type UMLGradingResponse = z.infer<typeof UMLGradingResponseSchema>;

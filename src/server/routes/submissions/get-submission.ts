@@ -38,6 +38,7 @@ getSubmissionRoute.get('/:submissionId', requireAuth, async (c) => {
       submissionId: answers.submissionId,
       questionId: answers.questionId,
       content: answers.content,
+      aiGradingSuggestion: answers.aiGradingSuggestion,
       createdAt: answers.createdAt,
       updatedAt: answers.updatedAt,
       question: {
