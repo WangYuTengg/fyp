@@ -9,6 +9,7 @@ import {
   assignmentQuestions,
   courses,
   marks,
+  enrollments,
 } from '../../../db/schema.js';
 import { authMiddleware, type AuthContext } from '../../middleware/auth.js';
 import { getQuestionContent } from '../../lib/content-utils.js';
@@ -35,7 +36,33 @@ assignmentsRoute.get('/assignments', authMiddleware, async (c) => {
   const status = c.req.query('status'); // 'all' | 'pending' | 'complete'
 
   try {
+    // Restrict non-admin staff to courses where they are lecturer or TA.
+    // Without this, the list surfaces assignments the user cannot actually
+    // auto-grade — the action endpoint then 403s, which is confusing.
+    let allowedCourseIds: string[] | null = null;
+    if (user.role !== 'admin') {
+      const myEnrollments = await db
+        .select({ courseId: enrollments.courseId })
+        .from(enrollments)
+        .where(
+          and(
+            eq(enrollments.userId, user.id),
+            inArray(enrollments.role, ['lecturer', 'ta'])
+          )
+        );
+      allowedCourseIds = myEnrollments.map((e) => e.courseId);
+
+      if (allowedCourseIds.length === 0) {
+        return c.json({ assignments: [] });
+      }
+    }
+
     // Get all published assignments with course info
+    const whereClauses = [eq(assignments.isPublished, true)];
+    if (allowedCourseIds !== null) {
+      whereClauses.push(inArray(assignments.courseId, allowedCourseIds));
+    }
+
     const allAssignments = await db
       .select({
         id: assignments.id,
@@ -45,7 +72,7 @@ assignmentsRoute.get('/assignments', authMiddleware, async (c) => {
         isPublished: assignments.isPublished,
       })
       .from(assignments)
-      .where(eq(assignments.isPublished, true))
+      .where(and(...whereClauses))
       .orderBy(assignments.dueDate);
 
     // Filter by courseId if provided
