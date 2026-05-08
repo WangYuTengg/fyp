@@ -10,32 +10,27 @@ export function useGrading(assignmentId: string, initialSubmissionId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load assignment and submission list.
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [assignmentData, submissionsData] = await Promise.all([
-          assignmentsApi.getById(assignmentId),
-          submissionsApi.getByAssignment(assignmentId),
-        ]);
-
-        setAssignment(assignmentData as GradingAssignment);
-        setSubmissions(submissionsData as GradingSubmission[]);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        setError(message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (assignmentId) {
-      void loadData();
+  const refetch = useCallback(async () => {
+    if (!assignmentId) return;
+    try {
+      setError(null);
+      const [assignmentData, submissionsData] = await Promise.all([
+        assignmentsApi.getById(assignmentId),
+        submissionsApi.getByAssignment(assignmentId),
+      ]);
+      setAssignment(assignmentData as GradingAssignment);
+      setSubmissions(submissionsData as GradingSubmission[]);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     }
   }, [assignmentId]);
+
+  // Initial load (separate from refetch so we can flip `loading` only on first fetch).
+  useEffect(() => {
+    if (!assignmentId) return;
+    setLoading(true);
+    void refetch().finally(() => setLoading(false));
+  }, [assignmentId, refetch]);
 
   const selectSubmission = useCallback(async (submissionId: string) => {
     try {
@@ -102,5 +97,6 @@ export function useGrading(assignmentId: string, initialSubmissionId?: string) {
     selectSubmission,
     submitGrade,
     isSubmitting,
+    refetch,
   };
 }
