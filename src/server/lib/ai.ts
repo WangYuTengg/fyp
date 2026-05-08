@@ -43,8 +43,8 @@ async function getLLMSettings(): Promise<{ provider: string; model: string }> {
 
     const provider = providerSetting[0]?.value || process.env.LLM_PROVIDER || 'openai';
     const defaultModel = (providerSetting[0]?.value || process.env.LLM_PROVIDER) === 'anthropic'
-      ? 'claude-opus-4-6'
-      : 'gpt-5.4';
+      ? 'claude-3-5-sonnet-latest'
+      : 'gpt-4o';
     const model = modelSetting[0]?.value || process.env.LLM_MODEL || defaultModel;
 
     settingsCache = { provider, model, lastFetch: Date.now() };
@@ -52,7 +52,7 @@ async function getLLMSettings(): Promise<{ provider: string; model: string }> {
   } catch {
     // Fall back to env vars if DB read fails
     const provider = process.env.LLM_PROVIDER || 'openai';
-    const fallbackModel = provider === 'anthropic' ? 'claude-opus-4-6' : 'gpt-5.4';
+    const fallbackModel = provider === 'anthropic' ? 'claude-3-5-sonnet-latest' : 'gpt-4o';
     return {
       provider,
       model: process.env.LLM_MODEL || fallbackModel,

@@ -283,7 +283,7 @@ async function main() {
     questionIds.push(id);
     await sql`
       INSERT INTO questions (id, course_id, type, title, description, content, points, tags, created_by)
-      VALUES (${id}, ${populatedCourseId}, 'mcq', ${q.title}, ${q.description}, ${JSON.stringify(q.content)}, ${q.points}, ${q.tags}, ${populatedLecturerId})
+      VALUES (${id}, ${populatedCourseId}, 'mcq', ${q.title}, ${q.description}, ${sql.json(q.content)}, ${q.points}, ${q.tags}, ${populatedLecturerId})
     `;
   }
   for (const q of WRITTEN_QUESTIONS) {
@@ -291,7 +291,7 @@ async function main() {
     questionIds.push(id);
     await sql`
       INSERT INTO questions (id, course_id, type, title, description, content, rubric, points, tags, created_by)
-      VALUES (${id}, ${populatedCourseId}, 'written', ${q.title}, ${q.description}, ${JSON.stringify(q.content)}, ${JSON.stringify(q.rubric)}, ${q.points}, ${q.tags}, ${populatedLecturerId})
+      VALUES (${id}, ${populatedCourseId}, 'written', ${q.title}, ${q.description}, ${sql.json(q.content)}, ${sql.json(q.rubric)}, ${q.points}, ${q.tags}, ${populatedLecturerId})
     `;
   }
   for (const q of UML_QUESTIONS) {
@@ -299,7 +299,7 @@ async function main() {
     questionIds.push(id);
     await sql`
       INSERT INTO questions (id, course_id, type, title, description, content, rubric, points, tags, created_by)
-      VALUES (${id}, ${populatedCourseId}, 'uml', ${q.title}, ${q.description}, ${JSON.stringify(q.content)}, ${JSON.stringify(q.rubric)}, ${q.points}, ${q.tags}, ${populatedLecturerId})
+      VALUES (${id}, ${populatedCourseId}, 'uml', ${q.title}, ${q.description}, ${sql.json(q.content)}, ${sql.json(q.rubric)}, ${q.points}, ${q.tags}, ${populatedLecturerId})
     `;
   }
   console.log(`Created ${questionIds.length} questions (${MCQ_QUESTIONS.length} MCQ, ${WRITTEN_QUESTIONS.length} written, ${UML_QUESTIONS.length} UML)`);

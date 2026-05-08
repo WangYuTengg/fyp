@@ -163,7 +163,7 @@ async function main() {
 
     await sql`
       INSERT INTO submissions (id, assignment_id, user_id, attempt_number, status, started_at, submitted_at, graded_at, question_order, created_at, updated_at)
-      VALUES (${submissionId}, ${assignmentId}, ${studentId}, 1, ${status}, ${startedAt}, ${submittedAt}, ${gradedAt}, ${JSON.stringify(questionIds)}, ${startedAt}, ${submittedAt ?? startedAt})
+      VALUES (${submissionId}, ${assignmentId}, ${studentId}, 1, ${status}, ${startedAt}, ${submittedAt}, ${gradedAt}, ${sql.json(questionIds)}, ${startedAt}, ${submittedAt ?? startedAt})
     `;
 
     for (const q of questions) {
@@ -172,7 +172,7 @@ async function main() {
       const qPoints = q.points as number;
       const answerId = randomUUID();
 
-      let answerContent: object;
+      let answerContent: { selectedOptionId: string } | { text: string } | { umlText: string };
       if (qType === 'mcq') {
         // Good students get ~90% right, average ~60%, poor ~30%
         const correctChance = quality === 'good' ? 0.9 : quality === 'average' ? 0.6 : 0.3;
@@ -191,7 +191,7 @@ async function main() {
 
       await sql`
         INSERT INTO answers (id, submission_id, question_id, content, created_at, updated_at)
-        VALUES (${answerId}, ${submissionId}, ${q.id}, ${JSON.stringify(answerContent)}, ${startedAt}, ${submittedAt ?? startedAt})
+        VALUES (${answerId}, ${submissionId}, ${q.id}, ${sql.json(answerContent)}, ${startedAt}, ${submittedAt ?? startedAt})
       `;
 
       if (isGraded && !isDraft) {
